@@ -1,0 +1,42 @@
+# Build outputs and generated dependencies
+/build/
+/runtime/
+/Windows/build/
+/cores/ons/onsyuri
+/cores/ons/onsyuri.exe
+*.o
+*.d
+*.exe
+*.log
+
+# Private local game content and user data
+/games/
+/covers/
+/game_covers/
+/saves/
+/Windows/saves/
+/cache/
+
+# Device SDK/sysroot and release artifacts
+/GKD350HUltra/sysroot_device/
+/GKD350HUltra/dist_clean_ons/
+/GKD350HUltra/dist_lowglibc/
+/GKD350HUltra/Downloads/
+/GKD350HUltra/logs/
+/GKD350HUltra/toolchain/bin/
+*.zip
+*.tar.gz
+
+# Local diagnostics captured during device testing
+/*.png
+/*.bmp
+/*.raw
+/*-tree.json
+/tree-*.json
+
+# Editor and operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
