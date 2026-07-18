@@ -1,0 +1,18 @@
+// Minimal plugin-free KRKR window used to verify script, layer and input basics.
+global.smokeWindow = new Window();
+global.smokeWindow.caption = "KRKR smoke test";
+global.smokeWindow.width = 1280;
+global.smokeWindow.height = 720;
+
+global.smokeLayer = new Layer(global.smokeWindow, null);
+global.smokeLayer.width = 1280;
+global.smokeLayer.height = 720;
+global.smokeLayer.type = ltOpaque;
+global.smokeLayer.fillRect(0, 0, 1280, 720, 0xff20252b);
+global.smokeLayer.font.height = 42;
+global.smokeLayer.drawText(96, 260, "KRKR SDL2 smoke test", 0x00f3f5f7);
+global.smokeLayer.font.height = 24;
+global.smokeLayer.drawText(96, 330, "中文字体测试：点击画面退出。", 0x00a8d8b9);
+global.smokeLayer.onClick = function() { System.exit(0); };
+global.smokeLayer.visible = true;
+global.smokeWindow.visible = true;

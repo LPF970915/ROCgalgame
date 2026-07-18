@@ -54,6 +54,10 @@ bool HasAnyExtension(const fs::path &dir, const std::vector<std::string> &extens
   return false;
 }
 
+fs::path DetectKrkrEntryPoint(const fs::path &dir) {
+  return dir;
+}
+
 CoreKind DetectCore(const fs::path &dir) {
   if (HasAny(dir, {"0.txt", "00.txt", "nscript.dat", "nscript.___", "arc.nsa", "arc.sar"})) return CoreKind::Ons;
   if (HasAny(dir, {"startup.tjs", "Config.tjs", "config.tjs", "data.xp3"}) ||
@@ -73,7 +77,7 @@ CoreKind ParseCoreKind(const std::string &value) {
 
 bool IsAspectValue(const std::string &value) {
   const std::string v = ToLowerAscii(Trim(value));
-  return v == "stretch" || v == "contain" || v == "fit-width" || v == "fill-height";
+  return v == "stretch" || v == "contain" || v == "fill-height";
 }
 
 bool IsFilterValue(const std::string &value) {
@@ -94,6 +98,8 @@ void ReadGameIni(const fs::path &dir, GameEntry &game) {
     const std::string value = Trim(line.substr(eq + 1));
     if (key == "title" && !value.empty()) {
       game.title = value;
+    } else if (key == "entry" && !value.empty()) {
+      game.overrides.entry = value;
     } else if (key == "core") {
       CoreKind parsed = ParseCoreKind(value);
       if (parsed != CoreKind::Unknown) game.core = parsed;
@@ -110,6 +116,13 @@ void ReadGameIni(const fs::path &dir, GameEntry &game) {
       try { game.overrides.mouse_speed = std::max(1, std::stoi(value)); } catch (...) {}
     } else if (key == "mouse_accel") {
       try { game.overrides.mouse_accel = std::max(0.1f, std::stof(value)); } catch (...) {}
+    } else if (key == "frame_limit") {
+      try { game.overrides.frame_limit = std::clamp(std::stoi(value), 1, 240); } catch (...) {}
+    } else if (key == "draw_threads") {
+      const std::string threads = ToLowerAscii(value);
+      if (threads == "auto" || threads == "1" || threads == "2" || threads == "4") game.overrides.draw_threads = threads;
+    } else if (key == "graphic_cache_mb") {
+      try { game.overrides.graphic_cache_mb = std::clamp(std::stoi(value), 16, 512); } catch (...) {}
     }
   }
 }
@@ -221,6 +234,14 @@ void ScanCoreBucket(std::vector<GameEntry> &out, const fs::path &bucket, CoreKin
     game.cover_path = CoverFor(covers_root, alternate_covers_root, dir);
     ReadGameIni(dir, game);
     if (game.core == CoreKind::Unknown) continue;
+    if (game.core == CoreKind::Krkr) {
+      if (!game.overrides.entry.empty()) {
+        fs::path configured = fs::u8path(game.overrides.entry);
+        game.entry_point = configured.is_absolute() ? configured : dir / configured;
+      } else {
+        game.entry_point = DetectKrkrEntryPoint(dir);
+      }
+    }
     game.save_path = saves_root / CoreKindName(game.core) / dir.filename();
     out.push_back(std::move(game));
   }

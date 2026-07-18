@@ -1,5 +1,5 @@
-#!/bin/sh
-set -eu
+#!/bin/bash
+set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SELF_DIR/.." && pwd)"
@@ -12,6 +12,8 @@ DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
 RUNTIME_DIR="$DIST_ROOT/ROCgalgame"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 LOG_FILE="$LOG_DIR/build_$(date +%Y%m%d_%H%M%S).log"
+BUILD_JOBS="${ROC_BUILD_JOBS:-1}"
+CLEAN_BUILD="${ROC_CLEAN_BUILD:-0}"
 
 mkdir -p "$LOG_DIR" "$RUNTIME_DIR"
 
@@ -56,13 +58,15 @@ export PKG_CONFIG_LIBDIR="$PKG_LIBDIR"
 export PKG_CONFIG_PATH=""
 
 cd "$REPO_ROOT"
-make TARGET=build/gkd350h/rocgalgame_sdl OBJDIR=build/gkd350h/obj clean >/dev/null 2>&1 || true
+if [ "$CLEAN_BUILD" = "1" ]; then
+  make TARGET=build/gkd350h/rocgalgame_sdl OBJDIR=build/gkd350h/obj clean >/dev/null 2>&1 || true
+fi
 {
   echo "[gkd_build] repo=$REPO_ROOT"
   echo "[gkd_build] sysroot=$SYSROOT"
   echo "[gkd_build] cxx=$CXX_CMD"
   echo "[gkd_build] pkg_libdir=$PKG_CONFIG_LIBDIR"
-  make \
+  nice -n 10 make -j"$BUILD_JOBS" \
     TARGET=build/gkd350h/rocgalgame_sdl \
     OBJDIR=build/gkd350h/obj \
     CXX="$CXX_CMD" \
@@ -76,13 +80,10 @@ make TARGET=build/gkd350h/rocgalgame_sdl OBJDIR=build/gkd350h/obj clean >/dev/nu
     all
 } 2>&1 | tee "$LOG_FILE"
 
-rm -rf "$RUNTIME_DIR"
-mkdir -p "$RUNTIME_DIR" "$RUNTIME_DIR/cache" "$RUNTIME_DIR/cores/ons" "$RUNTIME_DIR/games" "$RUNTIME_DIR/covers" "$RUNTIME_DIR/saves"
+mkdir -p "$RUNTIME_DIR"
 cp build/gkd350h/rocgalgame_sdl "$RUNTIME_DIR/rocgalgame_sdl"
-cp ROCgalgame.sh "$DIST_ROOT/ROCgalgame.sh"
-cp native_config.ini native_keymap.ini "$RUNTIME_DIR/"
-cp -r ui fonts sounds "$RUNTIME_DIR/"
-chmod +x "$RUNTIME_DIR/rocgalgame_sdl" "$DIST_ROOT/ROCgalgame.sh" 2>/dev/null || true
+bash "$SELF_DIR/sync_runtime_assets.sh"
+chmod +x "$RUNTIME_DIR/rocgalgame_sdl" 2>/dev/null || true
 
 echo "[gkd_build] done: $DIST_ROOT"
 echo "[gkd_build] log: $LOG_FILE"

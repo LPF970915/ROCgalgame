@@ -1,0 +1,42 @@
+try {
+  global.videoProbeWindow = new Window();
+  videoProbeWindow.caption = "KRKR FFmpeg video probe";
+  videoProbeWindow.width = 1280;
+  videoProbeWindow.height = 720;
+
+  global.videoProbeLayer = new Layer(videoProbeWindow, null);
+  videoProbeLayer.width = 1280;
+  videoProbeLayer.height = 720;
+  videoProbeLayer.type = ltOpaque;
+  videoProbeLayer.fillRect(0, 0, 1280, 720, 0xff101010);
+  videoProbeLayer.visible = true;
+  videoProbeWindow.visible = true;
+
+  global.videoProbe = new VideoOverlay(videoProbeWindow);
+  videoProbe.mode = 1; // vomLayer
+  videoProbe.layer1 = videoProbeLayer;
+  videoProbe.visible = true;
+  videoProbe.open("probe_video.wmv");
+  videoProbe.play();
+
+  global.videoProbeTimer = new Timer(this);
+  videoProbeTimer.interval = 5000;
+  videoProbeTimer.onTimer = function() {
+    videoProbeTimer.enabled = false;
+    if(videoProbe.frame <= 0)
+      throw new Exception("VIDEO_DECODE_STALLED frame=" + videoProbe.frame +
+        " status=" + videoProbe.status);
+    throw new Exception("VIDEO_PLAY_OK width=" + videoProbe.originalWidth +
+      " height=" + videoProbe.originalHeight +
+      " layerWidth=" + videoProbeLayer.width +
+      " layerHeight=" + videoProbeLayer.height +
+      " fps=" + videoProbe.fps +
+      " frame=" + videoProbe.frame +
+      " position=" + videoProbe.position +
+      " audioStreams=" + videoProbe.numberOfAudioStream +
+      " status=" + videoProbe.status);
+  };
+  videoProbeTimer.enabled = true;
+} catch(e) {
+  throw new Exception("VIDEO_OPEN_ERROR message=" + e.message + " type=" + typeof e);
+}

@@ -1,0 +1,31 @@
+diff --git a/src/core/base/sdl2/StorageImpl.cpp b/src/core/base/sdl2/StorageImpl.cpp
+index 9a7e687..cee899b 100644
+--- a/src/core/base/sdl2/StorageImpl.cpp
++++ b/src/core/base/sdl2/StorageImpl.cpp
+@@ -689,6 +689,9 @@ bool TVPRemoveFolder(const ttstr &name)
+ //---------------------------------------------------------------------------
+ ttstr TVPGetAppPath()
+ {
++	if(!TVPProjectDir.IsEmpty() && TVPProjectDir.GetLastChar() == TJS_W('/'))
++		return TVPProjectDir;
++
+ 	static ttstr exepath(TVPExtractStoragePath(TVPNormalizeStorageName(ExePath())));
+ 	return exepath;
+ }
+diff --git a/src/core/environ/sdl2/Application.cpp b/src/core/environ/sdl2/Application.cpp
+index daf2ed5..708d8d0 100644
+--- a/src/core/environ/sdl2/Application.cpp
++++ b/src/core/environ/sdl2/Application.cpp
+@@ -498,7 +498,11 @@ bool tTVPApplication::StartApplication( int argc, tjs_char* argv[] ) {
+ 		image_load_thread_->StartTread();
+ #endif
+ 
+-		if(TVPProjectDirSelected) TVPInitializeStartupScript();
++		if(TVPProjectDirSelected)
++		{
++			TVPAutoMountProjectXP3Archives();
++			TVPInitializeStartupScript();
++		}
+ 
+ #if 0
+ 		Run();

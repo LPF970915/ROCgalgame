@@ -25,6 +25,7 @@ struct AppConfig {
   bool virtual_mouse = true;
   int mouse_speed = 720;
   float mouse_accel = 1.6f;
+  std::string update_manifest_url;
 };
 
 AppConfig LoadAppConfig(const char *argv0);

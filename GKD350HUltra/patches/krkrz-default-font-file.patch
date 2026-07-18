@@ -1,0 +1,28 @@
+diff --git a/visual/FontSystem.cpp b/visual/FontSystem.cpp
+--- a/visual/FontSystem.cpp
++++ b/visual/FontSystem.cpp
+@@ -50,7 +50,24 @@ void FontSystem::ConstructDefaultFont() {
+ 		DefaultFont.Height = -12;
+ 		DefaultFont.Flags = 0;
+ 		DefaultFont.Angle = 0;
+-		DefaultFont.Face = TVPGetDefaultFaceNames();
++		tjs_string configured = TVPGetDefaultFaceNames().AsStdString();
++		std::vector<ttstr> faces;
++		if(configured.length() > 4) {
++			tjs_string ext = configured.substr(configured.length() - 4);
++			if(ext == TJS_W(".ttf") || ext == TJS_W(".ttc") || ext == TJS_W(".otf")) {
++				try {
++					AddExtraFont(configured, &faces);
++				} catch(...) {
++					faces.clear();
++				}
++			}
++		}
++		if(!faces.empty()) {
++			TVPSetDefaultFontName(faces.front().c_str());
++			DefaultFont.Face = faces.front();
++		} else {
++			DefaultFont.Face = configured;
++		}
+ 	}
+ }

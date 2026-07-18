@@ -74,6 +74,19 @@ Observed event mapping and the ROCreader logical mapping used by the
 The first probe exposed only `ABS_X` and `ABS_Y`; no right analog axes were
 reported by `evtest` for `gkd_atom_joypad`.
 
+The cross-built SDL controller probe later confirmed that the device SDL2
+recognizes this pad as a GameController without extra environment variables:
+
+```text
+guid=1900c3cb010000000321000000010000
+is_controller=1
+```
+
+The mapping exposes A/B/X/Y, Back/Start, both shoulders, D-pad, left stick and
+both triggers. `krkrsdl2` already translates these controller buttons to its
+`VK_PAD*` input events. Per-game confirm/back/menu behavior still requires an
+on-device gameplay test.
+
 Volume keys are on `gpio-keys`:
 
 ```text
@@ -156,6 +169,132 @@ Without that overlay, PDF files fall back to ROCreader's mock backend and render
 as gray/white placeholder stripes.
 
 The ROCKNIX image observed on GKD350H Ultra ships runtime libraries but no
-`/usr/include`. `prepare_headers_overlay.*` copies the existing H700 aarch64
-headers into the GKD sysroot so the first build can link against the GKD
-runtime libraries while using compatible SDL/libzip/libcurl/ALSA headers.
+`/usr/include`. `prepare_headers_overlay.*` prefers an existing H700 header
+overlay and otherwise uses the installed aarch64 cross headers plus the SDL2
+headers bundled with krkrsdl2. Linking still uses the synchronized GKD runtime.
+
+## KRKR Cross-Build
+
+KRKR host preparation, frontend launch integration and the first aarch64
+cross-build are complete. The current results and remaining runtime tests are in
+`KRKR_PRE_CROSS_BUILD_STATUS.md`; the provisional core decision is in
+`KRKR_CORE_SELECTION_ADR.md`.
+
+The successful standalone build sequence was:
+
+```powershell
+.\GKD350HUltra\sync_sysroot.ps1 -DeviceHost root@192.168.31.13
+.\GKD350HUltra\prepare_headers_overlay.ps1
+.\GKD350HUltra\build_krkr.ps1 -Jobs 1 -ConfirmHeavyBuild
+```
+
+The explicit confirmation and one-job limit remain intentional. Earlier
+eight-job host builds coincided with Kernel-Power 41 shutdowns. The aarch64
+build completed successfully with one job and `nice 10`.
+
+WebP support is part of the KRKR core build. The Windows build statically links
+MSYS2 `libwebpdecoder.a`; the aarch64 build takes `webp/decode.h` from the
+prepared header overlay and packages the target `libwebp.so` beside the app.
+The image loader checks the `RIFF....WEBP` signature, so games that store WebP
+content under a `.png` name are handled without per-game resource changes.
+
+Some KRKR games also store AAC-in-MP4 audio under an `.ogg` name. The ARM64
+core detects the file signature and streams it through the FFmpeg 6 libraries
+already present on the tested ROCKNIX image (`libavformat.so.60`,
+`libavcodec.so.60`, `libswresample.so.4`, and `libavutil.so.58`). Build headers
+come from the sibling `D:\Works\Tyranor\FFmpeg-n6.0` reference checkout plus
+`GKD350HUltra/ffmpeg_headers_overlay`. This is a source-file-local build option,
+so later AAC decoder edits do not invalidate every KRKR object file.
+
+The repeatable offline ARM64 playback probe takes a real M4A/AAC sample, names
+it `.ogg`, runs the target core under QEMU, and requires the playback position
+to advance:
+
+```powershell
+.\GKD350HUltra\test_krkr_aac_qemu.ps1
+```
+
+KRKR movie playback is also backed by the target FFmpeg 6 runtime. The SDL2
+port previously compiled `VideoOverlay` to no-ops outside Windows; the new
+backend streams MP4/WMV/WebM/etc. directly from KRKR storage/XP3, decodes video
+with `libavcodec`, converts frames to BGRA with `libswscale.so.7`, and sends
+movie audio through the engine-owned FAudio device. Overlay/mixer modes render
+as an SDL texture above the normal KRKR surface, while `vomLayer` continues to
+update the script-provided Layer. Decode threading is capped at two FFmpeg
+threads to keep memory, temperature and frame latency predictable on the GKD.
+When a layer movie is larger than the game window, `libswscale` now downsizes
+the decoded BGRA frame to the window bounds while preserving the source aspect
+ratio. The Senren Banka probe is 1920x1080 but is delivered as 1280x720 on the
+target-sized window, reducing the eight-frame queue from about 63 MB to 28 MB
+and avoiding oversized-layer rendering faults.
+
+The target image already contains all required video libraries, including
+`libswscale.so.7`; no PortsMaster overlay is currently required. Re-run the
+real Senren Banka WMV probe after rebuilding:
+
+```powershell
+.\GKD350HUltra\test_krkr_video_qemu.ps1
+```
+
+The probe requires `VIDEO_PLAY_OK` with a positive frame number. QEMU only
+validates demux/decode, frame delivery and audio queue construction; final
+audio/video smoothness, Wayland presentation and thermal behavior still need
+the next on-device SSH test.
+
+When the device is online, deploy only the KRKR executable with an on-device
+hash check, timestamped backup, and ONS/frontend invariants:
+
+```powershell
+.\GKD350HUltra\deploy_krkr_core.ps1 -DeviceHost root@192.168.31.13
+```
+
+After a Windows core build, run the repeatable host smoke tests with the
+required Chinese font explicitly selected:
+
+```powershell
+.\Windows\test_krkr_windows.ps1 -SenrenSeconds 60
+```
+
+## Build And Package Modes
+
+Normal UI/config staging reuses the already validated binaries, synchronizes
+assets, validates dependencies and does not start a compiler or archive pass:
+
+```powershell
+.\GKD350HUltra\build_package.ps1 -Mode Fast -Output Stage -Version 0.1-test
+```
+
+During the planned UI/ONS work, build only those targets and leave the staged
+KRKR binary untouched:
+
+```powershell
+.\GKD350HUltra\build_package.ps1 -Mode Incremental -BuildTargets Frontend,ONS -Output Stage -Version 0.1-test
+```
+
+When KRKR source changes, its default `Fast` mode skips the manual CMake
+configure pass and lets the existing build tree compile only invalidated
+objects:
+
+```powershell
+.\GKD350HUltra\build_krkr.ps1 -Mode Fast -Jobs 1 -ConfirmHeavyBuild
+```
+
+Use `-Mode Configure` after changing CMake options or after installing ccache.
+`-Ccache Auto` uses ccache during a new/configured build when available;
+`-Ccache On` requires it. Only use `-Mode Full` when the toolchain or ABI
+changed, the CMake cache is incompatible/corrupt, or a major source
+restructure invalidated most objects.
+
+Create release archives explicitly so day-to-day staging avoids redundant
+copying and compression:
+
+```powershell
+.\GKD350HUltra\build_package.ps1 -Mode Fast -Output Zip -Version 0.1-test
+```
+
+Release archives intentionally contain empty `games`, `covers`, `saves`, and
+`cache` directories rather than private content. Preserve `build/gkd350h/`,
+`GKD350HUltra/sysroot_device/`, `GKD350HUltra/dist_lowglibc/`, and the ignored
+local CMake tool directory. Removing them turns later work into recovery or a
+full rebuild. Each successful PowerShell build/package run refreshes the
+ignored `build/gkd350h/build_checkpoint.json` artifact/cache record.

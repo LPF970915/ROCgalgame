@@ -43,6 +43,7 @@ bool UiAssets::Load(SDL_Renderer *renderer, const std::filesystem::path &root, c
       "book_cover_txt.png",
       "book_cover_pdf.png",
       "Menu_Default.png",
+      "Menu_Contact Me.png",
   };
   bool any = false;
   for (const auto &name : names) {

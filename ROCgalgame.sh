@@ -96,6 +96,7 @@ run_core_request() {
   virtual_mouse="$(ini_get virtual_mouse "$REQUEST_FILE")"
   mouse_speed="$(ini_get mouse_speed "$REQUEST_FILE")"
   mouse_accel="$(ini_get mouse_accel "$REQUEST_FILE")"
+  entry="$(ini_get entry "$REQUEST_FILE")"
   rm -f "$REQUEST_FILE"
 
   [ -n "$core" ] || return 0
@@ -113,22 +114,23 @@ run_core_request() {
       export ROCGALGAME_VIRTUAL_MOUSE="${virtual_mouse:-1}"
       export ROCGALGAME_MOUSE_SPEED="${mouse_speed:-720}"
       export ROCGALGAME_MOUSE_ACCEL="${mouse_accel:-1.6}"
-      export ROCGALGAME_ASPECT="${aspect:-fit-width}"
+      export ROCGALGAME_ASPECT="${aspect:-contain}"
       export ROCGALGAME_FILTER="${filter:-clean}"
       case "${encoding:-gbk}" in
         sjis|shift-jis|shift_jis) enc_arg="--enc:sjis" ;;
         utf8|utf-8) enc_arg="--enc:utf8" ;;
         gbk|gb2312|cp936|*) enc_arg="--enc:gbk" ;;
       esac
-      font_path="$APP_DIR/fonts/ui_font.ttf"
+      font_path="$APP_DIR/fonts/ui_font_02.ttf"
+      [ -f "$font_path" ] || font_path="$APP_DIR/fonts/ui_font.ttf"
       [ -f "$game_path/default.ttf" ] && font_path="$game_path/default.ttf"
       set -- --root "$game_path" --save-dir "$save_path" --font "$font_path" "$enc_arg" --force-button-shortcut
-      if [ "${aspect:-fit-width}" = "stretch" ]; then
+      if [ "${aspect:-contain}" = "stretch" ]; then
         set -- "$@" --fullscreen2
       else
         set -- "$@" --fullscreen
       fi
-      log_line "[launcher] start ONS path=$game_path save=$save_path aspect=${aspect:-fit-width} enc=${encoding:-gbk} font=$font_path"
+      log_line "[launcher] start ONS path=$game_path save=$save_path aspect=${aspect:-contain} enc=${encoding:-gbk} font=$font_path"
       if [ -d "$game_path" ]; then
         set +e
         (cd "$game_path" && SDL_NOMOUSE=0 SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}" "$exe" "$@") >>"$LOG_FILE" 2>&1
@@ -148,7 +150,18 @@ run_core_request() {
       fi
       set_runtime_libs "$LIB_FULL_DIR"
       export KRKRSDL2_PATH="$game_path/plugin:$APP_DIR/cores/krkr/plugin:$APP_DIR/plugin"
-      SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}" "$exe" "$game_path/data.xp3" -datapath="$save_path" -deffont="Noto Sans CJK JP" >>"$LOG_FILE" 2>&1 || true
+      export ROCGALGAME_KRKR_VIRTUAL_MOUSE="${virtual_mouse:-1}"
+      export ROCGALGAME_KRKR_CONTINUOUS_PRESENT="${ROCGALGAME_KRKR_CONTINUOUS_PRESENT:-1}"
+      [ -n "$entry" ] || entry="$game_path"
+      font_path="$APP_DIR/fonts/ui_font_02.ttf"
+      [ -f "$font_path" ] || font_path="$APP_DIR/fonts/ui_font.ttf"
+      [ -f "$game_path/default.ttf" ] && font_path="$game_path/default.ttf"
+      set +e
+      SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}" "$exe" "$entry" -datapath="$save_path" \
+        -contfreq=60 -drawthread=auto -gclim=96 -deffont="$font_path" -nosel >>"$LOG_FILE" 2>&1
+      core_rc=$?
+      set -e
+      log_line "[launcher] KRKR exited rc=$core_rc entry=$entry"
       ;;
     *)
       log_line "[launcher] unknown core: $core aspect=$aspect filter=$filter virtual_mouse=$virtual_mouse"

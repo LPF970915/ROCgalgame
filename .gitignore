@@ -4,6 +4,7 @@
 /Windows/build/
 /cores/ons/onsyuri
 /cores/ons/onsyuri.exe
+/cores/krkr/krkrsdl2
 *.o
 *.d
 *.exe
@@ -23,7 +24,10 @@
 /GKD350HUltra/dist_lowglibc/
 /GKD350HUltra/Downloads/
 /GKD350HUltra/logs/
+/GKD350HUltra/package_check_ui/
+/GKD350HUltra/build_ffmpeg_headers_n6/
 /GKD350HUltra/toolchain/bin/
+/GKD350HUltra/tools/
 *.zip
 *.tar.gz
 

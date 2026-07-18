@@ -1,0 +1,110 @@
+Plugins.link("WIN32Dialog.dll");
+if(typeof WIN32Dialog == "undefined") throw new Exception("WIN32Dialog missing");
+if(WIN32Dialog.MB_YESNO != 4 || WIN32Dialog.IDOK != 1 || WIN32Dialog.IDCANCEL != 2 ||
+   WIN32Dialog.IDYES != 6 || WIN32Dialog.IDNO != 7)
+    throw new Exception("WIN32Dialog constants invalid");
+if(!WIN32Dialog.initCommonControlsEx(WIN32Dialog.ICC_USEREX_CLASSES)) throw new Exception("WIN32Dialog controls init invalid");
+if(typeof WIN32Dialog.Header == "undefined" || typeof WIN32Dialog.Items == "undefined") throw new Exception("WIN32Dialog nested classes missing");
+var dialog = new WIN32Dialog(0);
+if(dialog.open() != WIN32Dialog.IDOK || !dialog.isValid) throw new Exception("WIN32Dialog open result invalid");
+dialog.close();
+
+Plugins.link("PackinOne.dll");
+if(typeof CompoundStorageMedia == "undefined") throw new Exception("CompoundStorageMedia missing");
+var media = new CompoundStorageMedia();
+if(!media.addArchive() || !media.addStorage()) throw new Exception("CompoundStorageMedia methods invalid");
+if(media.archiveUniqueKey == "") throw new Exception("CompoundStorageMedia key missing");
+
+class WIN32DialogEX extends WIN32Dialog {
+    var itemMap = %[];
+    function getNumberdId(id) {
+        var item = itemMap[id];
+        return (typeof item == "Object" && typeof item.id != "undefined") ? item.id : id;
+    }
+}
+Plugins.link("k2compat.dll");
+if(typeof ModelessOwnerWindow == "undefined") throw new Exception("ModelessOwnerWindow missing");
+if(WIN32DialogEX.left != 0 || WIN32DialogEX.top != 0) throw new Exception("WIN32DialogEX modeless state missing");
+var owner = new ModelessOwnerWindow(0);
+if(!owner.registerMessageReceiver() || owner.HWND == 0) throw new Exception("ModelessOwnerWindow methods invalid");
+owner.setPos(12, 34);
+if(owner.left != 12 || owner.top != 34) throw new Exception("ModelessOwnerWindow position invalid");
+var compatOwner = Krkr2CompatUtils.getModelessOwnerWindow(0);
+if(typeof compatOwner != "Object" || !compatOwner.show(true)) throw new Exception("Krkr2CompatUtils owner factory invalid");
+var dialogEx = new WIN32DialogEX(0);
+if(dialogEx.getNumberdId(void) !== void || dialogEx.getNumberedId(null) !== null)
+    throw new Exception("WIN32DialogEX absent control id handling invalid");
+if(!Krkr2CompatUtils.hookPluginLink() || !Krkr2CompatUtils.unhookPluginLink())
+    throw new Exception("Krkr2CompatUtils plugin hook invalid");
+if(typeof Krkr2CompatUtils.callHook == "undefined")
+    throw new Exception("Krkr2CompatUtils callHook missing");
+Krkr2CompatUtils.callHook("hookPreWindowConstructor", owner, []);
+
+Plugins.link("layerExImage.dll");
+if(typeof Layer.light == "undefined" || typeof Layer.gaussianBlur == "undefined")
+    throw new Exception("layerExImage methods missing");
+
+Plugins.link("KAGParserEx.dll");
+if(typeof KAGParser == "undefined") throw new Exception("KAGParserEx class missing");
+var parser = new KAGParser();
+if(typeof parser.getNextTag == "undefined") throw new Exception("KAGParserEx methods missing");
+
+Plugins.link("textrender.dll");
+if(typeof TextRenderBase == "undefined") throw new Exception("TextRenderBase missing");
+if(typeof Layer.EdgeShadowDrawText == "undefined" || typeof Layer.EdgeShadowDrawTextKinsokuRect == "undefined")
+    throw new Exception("textrender Layer methods missing");
+var renderer = new TextRenderBase();
+renderer.setRenderSize(640, 160);
+renderer.fontSize = 24;
+renderer.face = "user";
+var characters = renderer.renderText("中文ABC");
+if(characters.count != 5 || renderer.renderCount != 5 || renderer.renderWidth <= 0 || renderer.renderHeight <= 0)
+    throw new Exception("TextRenderBase layout invalid");
+
+Plugins.link("getSample.dll");
+if(typeof WaveSoundBuffer.getSample == "undefined" || typeof WaveSoundBuffer.enableGetSample == "undefined" ||
+   typeof WaveSoundBuffer.setDefaultCounts == "undefined" || typeof WaveSoundBuffer.setDefaultAheads == "undefined")
+    throw new Exception("getSample WaveSoundBuffer methods missing");
+
+Plugins.link("systemEx.dll");
+if(typeof System.confirm == "undefined" || !System.confirm() || !System.waitForAppLock())
+    throw new Exception("systemEx methods missing");
+if(typeof System.addFont == "undefined" || typeof System.AddFont == "undefined" ||
+   typeof System.AddTrueTypeFont == "undefined")
+    throw new Exception("System font compatibility methods missing");
+
+Plugins.link("scriptsEx.dll");
+if(typeof Scripts.getObjectKeys == "undefined" || typeof Scripts.clone == "undefined" ||
+   typeof Scripts.safeEvalStorage == "undefined" || !Scripts.confirm())
+    throw new Exception("scriptsEx methods missing");
+
+Plugins.link("psbfile.dll");
+if(typeof PSBFile == "undefined") throw new Exception("PSBFile missing");
+
+Plugins.link("motionplayer_nod3d.dll");
+if(typeof Motion == "undefined" || typeof Motion.Player == "undefined" ||
+   typeof Motion.ResourceManager == "undefined")
+    throw new Exception("motionplayer classes missing");
+
+Plugins.link("menu.dll");
+if(typeof MenuItem == "undefined" || typeof Window.menu == "undefined")
+    throw new Exception("menu compatibility missing");
+var menuRoot = new MenuItem(void, "root");
+var menuChild = new MenuItem(void, "child");
+menuRoot.add(menuChild);
+if(menuRoot.children.count != 1 || menuChild.parent !== menuRoot || menuChild.root !== menuRoot)
+    throw new Exception("menu tree invalid");
+menuRoot.remove(menuChild);
+
+Plugins.link("csvParser.dll");
+if(typeof CSVParser == "undefined") throw new Exception("CSVParser missing");
+var csv = new CSVParser();
+csv.init("a,b\r\nc,d");
+var csvLine = csv.getNextLine();
+if(csvLine.count != 2 || csvLine[0] != "a" || csvLine[1] != "b")
+    throw new Exception("CSVParser parse invalid");
+
+var loaded = Plugins.getList();
+if(loaded.count < 13) throw new Exception("compatibility plugins absent from Plugins.getList");
+Debug.message("PLUGIN_COMPAT_OK");
+System.exit(0);

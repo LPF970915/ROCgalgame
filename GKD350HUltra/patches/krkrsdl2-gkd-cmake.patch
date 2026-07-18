@@ -1,0 +1,50 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9503505..6ae70cf 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -35,6 +35,7 @@ option(OPTION_ENABLE_CANVAS "Enable Canvas interface. Requires OpenGL ES or ANGL
+ option(OPTION_ENABLE_CASEINSENSITIVITY "Enable case insensitivity. May malfunction if directories in the path are not listable." ON)
+ option(OPTION_ENABLE_SDL_THREADS "Enable SDL threads. May be more useful on platforms that do not have a good implementation of std::thread." OFF)
+ option(OPTION_ENABLE_EXTERNAL_PLUGINS "Enable external plugins. This will make Plugins.link load a plugin instead of a no-op." ON)
++option(OPTION_USE_SYSTEM_SDL2 "Use a system-provided SDL2 instead of building the bundled copy." OFF)
+ option(OPTION_BUILD_MACOS_BUNDLE "Build an application bundle for macOS." ON)
+ option(KRKRSDL2_EMSCRIPTEN_ENABLE_JS_FALLBACK "Enable JavaScript fallback for the Emscripten build." OFF)
+ option(KRKRSDL2_EMSCRIPTEN_ENABLE_BIGINT "Enable BigInt support for the Emscripten build." ON)
+@@ -398,9 +399,11 @@ endif()
+ 
+ list(APPEND KRKRSDL2_CXXFLAGS ${KRKRSDL2_CFLAGS})
+ 
++if(NOT MSVC)
+ list(APPEND KRKRSDL2_CXXFLAGS
+ 	-Wno-non-virtual-dtor
+ )
++endif()
+ 
+ if(EVAL_ENABLE_ASYNC_IMAGE_LOAD)
+ list(APPEND KRKRSDL2_DEFINITIONS
+@@ -485,6 +488,13 @@ list(APPEND KRKRSDL2_DEFINITIONS
+ )
+ get_target_property(SDL2_INCLUDE_DIRS SDL2-static INCLUDE_DIRECTORIES)
+ set(SDL2_LIBRARIES SDL2-static)
++elseif(OPTION_USE_SYSTEM_SDL2 AND (${CMAKE_SYSTEM_NAME} STREQUAL "Linux"))
++find_package(PkgConfig REQUIRED)
++pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
++list(APPEND KRKRSDL2_LIBS
++	PkgConfig::SDL2
++)
++set(SDL2_LIBRARIES PkgConfig::SDL2)
+ elseif((APPLE AND NOT IOS) OR (${CMAKE_SYSTEM_NAME} STREQUAL "Linux"))
+ set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
+ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/SDL)
+@@ -636,7 +646,11 @@ target_include_directories(${KRKRSDL2_NAME} PUBLIC ${KRKRSDL2_INCLUDES})
+ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.13.0")
+ target_link_options(${KRKRSDL2_NAME} PUBLIC ${KRKRSDL2_LDFLAGS})
+ endif()
++if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten"))
++target_link_libraries(${KRKRSDL2_NAME} "-Wl,--start-group" ${KRKRSDL2_LIBS} "-Wl,--end-group")
++else()
+ target_link_libraries(${KRKRSDL2_NAME} ${KRKRSDL2_LIBS})
++endif()
+ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
+ if(KRKRSDL2_ENABLE_PRECOMPILED_HEADERS)
+ target_precompile_headers(${KRKRSDL2_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/core/sdl2/SDLPrecompiledHeader.h)

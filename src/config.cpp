@@ -67,6 +67,8 @@ void ParseConfigLine(AppConfig &config, const std::string &raw_line) {
     try { config.mouse_speed = std::max(1, std::stoi(value)); } catch (...) {}
   } else if (key == "mouse_accel") {
     try { config.mouse_accel = std::max(0.1f, std::stof(value)); } catch (...) {}
+  } else if (key == "update_manifest_url") {
+    config.update_manifest_url = value;
   }
 }
 }  // namespace
@@ -110,6 +112,12 @@ AppConfig LoadAppConfig(const char *argv0) {
       config.screen_h = 1440;
     }
   }
+  config.default_aspect = ToLowerAscii(Trim(config.default_aspect));
+  if (config.default_aspect == "fit-width") config.default_aspect = "contain";
+  if (config.default_aspect != "stretch" && config.default_aspect != "fill-height" &&
+      config.default_aspect != "contain") {
+    config.default_aspect = "contain";
+  }
   return config;
 }
 
@@ -136,5 +144,6 @@ bool SaveAppConfig(const AppConfig &config) {
   out << "virtual_mouse=" << (config.virtual_mouse ? "1" : "0") << "\n";
   out << "mouse_speed=" << config.mouse_speed << "\n";
   out << "mouse_accel=" << config.mouse_accel << "\n";
+  out << "update_manifest_url=" << config.update_manifest_url << "\n";
   return true;
 }

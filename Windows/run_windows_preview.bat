@@ -27,7 +27,7 @@ echo.
 
 set "MSYSTEM=UCRT64"
 set "CHERE_INVOKING=1"
-"%BASH_EXE%" -lc "taskkill //F //IM rocgalgame_sdl.exe //IM onsyuri.exe >/dev/null 2>&1 || true"
+"%BASH_EXE%" -lc "taskkill //F //IM rocgalgame_sdl.exe //IM onsyuri.exe //IM tvpwin64.exe >/dev/null 2>&1 || true"
 
 "%BASH_EXE%" -lc "export PATH=/ucrt64/bin:/usr/bin:$PATH; PROJECT_UNIX=$(cygpath -u \"$PROJECT_WIN\"); PROJECT_NATIVE=$(cygpath -w \"$PROJECT_UNIX\"); cd \"$PROJECT_UNIX\"; export ONS_ROOT=/d/Works/Tyranor/OnscripterYuri; make -j4 TARGET=Windows/build/rocgalgame_sdl.exe OBJDIR=Windows/build/obj; bash Windows/build_onsyuri_windows.sh; echo '[INFO] Starting ROCgalgame Windows preview...'; ROCGALGAME_ROOT=\"$PROJECT_NATIVE\" ROCGALGAME_WINDOWED=1 ROCGALGAME_WINDOW_W=1000 ROCGALGAME_WINDOW_H=900 ./Windows/build/rocgalgame_sdl.exe"
 

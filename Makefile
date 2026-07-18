@@ -1,6 +1,11 @@
 CXX ?= g++
 PKG_CONFIG ?= pkg-config
 TARGET ?= build/rocgalgame_sdl
+TEST_EXEEXT :=
+ifeq ($(OS),Windows_NT)
+TEST_EXEEXT := .exe
+endif
+TEST_TARGET ?= build/core_launch_test$(TEST_EXEEXT)
 
 SRCS := \
   src/main.cpp \
@@ -11,6 +16,7 @@ SRCS := \
   src/core_launcher.cpp \
   src/config.cpp \
   src/app_language.cpp \
+  src/audio_runtime.cpp \
   src/system_controls.cpp \
   src/system_status.cpp \
   src/platform.cpp
@@ -54,7 +60,7 @@ endif
 CXXFLAGS += $(EXTRA_CXXFLAGS)
 LDFLAGS += $(EXTRA_LDFLAGS)
 
-.PHONY: all clean install-runtime print-config
+.PHONY: all clean install-runtime print-config test
 
 all: $(TARGET)
 
@@ -86,3 +92,8 @@ print-config:
 
 clean:
 	rm -rf $(OBJDIR) $(TARGET)
+
+test:
+	@mkdir -p build
+	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src tests/core_launch_test.cpp src/core_launcher.cpp src/game_library.cpp src/config.cpp -o $(TEST_TARGET)
+	./$(TEST_TARGET)

@@ -1,0 +1,24 @@
+try {
+  global.aacProbeWindow = new Window();
+  aacProbeWindow.caption = "KRKR AAC probe";
+  aacProbeWindow.width = 320;
+  aacProbeWindow.height = 180;
+  aacProbeWindow.visible = true;
+
+  global.aacProbeBuffer = new WaveSoundBuffer(this);
+  aacProbeBuffer.open("probe_audio.ogg");
+  aacProbeBuffer.play();
+
+  global.aacProbeTimer = new Timer(this);
+  aacProbeTimer.interval = 1500;
+  aacProbeTimer.onTimer = function() {
+    aacProbeTimer.enabled = false;
+    throw new Exception("AAC_PLAY_OK rate=" + aacProbeBuffer.frequency +
+      " channels=" + aacProbeBuffer.channels +
+      " position=" + aacProbeBuffer.position +
+      " status=" + aacProbeBuffer.status);
+  };
+  aacProbeTimer.enabled = true;
+} catch(e) {
+  throw new Exception("AAC_OPEN_ERROR message=" + e.message + " type=" + typeof e);
+}

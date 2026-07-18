@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include "app_language.h"
+#include "audio_runtime.h"
 #include "config.h"
 #include "core_launcher.h"
 #include "game_library.h"
@@ -31,9 +32,11 @@
 #include <string>
 #include <vector>
 
-namespace {
-constexpr int kLaunchExitCode = 42;
+#ifndef _WIN32
+#include <linux/input.h>
+#endif
 
+namespace {
 enum class MenuItem {
   KeyGuide,
   KeyCalibration,
@@ -41,16 +44,18 @@ enum class MenuItem {
   GameSettings,
   Contributors,
   Contact,
+  OnlineUpdate,
   Exit,
 };
 
-constexpr std::array<MenuItem, 7> kMenuItems = {
+constexpr std::array<MenuItem, 8> kMenuItems = {
     MenuItem::KeyGuide,
     MenuItem::KeyCalibration,
     MenuItem::SystemControls,
     MenuItem::GameSettings,
     MenuItem::Contributors,
     MenuItem::Contact,
+    MenuItem::OnlineUpdate,
     MenuItem::Exit,
 };
 
@@ -62,6 +67,24 @@ struct AvatarEntry {
   double contribution = 0.0;
   bool contribution_is_max = false;
 };
+
+enum class CalibrationPhase { Ready, Capturing, Complete, Failed };
+
+constexpr std::array<Button, 11> kCalibrationButtons = {{
+    Button::Up, Button::Down, Button::Left, Button::Right,
+    Button::A, Button::B, Button::X, Button::Y,
+    Button::Menu, Button::L1, Button::R1,
+}};
+
+struct CalibrationState {
+  CalibrationPhase phase = CalibrationPhase::Ready;
+  int current = 0;
+  Uint32 accept_after = 0;
+  std::array<RawInputBinding, kCalibrationButtons.size()> bindings{};
+  std::string status;
+};
+
+enum class UpdatePanelStatus { Idle, Unconfigured, Checking };
 
 struct AppState {
   AppConfig config;
@@ -77,6 +100,8 @@ struct AppState {
 #endif
   UiAssets assets;
   InputManager input;
+  SfxBank sfx;
+  bool sfx_ready = false;
 #ifdef _WIN32
   SystemControlService system_controls{false};
 #else
@@ -94,7 +119,6 @@ struct AppState {
   int page = 0;
   int nav_selected = 0;
   bool running = true;
-  bool launch_requested = false;
   bool launch_pending = false;
   GameEntry pending_game;
   bool capture_done = false;
@@ -106,10 +130,14 @@ struct AppState {
   std::vector<AvatarEntry> avatars;
   int avatar_focus = 0;
   int avatar_scroll_row = 0;
+  CalibrationState calibration;
+  UpdatePanelStatus update_status = UpdatePanelStatus::Idle;
   Uint32 last_user_input_tick = 0;
   bool screen_off = false;
   std::string message;
   Uint32 message_until = 0;
+  int volume_display_percent = 50;
+  Uint32 volume_display_until = 0;
 };
 
 int ItemsPerView(const AppState &app) { return app.layout.cols * app.layout.rows; }
@@ -316,7 +344,6 @@ float NextFloatOption(float current, const std::vector<float> &options, int delt
 
 std::string AspectLabel(const std::string &value) {
   if (value == "stretch") return u8"拉伸全屏";
-  if (value == "fit-width") return u8"等比适宽";
   if (value == "fill-height") return u8"等比适高";
   return u8"等比完整";
 }
@@ -338,6 +365,53 @@ std::string MouseAccelLabel(float value) {
 
 void SaveSetting(AppState &app, const std::string &message) {
   ShowMessage(app, SaveAppConfig(app.config) ? message : u8"设置保存失败");
+}
+
+void PlaySfx(AppState &app, SfxId id) {
+  if (app.config.key_sound && app.sfx_ready) app.sfx.Play(id);
+}
+
+void ShowVolumeOverlay(AppState &app) {
+  app.volume_display_percent = std::clamp(app.config.system_volume_percent, 0, 100);
+  app.volume_display_until = SDL_GetTicks() + 1400;
+}
+
+void EnsureControlLevelDisplay(AppState &app) {
+  if (!app.system_levels.volume.available) {
+    app.system_levels.volume.available = true;
+    app.system_levels.volume.max_level = 20;
+    app.system_levels.volume.level =
+        std::clamp((app.config.system_volume_percent * app.system_levels.volume.max_level + 50) / 100,
+                   0, app.system_levels.volume.max_level);
+  }
+  if (!app.system_levels.brightness.available) {
+    app.system_levels.brightness.available = true;
+    app.system_levels.brightness.max_level = 8;
+    app.system_levels.brightness.level = std::clamp(app.config.brightness_level, 0, 8);
+  }
+}
+
+bool AdjustVolume(AppState &app, int delta) {
+  bool changed = app.system_controls.AdjustVolume(delta, app.system_levels) && app.system_levels.volume.available;
+  if (changed) {
+    app.config.system_volume_percent = std::clamp(
+        (app.system_levels.volume.level * 100) / std::max(1, app.system_levels.volume.max_level), 0, 100);
+  } else {
+    const int next_percent = std::clamp(app.config.system_volume_percent + delta * 5, 0, 100);
+    if (next_percent != app.config.system_volume_percent) {
+      app.config.system_volume_percent = next_percent;
+      changed = true;
+      app.system_controls.ApplyVolumePercent(next_percent, app.system_levels.volume);
+    }
+  }
+  EnsureControlLevelDisplay(app);
+  app.system_levels.volume.level = std::clamp(
+      (app.config.system_volume_percent * app.system_levels.volume.max_level + 50) / 100,
+      0, app.system_levels.volume.max_level);
+  SaveAppConfig(app.config);
+  ShowVolumeOverlay(app);
+  PlaySfx(app, SfxId::Change);
+  return changed;
 }
 
 bool IsValidUtf8(const std::string &text) {
@@ -601,6 +675,7 @@ std::string MenuLabel(MenuItem item, int language_index) {
       return "Game Settings";
     case MenuItem::Contributors: return LocalizedAppText(language_index, AppTextId::SettingContributorAvatars);
     case MenuItem::Contact: return LocalizedAppText(language_index, AppTextId::SettingContactMe);
+    case MenuItem::OnlineUpdate: return LocalizedAppText(language_index, AppTextId::SettingVersionUpdate);
     case MenuItem::Exit: return LocalizedAppText(language_index, AppTextId::SettingExitApp);
   }
   return {};
@@ -643,14 +718,7 @@ void ClearHistory(AppState &app) {
 void AdjustSystemSetting(AppState &app, int row, int delta) {
   switch (row) {
     case 0: {
-      if (app.system_controls.AdjustVolume(delta, app.system_levels) && app.system_levels.volume.available) {
-        app.config.system_volume_percent = std::clamp(
-            (app.system_levels.volume.level * 100) / std::max(1, app.system_levels.volume.max_level), 0, 100);
-        SaveSetting(app, std::string(LocalizedAppText(LanguageIndex(app), AppTextId::SystemKeySound)) +
-                             ": " + std::to_string(app.config.system_volume_percent) + "%");
-      } else {
-        ShowMessage(app, "System volume unavailable");
-      }
+      AdjustVolume(app, delta);
       break;
     }
     case 1: {
@@ -696,31 +764,122 @@ void AdjustSystemSetting(AppState &app, int row, int delta) {
 void AdjustGameSetting(AppState &app, int row, int delta) {
   switch (row) {
     case 0:
-      app.config.default_aspect = NextOption(app.config.default_aspect, {"stretch", "fit-width", "fill-height", "contain"}, delta);
-      SaveSetting(app, std::string(u8"画面比例：") + AspectLabel(app.config.default_aspect));
+      app.config.default_aspect = NextOption(app.config.default_aspect, {"stretch", "fill-height", "contain"}, delta);
+      SaveAppConfig(app.config);
       break;
     case 1:
       app.config.default_filter = NextOption(app.config.default_filter, {"clean", "scanline", "crt-soft", "mask"}, delta);
-      SaveSetting(app, std::string(u8"画面滤镜：") + FilterLabel(app.config.default_filter));
+      SaveAppConfig(app.config);
       break;
     case 2:
-      app.config.virtual_mouse = !app.config.virtual_mouse;
-      SaveSetting(app, std::string(u8"虚拟鼠标：") + OnOffLabel(app.config.virtual_mouse));
+      app.config.virtual_mouse = delta < 0;
+      SaveAppConfig(app.config);
       break;
     case 3:
       app.config.mouse_speed = NextIntOption(app.config.mouse_speed, {480, 720, 960, 1200}, delta);
-      SaveSetting(app, u8"鼠标速度：" + std::to_string(app.config.mouse_speed));
+      SaveAppConfig(app.config);
       break;
     case 4:
       app.config.mouse_accel = NextFloatOption(app.config.mouse_accel, {1.0f, 1.3f, 1.6f, 2.0f}, delta);
-      SaveSetting(app, std::string(u8"鼠标加速度：") + MouseAccelLabel(app.config.mouse_accel));
+      SaveAppConfig(app.config);
       break;
+  }
+}
+
+bool SaveCalibration(AppState &app) {
+  const std::filesystem::path path = app.config.root / "native_keymap.ini";
+  std::vector<std::string> preserved;
+  std::ifstream in(path);
+  std::string line;
+  bool in_calibration = false;
+  while (std::getline(in, line)) {
+    if (line == "# ROCgalgame calibration begin") {
+      in_calibration = true;
+      continue;
+    }
+    if (line == "# ROCgalgame calibration end") {
+      in_calibration = false;
+      continue;
+    }
+    if (!in_calibration) preserved.push_back(line);
+  }
+  std::ofstream out(path, std::ios::trunc);
+  if (!out) return false;
+  for (const std::string &kept : preserved) out << kept << "\n";
+  if (!preserved.empty() && !preserved.back().empty()) out << "\n";
+  out << "# ROCgalgame calibration begin\n";
+  out << "# calibration_complete=1\n";
+  for (size_t i = 0; i < kCalibrationButtons.size(); ++i) {
+    out << InputManager::ButtonName(kCalibrationButtons[i]) << "="
+        << InputManager::SerializeBinding(app.calibration.bindings[i]) << "\n";
+  }
+  out << "# ROCgalgame calibration end\n";
+  out.close();
+  return out.good() && app.input.ReloadMappings();
+}
+
+void StartCalibration(AppState &app) {
+  app.calibration = {};
+  app.calibration.phase = CalibrationPhase::Capturing;
+  app.calibration.status = u8"请依次按下屏幕提示的实体按键";
+  app.calibration.accept_after = SDL_GetTicks() + 180;
+  app.input.ClearRawSamples();
+  app.input.Reset();
+}
+
+void HandleCalibrationInput(AppState &app) {
+  CalibrationState &state = app.calibration;
+  if (state.phase != CalibrationPhase::Capturing) {
+    if (app.input.Pressed(Button::B) || app.input.Pressed(Button::Menu)) {
+      app.menu_panel_active = false;
+      return;
+    }
+    if (app.input.Pressed(Button::A)) StartCalibration(app);
+    return;
+  }
+  if (!SDL_TICKS_PASSED(SDL_GetTicks(), state.accept_after)) return;
+  RawInputBinding sample;
+  while (app.input.TakeRawSample(sample)) {
+#ifndef _WIN32
+    if (sample.source == RawInputSource::LinuxKey &&
+        (sample.code == KEY_VOLUMEUP || sample.code == KEY_VOLUMEDOWN)) continue;
+#endif
+    state.bindings[static_cast<size_t>(state.current)] = sample;
+    ++state.current;
+    app.input.ClearRawSamples();
+    app.input.Reset();
+    state.accept_after = SDL_GetTicks() + 180;
+    PlaySfx(app, SfxId::Select);
+    if (state.current >= static_cast<int>(kCalibrationButtons.size())) {
+      if (SaveCalibration(app)) {
+        state.phase = CalibrationPhase::Complete;
+        state.status = u8"校准完成，映射已立即生效";
+      } else {
+        state.phase = CalibrationPhase::Failed;
+        state.status = u8"校准保存失败，请检查配置目录权限";
+      }
+    }
+    break;
   }
 }
 
 void HandleMenuInput(AppState &app) {
   const MenuItem selected = kMenuItems[static_cast<size_t>(std::clamp(app.menu_focus, 0, static_cast<int>(kMenuItems.size()) - 1))];
   if (app.menu_panel_active) {
+    if (selected == MenuItem::KeyCalibration) {
+      HandleCalibrationInput(app);
+      return;
+    }
+    if (selected == MenuItem::OnlineUpdate) {
+      if (app.input.Pressed(Button::B) || app.input.Pressed(Button::Menu)) {
+        app.menu_panel_active = false;
+      } else if (app.input.Pressed(Button::A)) {
+        app.update_status = app.config.update_manifest_url.empty()
+                                ? UpdatePanelStatus::Unconfigured
+                                : UpdatePanelStatus::Checking;
+      }
+      return;
+    }
     const int rows = PanelRowCount(app, selected);
     if (app.input.Pressed(Button::B) || app.input.Pressed(Button::Menu)) {
       app.menu_panel_active = false;
@@ -762,14 +921,20 @@ void HandleMenuInput(AppState &app) {
         if (dual && app.input.Pressed(Button::Left)) app.panel_button = 0;
         if (dual && app.input.Pressed(Button::Right)) app.panel_button = 1;
         int delta = 0;
-        if (app.input.Pressed(Button::A)) delta = app.panel_button == 1 ? 1 : -1;
+        if (dual && app.input.Pressed(Button::Left)) delta = -1;
+        else if (dual && app.input.Pressed(Button::Right)) delta = 1;
+        else if (app.input.Pressed(Button::A)) delta = app.panel_button == 1 ? 1 : -1;
         else if (app.input.Repeated(Button::Left) && app.panel_button == 0) delta = -1;
         else if (app.input.Repeated(Button::Right) && app.panel_button == 1) delta = 1;
         if (delta != 0) AdjustSystemSetting(app, app.panel_focus, delta);
       } else {
-        if (app.input.Pressed(Button::Left)) AdjustGameSetting(app, app.panel_focus, -1);
-        if (app.input.Pressed(Button::Right) || app.input.Pressed(Button::A)) {
-          AdjustGameSetting(app, app.panel_focus, 1);
+        if (app.input.Pressed(Button::Left) || app.input.Repeated(Button::Left)) {
+          app.panel_button = 0;
+          AdjustGameSetting(app, app.panel_focus, -1);
+        }
+        if (app.input.Pressed(Button::Right) || app.input.Repeated(Button::Right) || app.input.Pressed(Button::A)) {
+          if (app.input.Pressed(Button::Right)) app.panel_button = 1;
+          AdjustGameSetting(app, app.panel_focus, app.panel_button == 0 && app.input.Pressed(Button::A) ? -1 : 1);
         }
       }
     }
@@ -789,7 +954,11 @@ void HandleMenuInput(AppState &app) {
       app.menu_panel_active = true;
       app.panel_focus = 0;
       app.panel_button = 0;
-      if (selected == MenuItem::SystemControls) app.system_controls.Refresh(app.system_levels);
+      if (selected == MenuItem::SystemControls) {
+        app.system_controls.Refresh(app.system_levels);
+        EnsureControlLevelDisplay(app);
+      }
+      if (selected == MenuItem::KeyCalibration) app.input.ClearRawSamples();
     }
   }
 }
@@ -810,23 +979,32 @@ void HandleShelfInput(AppState &app) {
     if (app.input.Pressed(Button::X)) AddFavorite(app, *game);
     if (app.input.Pressed(Button::Y)) RemoveFavorite(app, *game);
     if (app.input.Pressed(Button::A)) {
-      if (game->core == CoreKind::Ons) {
-        PushHistory(app, *game);
-        app.pending_game = *game;
-        app.launch_pending = true;
-        app.running = false;
-      } else if (WriteLaunchRequest(app.config, *game)) {
-        PushHistory(app, *game);
-        app.launch_requested = true;
-        app.running = false;
-      } else {
-        ShowMessage(app, u8"启动请求写入失败");
-      }
+      PushHistory(app, *game);
+      app.pending_game = *game;
+      app.launch_pending = true;
+      app.running = false;
     }
   }
 }
 
 void HandleInput(AppState &app) {
+  const int volume_delta = (app.input.Pressed(Button::VolUp) || app.input.Repeated(Button::VolUp)) ? 1
+                           : (app.input.Pressed(Button::VolDown) || app.input.Repeated(Button::VolDown)) ? -1
+                                                                                                        : 0;
+  if (volume_delta != 0) {
+    app.last_user_input_tick = SDL_GetTicks();
+    AdjustVolume(app, volume_delta);
+  }
+  const bool calibration_capturing = app.menu_open && app.menu_panel_active &&
+      kMenuItems[static_cast<size_t>(std::clamp(app.menu_focus, 0, static_cast<int>(kMenuItems.size()) - 1))] ==
+          MenuItem::KeyCalibration && app.calibration.phase == CalibrationPhase::Capturing;
+  if (!calibration_capturing) {
+    if (app.input.Pressed(Button::B)) PlaySfx(app, SfxId::Back);
+    else if (app.input.Pressed(Button::A) || app.input.Pressed(Button::Menu)) PlaySfx(app, SfxId::Select);
+    else if (app.input.Pressed(Button::Up) || app.input.Pressed(Button::Down) ||
+             app.input.Pressed(Button::Left) || app.input.Pressed(Button::Right) ||
+             app.input.Pressed(Button::L1) || app.input.Pressed(Button::R1)) PlaySfx(app, SfxId::Move);
+  }
   if (app.menu_open) {
     HandleMenuInput(app);
     return;
@@ -904,6 +1082,18 @@ void DrawSystemStatus(AppState &app) {
 #endif
 }
 
+void DrawVolumeOverlay(AppState &app) {
+#ifdef HAVE_SDL2_TTF
+  if (SDL_TICKS_PASSED(SDL_GetTicks(), app.volume_display_until)) return;
+  const std::string label = std::to_string(app.volume_display_percent);
+  int w = 0;
+  int h = 0;
+  MeasureText(app.micro_font, label, w, h);
+  DrawText(app, label, 36, app.layout.top_bar_y + std::max(0, (app.layout.top_bar_h - h) / 2),
+           Color(238, 242, 250), app.micro_font);
+#endif
+}
+
 void DrawTitleOverlay(AppState &app, const GameEntry &game, const SDL_Rect &cover_rect, bool focused) {
   DrawTexture(app.renderer, app.assets.Get("book_title_shadow.png"), cover_rect);
 #ifdef HAVE_SDL2_TTF
@@ -964,29 +1154,7 @@ void DrawShelf(AppState &app) {
     DrawGameCard(app, game, SDL_Rect{x, y, w, h}, true);
   }
 
-#ifdef HAVE_SDL2_TTF
-  if (app.visible_games.empty()) {
-    SDL_Rect empty{470, 575, 660, 128};
-    Fill(app.renderer, empty, Color(24, 34, 46, 230));
-    Stroke(app.renderer, empty, Color(82, 125, 158, 255), 2);
-    DrawTextCentered(app, app.games.empty() ? u8"未找到游戏" : u8"当前分类为空", empty, Color(240, 246, 255), app.font);
-  }
-#endif
-
   DrawNavChrome(app);
-}
-
-void DrawSettingRow(AppState &app, const SDL_Rect &row, const std::string &label, const std::string &value,
-                    bool selected) {
-  Fill(app.renderer, row, selected ? Color(63, 119, 158, 255) : Color(57, 73, 96, 214));
-  if (selected) {
-    Fill(app.renderer, SDL_Rect{row.x, row.y, 8, row.h}, Color(139, 214, 255));
-    Stroke(app.renderer, SDL_Rect{row.x - 2, row.y - 2, row.w + 4, row.h + 4}, Color(85, 152, 198, 208), 2);
-  }
-#ifdef HAVE_SDL2_TTF
-  DrawText(app, label, row.x + 28, row.y + std::max(0, (row.h - 56) / 2), Color(230, 236, 248), app.menu_font);
-  DrawTextRight(app, value, row.x + row.w - 28, row.y + std::max(0, (row.h - 56) / 2), Color(245, 248, 255), app.menu_font);
-#endif
 }
 
 void DrawSystemPanel(AppState &app, const SDL_Rect &preview, int first_row_y, int row_pitch, int row_h) {
@@ -1099,22 +1267,65 @@ void DrawSystemPanel(AppState &app, const SDL_Rect &preview, int first_row_y, in
   }
 }
 
-void DrawGameSettingsPanel(AppState &app, const SDL_Rect &preview) {
-  const int x = preview.x + 88;
-  int y = preview.y + 250;
-  const int w = preview.w - 176;
-  const int row_h = 82;
-  const int pitch = 104;
-  const std::array<std::pair<std::string, std::string>, 5> rows = {{
-      {u8"画面比例", AspectLabel(app.config.default_aspect)},
-      {u8"画面滤镜", FilterLabel(app.config.default_filter)},
-      {u8"虚拟鼠标", OnOffLabel(app.config.virtual_mouse)},
-      {u8"鼠标速度", std::to_string(app.config.mouse_speed)},
-      {u8"鼠标加速度", MouseAccelLabel(app.config.mouse_accel)},
+void DrawGameSettingsPanel(AppState &app, const SDL_Rect &preview, int first_row_y, int row_pitch, int row_h) {
+  const std::array<std::string, 5> labels = {{
+      u8"画面比例", u8"画面滤镜", u8"虚拟鼠标", u8"鼠标速度", u8"鼠标加速度",
   }};
-  for (int i = 0; i < static_cast<int>(rows.size()); ++i) {
-    DrawSettingRow(app, SDL_Rect{x, y + i * pitch, w, row_h}, rows[static_cast<size_t>(i)].first,
-                   rows[static_cast<size_t>(i)].second, app.menu_panel_active && app.panel_focus == i);
+  const std::array<std::string, 5> values = {{
+      AspectLabel(app.config.default_aspect), FilterLabel(app.config.default_filter),
+      OnOffLabel(app.config.virtual_mouse), std::to_string(app.config.mouse_speed),
+      MouseAccelLabel(app.config.mouse_accel),
+  }};
+  const SDL_Color text{236, 241, 247, 255};
+  const SDL_Color muted{149, 164, 181, 255};
+  const SDL_Color fill{29, 42, 57, 230};
+  const SDL_Color selected_fill{41, 82, 113, 240};
+  const SDL_Color selected_border{122, 201, 255, 255};
+  const SDL_Color state_lit{63, 119, 158, 255};
+  const int base_x = preview.x + 32;
+  const int control_right = preview.x + preview.w - 56;
+  const int button = 84;
+  const int gap = 20;
+  const int value_w = 330;
+  const int left_arrow = control_right - button - gap - value_w - gap - button;
+  Fill(app.renderer, SDL_Rect{preview.x + 36, first_row_y - 36, preview.w - 72, 2}, Color(66, 95, 124));
+
+  auto draw_button = [&](const SDL_Rect &rect, const std::string &caption, bool selected, bool lit = false) {
+    Fill(app.renderer, rect, lit ? state_lit : (selected ? selected_fill : fill));
+    Stroke(app.renderer, rect, selected ? selected_border : muted, selected ? 2 : 1);
+#ifdef HAVE_SDL2_TTF
+    DrawTextCentered(app, caption, rect, text, app.menu_font);
+#endif
+  };
+  for (int row = 0; row < 5; ++row) {
+    const int y = first_row_y + row * row_pitch;
+#ifdef HAVE_SDL2_TTF
+    DrawText(app, labels[static_cast<size_t>(row)], base_x,
+             y + std::max(0, (row_h - 56) / 2), text, app.menu_font);
+#endif
+    const int control_y = y + (row_h - button) / 2;
+    if (row == 2) {
+      const int wide = 276;
+      const int off_x = control_right - wide;
+      const int on_x = off_x - 28 - wide;
+      draw_button(SDL_Rect{on_x, control_y, wide, button}, u8"开",
+                  app.menu_panel_active && app.panel_focus == row && app.panel_button == 0,
+                  app.config.virtual_mouse);
+      draw_button(SDL_Rect{off_x, control_y, wide, button}, u8"关",
+                  app.menu_panel_active && app.panel_focus == row && app.panel_button == 1,
+                  !app.config.virtual_mouse);
+      continue;
+    }
+    const char *left_caption = row >= 3 ? "-" : "<";
+    const char *right_caption = row >= 3 ? "+" : ">";
+    draw_button(SDL_Rect{left_arrow, control_y, button, button}, left_caption,
+                app.menu_panel_active && app.panel_focus == row && app.panel_button == 0);
+    draw_button(SDL_Rect{control_right - button, control_y, button, button}, right_caption,
+                app.menu_panel_active && app.panel_focus == row && app.panel_button == 1);
+#ifdef HAVE_SDL2_TTF
+    DrawTextCentered(app, values[static_cast<size_t>(row)],
+                     SDL_Rect{left_arrow + button + gap, control_y, value_w, button}, text, app.menu_font);
+#endif
   }
 }
 
@@ -1133,7 +1344,7 @@ void DrawAvatarPanel(AppState &app, const SDL_Rect &preview, int first_row_y) {
   if (app.avatars.empty()) return;
   const int safe_left = preview.x + 48;
   const int safe_right = preview.x + preview.w - 48;
-  const int safe_top = first_row_y - 20;
+  const int safe_top = preview.y + 100;
   const int safe_bottom = app.layout.bottom_bar_y - 40;
   const int gap_x = 28;
   const int tile_w = (safe_right - safe_left - gap_x * 2) / 3;
@@ -1148,7 +1359,7 @@ void DrawAvatarPanel(AppState &app, const SDL_Rect &preview, int first_row_y) {
     const int row = i / 3;
     const int col = i % 3;
     const int tile_x = safe_left + col * (tile_w + gap_x);
-    const int tile_y = safe_top + 20 + (row - app.avatar_scroll_row) * row_pitch;
+    const int tile_y = safe_top + 16 + (row - app.avatar_scroll_row) * row_pitch;
     if (tile_y + image_size < safe_top || tile_y > safe_bottom) continue;
     const bool focused = app.menu_panel_active && i == app.avatar_focus;
     const int draw_size = focused ? 302 : image_size;
@@ -1176,32 +1387,116 @@ void DrawAvatarPanel(AppState &app, const SDL_Rect &preview, int first_row_y) {
   SDL_RenderSetClipRect(app.renderer, had_clip == SDL_TRUE ? &old_clip : nullptr);
 }
 
-void DrawSimplePanel(AppState &app, const SDL_Rect &preview, MenuItem item) {
+void DrawPanelHeader(AppState &app, const SDL_Rect &preview, const std::string &title, int first_row_y) {
 #ifdef HAVE_SDL2_TTF
-  const int x = preview.x + 92;
-  const int y = preview.y + 260;
-  if (item == MenuItem::KeyCalibration) {
-    DrawText(app, u8"校准面板预留", x, y, Color(230, 236, 248), app.font);
-  } else if (item == MenuItem::Contact) {
-    DrawText(app, "GitHub: LPF970915 / ROCreader", x, y, Color(230, 236, 248), app.menu_font);
-  } else if (item == MenuItem::Exit) {
-    DrawText(app, u8"按 A 退出", x, y, Color(230, 236, 248), app.font);
+  DrawText(app, title, preview.x + 64, first_row_y - 104, Color(240, 246, 255), app.menu_font);
+#endif
+  Fill(app.renderer, SDL_Rect{preview.x + 36, first_row_y - 36, preview.w - 72, 2}, Color(66, 95, 124));
+}
+
+void DrawKeyGuidePanel(AppState &app, const SDL_Rect &preview, int first_row_y) {
+  DrawPanelHeader(app, preview, u8"GKD350H Ultra 按键说明", first_row_y);
+#ifdef HAVE_SDL2_TTF
+  const std::array<std::pair<const char *, const char *>, 8> lines = {{
+      {"D-Pad", u8"移动书架焦点；在菜单中选择项目或调整选项"},
+      {"A", u8"确认；启动当前游戏；执行所选按钮"},
+      {"B", u8"返回上一级；关闭当前面板"},
+      {"X", u8"将当前游戏加入收藏"},
+      {"Y", u8"将当前游戏移出收藏"},
+      {"Menu", u8"打开或关闭设置菜单"},
+      {"L1 / R1", u8"切换游戏分类"},
+      {"Vol- / Vol+", u8"降低或提高系统音量"},
+  }};
+  int y = first_row_y + 4;
+  for (const auto &line : lines) {
+    DrawText(app, std::string(line.first) + ":", preview.x + 64, y, Color(191, 221, 247), app.menu_font);
+    DrawText(app, line.second, preview.x + 310, y + 6, Color(230, 236, 248), app.font);
+    y += 112;
+  }
+#endif
+}
+
+void DrawCalibrationPanel(AppState &app, const SDL_Rect &preview, int first_row_y) {
+#ifdef HAVE_SDL2_TTF
+  const CalibrationState &state = app.calibration;
+  const int center_y = preview.y + preview.h / 2;
+  if (state.phase == CalibrationPhase::Capturing) {
+    const int current = std::clamp(state.current, 0, static_cast<int>(kCalibrationButtons.size()) - 1);
+    DrawTextCentered(app, u8"按键校准", SDL_Rect{preview.x + 40, preview.y + 135, preview.w - 80, 70},
+                     Color(240, 246, 255), app.menu_font);
+    const std::string progress = u8"进度 " + std::to_string(current) + " / " +
+                                 std::to_string(kCalibrationButtons.size()) + u8" 个按键";
+    DrawTextCentered(app, progress, SDL_Rect{preview.x + 40, center_y - 180, preview.w - 80, 60},
+                     Color(149, 164, 181), app.font);
+    DrawTextCentered(app, u8"请按下", SDL_Rect{preview.x + 40, center_y - 80, preview.w - 80, 60},
+                     Color(191, 221, 247), app.font);
+    DrawTextCentered(app, InputManager::ButtonName(kCalibrationButtons[static_cast<size_t>(current)]),
+                     SDL_Rect{preview.x + 40, center_y - 10, preview.w - 80, 100},
+                     Color(245, 248, 255), app.title_font);
+    return;
+  }
+  const bool complete = state.phase == CalibrationPhase::Complete;
+  const bool failed = state.phase == CalibrationPhase::Failed;
+  SDL_Rect action{preview.x + (preview.w - 460) / 2, center_y - 50, 460, 100};
+  const std::string title = complete ? state.status : failed ? state.status : u8"按键校准";
+  DrawTextCentered(app, title, SDL_Rect{preview.x + 60, action.y - 110, preview.w - 120, 76},
+                   failed ? Color(255, 184, 164) : Color(240, 246, 255), app.menu_font);
+  Fill(app.renderer, action, app.menu_panel_active ? Color(41, 82, 113) : Color(29, 42, 57));
+  Stroke(app.renderer, action, Color(122, 201, 255), 2);
+  DrawTextCentered(app, complete ? u8"按 A 重新校准" : u8"按 A 开始校准", action,
+                   Color(245, 248, 255), app.menu_font);
+#endif
+}
+
+void DrawContactPanel(AppState &app, const SDL_Rect &preview, int first_row_y) {
+#ifdef HAVE_SDL2_TTF
+  DrawTextCentered(app, LocalizedAppText(LanguageIndex(app), AppTextId::ContactRewardHint),
+                   SDL_Rect{preview.x + 40, first_row_y - 16, preview.w - 80, 86},
+                   Color(240, 246, 255), app.font);
+#endif
+}
+
+void DrawUpdatePanel(AppState &app, const SDL_Rect &preview, int first_row_y) {
+  const int language = LanguageIndex(app);
+  DrawPanelHeader(app, preview, LocalizedAppText(language, AppTextId::SettingVersionUpdate), first_row_y);
+#ifdef HAVE_SDL2_TTF
+  DrawText(app, LocalizedAppText(language, AppTextId::VersionCurrentVersion), preview.x + 88,
+           first_row_y + 80, Color(149, 164, 181), app.font);
+  DrawTextRight(app, u8"开发版", preview.x + preview.w - 88, first_row_y + 80,
+                Color(236, 241, 247), app.font);
+  std::string status = LocalizedAppText(language, AppTextId::VersionPressAToCheck);
+  if (app.update_status == UpdatePanelStatus::Unconfigured) status = u8"更新地址尚未配置";
+  else if (app.update_status == UpdatePanelStatus::Checking) status = u8"更新接口已预留，等待接入发版源";
+  DrawTextCentered(app, status, SDL_Rect{preview.x + 60, first_row_y + 230, preview.w - 120, 80},
+                   Color(230, 236, 248), app.menu_font);
+  SDL_Rect action{preview.x + (preview.w - 520) / 2, first_row_y + 380, 520, 100};
+  Fill(app.renderer, action, app.menu_panel_active ? Color(41, 82, 113) : Color(29, 42, 57));
+  Stroke(app.renderer, action, Color(122, 201, 255), 2);
+  DrawTextCentered(app, LocalizedAppText(language, AppTextId::VersionCheckAndUpdate), action,
+                   Color(245, 248, 255), app.menu_font);
+#endif
+}
+
+void DrawSimplePanel(AppState &app, const SDL_Rect &preview, MenuItem item, int first_row_y) {
+  if (item == MenuItem::KeyGuide) DrawKeyGuidePanel(app, preview, first_row_y);
+  else if (item == MenuItem::KeyCalibration) DrawCalibrationPanel(app, preview, first_row_y);
+  else if (item == MenuItem::Contact) DrawContactPanel(app, preview, first_row_y);
+  else if (item == MenuItem::OnlineUpdate) DrawUpdatePanel(app, preview, first_row_y);
+#ifdef HAVE_SDL2_TTF
+  else if (item == MenuItem::Exit) {
+    DrawPanelHeader(app, preview, MenuLabel(item, LanguageIndex(app)), first_row_y);
+    DrawTextCentered(app, u8"按 A 退出", SDL_Rect{preview.x + 40, first_row_y + 180, preview.w - 80, 100},
+                     Color(230, 236, 248), app.menu_font);
   }
 #endif
 }
 
 void DrawSelectedPanel(AppState &app, const SDL_Rect &preview, int first_row_y, int row_pitch, int row_h) {
   const MenuItem selected = kMenuItems[static_cast<size_t>(std::clamp(app.menu_focus, 0, static_cast<int>(kMenuItems.size()) - 1))];
-#ifdef HAVE_SDL2_TTF
-  if (selected != MenuItem::SystemControls && selected != MenuItem::Contributors) {
-    DrawText(app, MenuLabel(selected, LanguageIndex(app)), preview.x + 88, preview.y + 145,
-             Color(240, 246, 255), app.title_font);
-  }
-#endif
   if (selected == MenuItem::SystemControls) DrawSystemPanel(app, preview, first_row_y, row_pitch, row_h);
-  else if (selected == MenuItem::GameSettings) DrawGameSettingsPanel(app, preview);
+  else if (selected == MenuItem::GameSettings) DrawGameSettingsPanel(app, preview, first_row_y, row_pitch, row_h);
   else if (selected == MenuItem::Contributors) DrawAvatarPanel(app, preview, first_row_y);
-  else DrawSimplePanel(app, preview, selected);
+  else DrawSimplePanel(app, preview, selected, first_row_y);
 }
 
 void DrawMenu(AppState &app) {
@@ -1211,9 +1506,12 @@ void DrawMenu(AppState &app) {
   const int menu_y = app.layout.settings_y_offset;
   const int menu_h = app.layout.screen_h - menu_y;
   const SDL_Rect preview{menu_width, menu_y, app.layout.screen_w - menu_width, menu_h};
+  const MenuItem selected_item =
+      kMenuItems[static_cast<size_t>(std::clamp(app.menu_focus, 0, static_cast<int>(kMenuItems.size()) - 1))];
 
   Fill(app.renderer, SDL_Rect{0, 0, app.layout.screen_w, app.layout.screen_h}, Color(0, 0, 0, 100));
-  if (TextureHandle *preview_tex = app.assets.Get("Menu_Default.png"); preview_tex && preview_tex->texture) {
+  const char *preview_name = selected_item == MenuItem::Contact ? "Menu_Contact Me.png" : "Menu_Default.png";
+  if (TextureHandle *preview_tex = app.assets.Get(preview_name); preview_tex && preview_tex->texture) {
     DrawTextureFit(app.renderer, preview_tex, preview);
   } else {
     Fill(app.renderer, preview, Color(14, 20, 30, 240));
@@ -1311,6 +1609,10 @@ void CaptureRendererIfRequested(AppState &app) {
   }
   SDL_FreeSurface(surface);
   app.capture_done = true;
+  if (const char *exit_after_capture = std::getenv("ROCGALGAME_EXIT_AFTER_CAPTURE");
+      exit_after_capture && std::string(exit_after_capture) == "1") {
+    app.running = false;
+  }
 }
 
 void CloseInputDevices(AppState &app) {
@@ -1372,7 +1674,10 @@ bool Init(AppState &app, int argc, char **argv, bool allow_autolaunch) {
     if (!app.micro_font) app.micro_font = app.small_font;
   }
 #endif
+  app.input.Initialize(app.config.root / "native_keymap.ini");
   OpenInputDevices(app);
+  app.sfx_ready = app.sfx.Init(app.config.root);
+  app.sfx.SetVolume(SDL_MIX_MAXVOLUME);
 
   uint32_t flags = SDL_WINDOW_SHOWN;
 #if defined(__arm__) || defined(__aarch64__)
@@ -1407,13 +1712,27 @@ bool Init(AppState &app, int argc, char **argv, bool allow_autolaunch) {
   if (!app.system_controls.ApplyVolumePercent(app.config.system_volume_percent, app.system_levels.volume)) {
     app.system_controls.RefreshVolumeOnly(app.system_levels.volume);
   }
+  app.volume_display_percent = app.config.system_volume_percent;
+  if (const char *preview_volume = std::getenv("ROCGALGAME_PREVIEW_VOLUME");
+      preview_volume && std::string(preview_volume) == "1") {
+    ShowVolumeOverlay(app);
+  }
   if (!app.system_controls.ApplyBrightnessLevel(app.config.brightness_level, app.system_levels.brightness)) {
     app.system_controls.Refresh(app.system_levels);
   }
+  EnsureControlLevelDisplay(app);
   app.last_user_input_tick = SDL_GetTicks();
   app.favorites = LoadPathList(CachePath(app, "favorites.txt"));
   app.history = LoadPathList(CachePath(app, "history.txt"));
   Rescan(app);
+  if (const char *nav_index = std::getenv("ROCGALGAME_NAV_INDEX"); nav_index && *nav_index) {
+    try {
+      app.nav_selected = std::clamp(std::stoi(nav_index), 0, static_cast<int>(kNavLabels.size()) - 1);
+      app.focus = 0;
+      app.page = 0;
+      RebuildVisibleGames(app);
+    } catch (...) {}
+  }
   if (const char *open_menu = std::getenv("ROCGALGAME_OPEN_MENU"); open_menu && std::string(open_menu) == "1") {
     app.menu_open = true;
   }
@@ -1426,7 +1745,7 @@ bool Init(AppState &app, int argc, char **argv, bool allow_autolaunch) {
   if (allow_autolaunch) {
     if (const char *autolaunch = std::getenv("ROCGALGAME_AUTOLAUNCH_FIRST");
         autolaunch && std::string(autolaunch) == "1") {
-      if (const GameEntry *game = FocusedGame(app); game && game->core == CoreKind::Ons) {
+      if (const GameEntry *game = FocusedGame(app)) {
         PushHistory(app, *game);
         app.pending_game = *game;
         app.launch_pending = true;
@@ -1441,6 +1760,7 @@ bool Init(AppState &app, int argc, char **argv, bool allow_autolaunch) {
 void Shutdown(AppState &app) {
   if (app.screen_off) SetGkdDisplayPower(true);
   CloseInputDevices(app);
+  app.sfx.Shutdown();
 #ifdef HAVE_SDL2_TTF
   if (app.title_font && app.title_font != app.font) TTF_CloseFont(app.title_font);
   if (app.font) TTF_CloseFont(app.font);
@@ -1461,6 +1781,11 @@ void Shutdown(AppState &app) {
 
 int RunApp(int argc, char **argv) {
   bool allow_autolaunch = true;
+  int restore_nav = 0;
+  int restore_focus = 0;
+  int restore_page = 0;
+  bool has_restore_state = false;
+  std::string launch_message;
   while (true) {
     AppState app;
     if (!Init(app, argc, argv, allow_autolaunch)) {
@@ -1468,6 +1793,16 @@ int RunApp(int argc, char **argv) {
       return 1;
     }
     allow_autolaunch = false;
+    if (has_restore_state) {
+      app.nav_selected = restore_nav;
+      app.focus = restore_focus;
+      app.page = restore_page;
+      RebuildVisibleGames(app);
+    }
+    if (!launch_message.empty()) {
+      ShowMessage(app, launch_message, 5000);
+      launch_message.clear();
+    }
 
     Uint32 last = SDL_GetTicks();
     while (app.running) {
@@ -1515,21 +1850,25 @@ int RunApp(int argc, char **argv) {
       DrawShelf(app);
       DrawMenu(app);
       DrawSystemStatus(app);
+      DrawVolumeOverlay(app);
       DrawMessage(app);
       CaptureRendererIfRequested(app);
       SDL_RenderPresent(app.renderer);
     }
 
     const bool launch_pending = app.launch_pending;
-    const bool launch_requested = app.launch_requested;
     const GameEntry pending_game = app.pending_game;
     const AppConfig config = app.config;
+    restore_nav = app.nav_selected;
+    restore_focus = app.focus;
+    restore_page = app.page;
     Shutdown(app);
 
     if (launch_pending) {
-      LaunchGameAndWait(config, pending_game);
+      has_restore_state = true;
+      launch_message = DescribeLaunchResult(LaunchGameAndWait(config, pending_game));
       continue;
     }
-    return launch_requested ? kLaunchExitCode : 0;
+    return 0;
   }
 }

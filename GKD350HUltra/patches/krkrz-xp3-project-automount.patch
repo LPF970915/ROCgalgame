@@ -1,0 +1,160 @@
+diff --git a/base/StorageIntf.cpp b/base/StorageIntf.cpp
+index f26981f..e09633a 100644
+--- a/base/StorageIntf.cpp
++++ b/base/StorageIntf.cpp
+@@ -1084,8 +1084,8 @@ void TVPAddAutoPath(const ttstr & name)
+ 	TVPClearAutoPathCache();
+ }
+ //---------------------------------------------------------------------------
+-void TVPRemoveAutoPath(const ttstr &name)
+-{
++void TVPRemoveAutoPath(const ttstr &name)
++{
+ 	tTJSCriticalSectionHolder cs_holder(TVPCreateStreamCS);
+ 
+ 	tjs_char lastchar = name.GetLastChar();
+@@ -1099,10 +1099,118 @@ void TVPRemoveAutoPath(const ttstr &name)
+ 	if(i != TVPAutoPathList.end())
+ 		TVPAutoPathList.erase(i);
+ 
+-	TVPClearAutoPathCache();
+-}
+-//---------------------------------------------------------------------------
+-static tjs_uint TVPRebuildAutoPathTable()
++	TVPClearAutoPathCache();
++}
++//---------------------------------------------------------------------------
++static tjs_string TVPLowerAscii(tjs_string text)
++{
++	for(auto &ch : text)
++	{
++		if(ch >= TJS_W('A') && ch <= TJS_W('Z'))
++			ch += TJS_W('a') - TJS_W('A');
++	}
++	return text;
++}
++//---------------------------------------------------------------------------
++static bool TVPIsPatchArchiveName(const ttstr &name, int *sequence = nullptr)
++{
++	tjs_string lower = TVPLowerAscii(name.AsStdString());
++	if(lower.length() > 4 && lower.substr(lower.length() - 4) == TJS_W(".xp3"))
++		lower.resize(lower.length() - 4);
++
++	if(lower == TJS_W("patch"))
++	{
++		if(sequence) *sequence = 0;
++		return true;
++	}
++
++	const tjs_string prefix(TJS_W("patch"));
++	if(lower.compare(0, prefix.length(), prefix) != 0 || lower.length() == prefix.length())
++		return false;
++
++	int value = 0;
++	for(size_t i = prefix.length(); i < lower.length(); ++i)
++	{
++		if(lower[i] < TJS_W('0') || lower[i] > TJS_W('9')) return false;
++		value = std::min(value * 10 + static_cast<int>(lower[i] - TJS_W('0')), 1000000);
++	}
++	if(sequence) *sequence = value;
++	return true;
++}
++//---------------------------------------------------------------------------
++void TVPAutoMountProjectXP3Archives()
++{
++	if(TVPProjectDir.IsEmpty() || TVPProjectDir.GetLastChar() != TJS_W('/')) return;
++
++	class tXP3Lister : public iTVPStorageLister
++	{
++	public:
++		std::vector<ttstr> archives;
++		void TJS_INTF_METHOD Add(const ttstr &file) override
++		{
++			if(TVPLowerAscii(TVPExtractStorageExt(file).AsStdString()) == TJS_W(".xp3"))
++				archives.push_back(file);
++		}
++	} lister;
++
++	TVPStorageMediaManager.GetListAt(TVPProjectDir, &lister);
++	std::sort(lister.archives.begin(), lister.archives.end(), [](const ttstr &a, const ttstr &b) {
++		int a_sequence = 0;
++		int b_sequence = 0;
++		const bool a_patch = TVPIsPatchArchiveName(a, &a_sequence);
++		const bool b_patch = TVPIsPatchArchiveName(b, &b_sequence);
++		if(a_patch != b_patch) return !a_patch;
++		if(a_patch && a_sequence != b_sequence) return a_sequence < b_sequence;
++		return TVPLowerAscii(a.AsStdString()) < TVPLowerAscii(b.AsStdString());
++	});
++
++	if(lister.archives.empty())
++	{
++		TVPAddImportantLog(TJS_W("(info) No XP3 archives found in project directory"));
++		return;
++	}
++
++	for(const auto &archive_name : lister.archives)
++	{
++		ttstr archive_path = TVPNormalizeStorageName(TVPProjectDir + archive_name);
++		tTVPArchive *archive = nullptr;
++		try
++		{
++			archive = TVPOpenArchive(archive_path);
++		}
++		catch(...)
++		{
++			TVPAddImportantLog(ttstr(TJS_W("(warn) Failed to auto-mount project archive: ")) + archive_path);
++			continue;
++		}
++		if(!archive) continue;
++
++		std::set<tjs_string> directories;
++		directories.insert(tjs_string());
++		const tjs_uint file_count = archive->GetCount();
++		for(tjs_uint i = 0; i < file_count; ++i)
++		{
++			ttstr file = archive->GetName(i);
++			const tjs_char *chars = file.c_str();
++			for(tjs_int j = 0; j < file.GetLen(); ++j)
++			{
++				if(chars[j] == TJS_W('/')) directories.insert(tjs_string(chars, chars + j + 1));
++			}
++		}
++		archive->Release();
++
++		const tjs_char delimiter[] = {TVPArchiveDelimiter, 0};
++		const ttstr archive_root = archive_path + ttstr(delimiter);
++		for(const auto &directory : directories)
++			TVPAddAutoPath(archive_root + ttstr(directory));
++
++		TVPAddImportantLog(ttstr(TJS_W("(info) Auto-mounted project archive: ")) + archive_path +
++			TJS_W(" (") + ttstr(static_cast<tjs_int>(directories.size())) + TJS_W(" dirs, ") +
++			ttstr(static_cast<tjs_int>(file_count)) + TJS_W(" files)"));
++	}
++}
++//---------------------------------------------------------------------------
++static tjs_uint TVPRebuildAutoPathTable()
+ {
+ 	// rebuild auto path table
+ 	if(AutoPathTableInit) return 0;
+diff --git a/base/StorageIntf.h b/base/StorageIntf.h
+index 07fcd4a..c9015c2 100644
+--- a/base/StorageIntf.h
++++ b/base/StorageIntf.h
+@@ -268,10 +268,13 @@ TJS_EXP_FUNC_DEF(bool, TVPIsExistentStorage, (const ttstr &name));
+ 	// if "name" is exists, return true. otherwise return false.
+ 	// this searches auto search path.
+ 
+-TJS_EXP_FUNC_DEF(void, TVPClearStorageCaches, ());
+-	// clear all internal storage related caches.
+-
+-extern tjs_uint TVPSegmentCacheLimit; // XP3 segment cache limit, in bytes.
++TJS_EXP_FUNC_DEF(void, TVPClearStorageCaches, ());
++	// clear all internal storage related caches.
++
++// Mount every XP3 archive in a directory-based project before startup.tjs runs.
++TJS_EXP_FUNC_DEF(void, TVPAutoMountProjectXP3Archives, ());
++
++extern tjs_uint TVPSegmentCacheLimit; // XP3 segment cache limit, in bytes.
+ 
+ //---------------------------------------------------------------------------
+ 
