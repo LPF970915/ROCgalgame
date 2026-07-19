@@ -176,7 +176,7 @@ vec3 fullFrameReflection(vec2 screenPixel, vec2 windowSize, vec2 renderOrigin,
         1.0 - (visibleOrigin.y + visibleSize.y) / renderSize.y);
     vec2 sourceScale = visibleSize / renderSize;
 
-    vec2 border = clamp(windowSize * 0.045, vec2(44.0), vec2(68.0));
+    vec2 border = clamp(windowSize * 0.030, vec2(30.0), vec2(46.0));
     vec2 innerMin = border;
     vec2 innerMax = windowSize - border;
     vec2 innerSize = max(innerMax - innerMin, vec2(1.0));
@@ -194,7 +194,9 @@ vec3 fullFrameReflection(vec2 screenPixel, vec2 windowSize, vec2 renderOrigin,
     float topFold = max((screenPixel.y - innerMax.y) / border.y, 0.0);
     float xFold = max(leftFold, rightFold);
     float yFold = max(bottomFold, topFold);
-    float verticalSide = step(yFold, xFold);
+    float largestFold = max(max(xFold, yFold), 0.001);
+    float normalizedFoldDelta = (xFold - yFold) / largestFold;
+    float verticalSide = smoothstep(-0.55, 0.55, normalizedFoldDelta);
     float sideProgress = mix(yFold, xFold, verticalSide);
 
     float reflectedX = clamp((screenPixel.x - innerMin.x) / innerSize.x, 0.0, 1.0);
@@ -213,10 +215,12 @@ vec3 fullFrameReflection(vec2 screenPixel, vec2 windowSize, vec2 renderOrigin,
     vec3 reflection = mix(horizontalReflection, verticalReflection, verticalSide);
     float fade = mix(0.24, 0.94, pow(1.0 - clamp(sideProgress, 0.0, 1.0), 0.72));
     float cornerZone = step(0.001, xFold) * step(0.001, yFold);
-    float cornerCrease = cornerZone *
-        (1.0 - smoothstep(0.0, 0.075, abs(xFold - yFold)));
+    float cornerCurve = cornerZone *
+        (1.0 - smoothstep(0.10, 0.82, abs(normalizedFoldDelta)));
     float innerRim = 1.0 - smoothstep(0.0, 0.075, sideProgress);
-    reflection *= fade * (1.0 - cornerCrease * 0.48);
+    reflection *= fade * mix(1.0, 1.06, cornerCurve);
+    reflection += vec3(0.024, 0.031, 0.041) * cornerCurve *
+                  (1.0 - clamp(sideProgress, 0.0, 1.0) * 0.62);
     reflection += vec3(0.065, 0.082, 0.105) * innerRim;
     reflection += vec3(0.018, 0.024, 0.032) * (1.0 - fade);
     return reflection;
@@ -407,8 +411,8 @@ void GlesRenderer::copy(int window_x, int window_y) {
                         ? output_size[1] : drawable_height - window_y);
                 const float visible_width = visible_end_x - visible_origin_x;
                 const float visible_height = visible_end_y - visible_origin_y;
-                const float border_x = utils::clamp(drawable_width * 45 / 1000, 44, 68);
-                const float border_y = utils::clamp(drawable_height * 45 / 1000, 44, 68);
+                const float border_x = utils::clamp(drawable_width * 30 / 1000, 30, 46);
+                const float border_y = utils::clamp(drawable_height * 30 / 1000, 30, 46);
                 cursor_x = border_x +
                     (local_cursor_x - visible_origin_x) /
                     (visible_width > 1.0f ? visible_width : 1.0f) *
