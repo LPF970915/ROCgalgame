@@ -227,3 +227,92 @@ Stage 1 之后按计划先完成配置格式兼容测试和保留未知键的 `C
 | `stage11_game_settings.bmp` | `5672E3962AC1D1C9816D233B816108EB73A893C3FEDFE2E443720B5B8BFC81FC` |
 
 - SSH 截图会话日志包含 ALSA pipewire 模块缺失和 `SDL audio init failed` 警告；该会话没有可用音频设备，但 UI 渲染与退出正常。音频、实体按键、休眠/唤醒和 ONS/KRKR 启动/返回仍留给用户从系统菜单启动后做真机手工验证。
+
+## Stage 12 设置标题与按键说明对齐
+
+- 根据 GKD350HUltra 真机反馈，对照 ROCreader 同机型实现修正公共设置面板标题：面板标题统一使用 66pt `MenuTitle` 字体，并统一左边距、标题底边距和顶部横线基线。
+- “按键说明”由左右两列改为 ROCreader 风格的单列左对齐文本；按钮与动作合并为一行，并按实际字体宽度进行 UTF-8 换行。保留 ROCgalgame 自己的游戏操作说明，不照搬阅读器业务文本。
+- “按键校准”的居中标题切换到同一 66pt 标题字体；“版本更新”和“退出”复用公共面板标题绘制规则。
+- Windows frontend-only 增量构建通过；按键说明、按键校准、版本更新、退出四张 `1600x1440` 截图均非黑帧、无文字遮挡。四张截图底部 80px 与用户原始 `bottom_hint_bar.png` 逐像素一致，差异像素均为 0。
+- GKD 前端单线程增量交叉构建通过，Fast Stage audit 明确复用 ONS/KRKR，`games`、`covers`、`saves`、`cache` 均为 0 个 staged 文件。新前端 SHA-256：`3075AF56D5BA995FE6913A96D420D2AD7411892E7F7FF65B0F5F3CE412377205`。
+- 真机只原子替换前端；回滚备份：`/storage/games-external/ROCgalgame_refactor_backups/20260718_054914/stage12_ui_before_20260719_002027`。launcher、ONS、KRKR、用户测试后的 config/keymap 哈希以及 games/saves/covers 目录状态均保持不变。
+- 真机按键说明单帧截图 SHA-256：`6A7B55A621018BAA330F3294B92EFB8EA28CDFA71BBF7D5FE1433034E504CF2F`；视觉确认标题字号、单列左对齐、换行和底部状态栏均符合预期。
+
+## Stage 13 公共信息面板对齐
+
+- 贡献者头像面板对齐 ROCreader 的 GKD350HUltra 三列网格、安全区、头像尺寸、行距和选中缩放；标签使用 44pt `Menu` 字体，保留 ROCgalgame 的贡献者数据并显示贡献值。
+- 超出头像宽度的焦点标签使用循环跑马灯，速度为 `84 px/s`；焦点变化时重置滚动偏移。非焦点标签保持裁剪，避免文字侵入相邻列。
+- “联系我”顶部“打赏并联系我添加您的专属头像”调整为 ROCreader 相同的 44pt 字号和安全区位置，二维码及 ROCgalgame 自有联系方式保持不变。
+- “版本更新”和“退出”移除右侧顶部标题与分割线，改为 ROCreader 的居中内容布局；版本更新按钮为 `352x84`，当前版本和退出提示使用 66pt 字体。
+- Windows frontend-only 增量构建通过；贡献者头像、联系我、版本更新、退出四张 `1600x1440` 截图均非黑帧。四张截图底部 80px 与用户原始 `ui/1600x1440/bottom_hint_bar.png` 逐像素一致，差异像素均为 0。
+- GKD 前端使用 WSL Ubuntu、`Jobs 1` 单线程交叉构建通过，无编译警告；Fast Stage audit 明确复用 frontend、ONS 和 KRKR，`games`、`covers`、`saves`、`cache` 均为 0 个 staged 文件。新前端 SHA-256：`3A518943C3E2665B63D8492E3BC4E27E367A39F4CF1102E470F11B774F137E1F`。
+- 真机仅上传并原子替换 `/storage/roms/ports/ROCgalgame/rocgalgame_sdl`；未上传 launcher、ONS、KRKR、游戏、封面、存档、配置、键位或 UI 资源。回滚备份：`/storage/games-external/ROCgalgame_refactor_backups/20260718_054914/stage13_common_panels_before_20260719_005427`。
+- 部署后 launcher、ONS、KRKR、config、keymap 哈希保持不变；games/saves/covers 的 inode、大小、mtime 保持不变。四次设备截图均使用 `ROCGALGAME_EXIT_AFTER_CAPTURE=1` 立即退出，未启动游戏核心；底部状态栏差异像素均为 0。
+
+| 设备截图 | SHA-256 |
+| --- | --- |
+| `rocgalgame_stage13_contributors.bmp` | `9C4425A9860F0EBB9141D65ECBB287F1BBBA38E21E8A837B9A4B857B3D4A1B29` |
+| `rocgalgame_stage13_contact.bmp` | `D70B8B94F0B752E13D7953AFBBE8ABC39CA38CA002D90921B4C63763BF8CED2A` |
+| `rocgalgame_stage13_version_update.bmp` | `CB22EF211C0B8DE9CA142912CD92E47E44D3724C307525E16F2A08987C8F3AEC` |
+| `rocgalgame_stage13_exit.bmp` | `3C34C8A3B35CE3E1B01CEEBFC4527EB7FB8593311533B7F701E6FDA97ED0235F` |
+
+- 本轮仅完成界面布局和单帧渲染冒烟；跑马灯连续动画、实体按键、音频、休眠/唤醒以及 ONS/KRKR 启动/返回仍由用户进行真机手工验证。
+
+## Stage 14 书架方向键切页修正
+
+- 对照 ROCreader 书架运行时和 GKD350HUltra 支持提交确认：GKD 提交没有单独定义导航规则，现有公共运行时会在左键越过首列或右键越过末列时横向切页，与 ROCgalgame 的一页一行四项设计不符。
+- ROCgalgame 已恢复为“左右只在当前行移动，上下保持列位置切换上一页/下一页”；首列按左键、末列按右键均停留在当前页，末页不足四项时落到有效项目。
+- 更新 `game_domain_runtime_test`，明确覆盖右键不跨页、左键不跨页、下键进入下一页和上键返回上一页。WSL Ubuntu 单项测试通过：`game domain runtime tests passed`。
+- Windows frontend-only 增量构建通过；GKD 前端使用 WSL Ubuntu、`Jobs 1` 单线程增量交叉构建通过，Fast Stage audit 明确复用 frontend、ONS 和 KRKR。构建产物 SHA-256：`480CD9B088123F538AC5BA889CD98B652C69F16B8BA79122488E85DAEA976AF0`。
+- 用户退出前端后完成 Stage 14 部署，只上传并原子替换 `/storage/roms/ports/ROCgalgame/rocgalgame_sdl`。回滚备份：`/storage/games-external/ROCgalgame_refactor_backups/20260718_054914/stage14_shelf_navigation_before_20260719_013214`。
+- 部署后前端 SHA-256：`480CD9B088123F538AC5BA889CD98B652C69F16B8BA79122488E85DAEA976AF0`；launcher、ONS、KRKR、config、keymap 哈希保持不变，games/saves/covers 的 inode、大小、mtime 保持不变，设备无残留前端或游戏核心进程。
+- Stage 14 将用户反馈误解为限制左右键跨页；该行为已在 Stage 15 撤回，Stage 14 前端不再是设备当前版本。
+
+## Stage 15 书架纵向换行动画修正
+
+- 重新对照 ROCreader `DrawShelfRuntime`：页面计划使用 `shift_y`，旧行按 `-screen_h * slide` 移出，新行按 `screen_h * (1 - slide)` 从下方进入；ROCgalgame 此前错误使用 `x_offset` 和 `screen_w`，导致向下选择下一行时表现为左右切屏。
+- 恢复左右越界进入相邻行的连续选择逻辑，不限制左右键；上/下键仍按当前列切换上一行/下一行。
+- `shelf_scene.cpp` 的页面动画改为 Y 轴位移并使用 `screen_h`，行为与 ROCreader 一致：向下进入下一行时新内容从下方进入，向上时反向移动。
+- WSL Ubuntu 单项 `game_domain_runtime_test` 通过；Windows frontend-only 增量构建通过；GKD 使用 WSL Ubuntu、`Jobs 1` 单线程增量交叉构建通过。Fast Stage audit 明确复用 frontend、ONS 和 KRKR。
+- 设备只原子替换前端；新前端 SHA-256：`6762AA08C178023838F4F2CD75E28728E36E35ABB6B5A74520458D76EB752D47`。回滚备份：`/storage/games-external/ROCgalgame_refactor_backups/20260718_054914/stage15_vertical_shelf_transition_before_20260719_014230`。
+- 部署后 launcher、ONS、KRKR、config、keymap 哈希保持不变，games/saves/covers 的 inode、大小、mtime 保持不变，设备无残留前端或游戏核心进程。
+
+## Stage 16 书架纵向动画残影修正
+
+- 保留 Stage 15 的 0.18 秒纵向换行动画，不回退为 ROCreader 设备上的无动画表现。
+- 动画期间将封面、边框和标题严格裁剪在 `main_grid_y..main_grid_y + main_grid_h` 的书架视口内，禁止滑动内容进入顶部导航栏或底部状态栏区域。
+- 标题跑马灯的局部裁剪与外层书架视口取交集，避免封面被裁掉后标题纹理仍越界显示。
+- 页面滑动距离改为覆盖全部可见行、行间距和选中封面放大量，并与屏幕高度取最大值；旧页在动画结束前已完全离开视口，不再等新页停稳后突然消失。
+- Windows frontend-only 增量构建通过；GKD 使用 WSL Ubuntu、`Jobs 1` 单线程增量交叉构建通过；Fast Stage audit 明确复用 frontend、ONS 和 KRKR。
+- 设备仅原子替换前端；新前端 SHA-256：`09E14B243811610B5D40D90F677229958B3D48D0CDDF779FF05DEEA96F74EA2B`。回滚备份：`/storage/games-external/ROCgalgame_refactor_backups/20260718_054914/stage16_shelf_transition_clip_before_20260719_015455`。
+- 部署后 launcher、ONS、KRKR、config、keymap 哈希保持不变，games/saves/covers 的 inode、大小、mtime 保持不变，设备无残留前端或游戏核心进程。
+
+## Stage 18 三行页面独立裁剪修正
+
+- 用户确认三行合并绘制是为大量封面场景降低逐项绘制卡顿而保留的性能优化；曾尝试的逐行联合绘制方案仅完成本地构建和 Fast Stage audit，未上传、未部署，最终已撤回。
+- 根因确认：三行页面最底部原本超出书架视口的封面标题，会在整个页面上移时重新进入屏幕，表现为导航栏下方出现并非第一行名称的第三行文字残留。
+- 保留原有每页三行的绘制范围和封面缓存路径；旧页与新页各自使用一个随页面位移的独立裁剪窗口，窗口高度为 `main_grid_h`，并与固定书架视口取交集。
+- 页面裁剪窗口与页面内容同步移动，因此原本处于页面底部裁剪范围外的第三行标题在动画全过程中始终不可见；旧页和新页窗口首尾衔接，不引入空白缝隙。
+- 标题局部裁剪继续与页面裁剪窗口取交集，避免文字纹理绕过页面边界。
+- Windows frontend-only 增量构建通过；GKD 使用 WSL Ubuntu、`Jobs 1` 单线程增量交叉构建通过；Fast Stage audit 明确复用 frontend、ONS 和 KRKR。
+- 设备仅原子替换前端；新前端 SHA-256：`37E68B0D6F0E4271CEB6C662625261A4F72BBF7575DA9A32A02D49714B830ADB`。回滚备份：`/storage/games-external/ROCgalgame_refactor_backups/20260718_054914/stage18_paged_shelf_clip_before_20260719_020911`。
+- 部署后 launcher、ONS、KRKR、config、keymap 哈希保持不变，games/saves/covers 的 inode、大小、mtime 保持不变，设备无残留前端或游戏核心进程。
+
+## Stage 19 顶部固定背景遮罩修正
+
+- 根据 GKD350HUltra 真机画面确认，顶部需要重绘背景的固定区域为屏幕坐标 `0,0` 起始的 `1600x180` 长方形；其他分辨率继续使用各自布局的 `main_grid_y`，不硬编码为 GKD 尺寸。
+- 保留每页三行合并绘制、封面缓存和纵向滑页动画。书架页面与标题全部绘制完成后，在顶部固定区域重新绘制完整的 `background_main.png` 对应部分，从最终画面上覆盖任何越界封面或标题残影。
+- 背景遮罩在顶部状态栏和导航之前绘制，因此 `top_status_bar.png`、分类导航及其焦点状态随后正常覆盖到背景上，不会裁切或遮挡顶部状态栏；底部状态栏逻辑与资源完全未修改。
+- `git diff --check`、Windows frontend-only 增量构建和 GKD WSL Ubuntu `Jobs 1` 单线程增量交叉构建通过；Fast Stage audit 明确复用 frontend、ONS 和 KRKR。新前端 SHA-256：`01D2A463734CFCF19828F337348100C4D586472FE4F55804F407A2A22FACCEF6`。
+- 设备确认前端未运行后，仅上传隐藏临时前端，校验 SHA-256 后原子替换 `/storage/games-external/roms/ports/ROCgalgame/rocgalgame_sdl`。回滚备份：`/storage/games-external/ROCgalgame_refactor_backups/20260718_054914/stage19_top_mask_1600x180_before_20260719_023548`。
+- 部署前后 launcher、ONS、KRKR、config、keymap 哈希保持不变；未复制游戏，未上传或替换 UI 资源、封面、存档及游戏核心。连续滑页效果与残影消除结果留给用户进行真机轻量验证。
+
+## ver0.01 GKD350H Ultra 验收基线与 Docker 发版
+
+- 用户确认当前 Stage 19 真机版本作为首个正式验收基线，后续问题均以该基线继续修复，首个发布版本编号为 `0.01`。
+- 清理旧发布压缩包、纯截图阶段副本和日志，释放约 `760 MiB`；明确保留 `Windows/build`、`build/gkd350h/krkrsdl2`、`build/gkd350h/onsyuri`、`build/test-data`、`GKD350HUltra/sysroot_device`、`GKD350HUltra/tools`、`GKD350HUltra/patches`、`GKD350HUltra/dist_lowglibc` 和根目录核心，避免未来重新进行耗时的 ONS/KRKR 构建与兼容性验证。
+- 新增 `build_release_docker.ps1`、`build_release_docker.sh` 和 `docker/Dockerfile.release`，使用缓存的 Ubuntu 22.04 Docker 镜像 clean 重编 ROCgalgame 前端；ONS 和 KRKR 不进入构建目标。
+- 新增 `release_core_hashes.sha256`。Docker 流程在前端构建前、构建后和打包后三次校验 ONS/KRKR；任一核心缺失或哈希变化都会立即终止发版。ONS SHA-256：`8C69889F8C93CDE3D14C9462D8997050D4FBCE2E36D75BA990203DC89F46FCB5`；KRKR SHA-256：`57EE663331BEA3FF894798DE5492EE13819BAF33664D47FBD42C487E0FC3F294`。
+- 固化发布包名称为 `ROCgalgame verX.XX for GKD350H Ultra.zip`；未显式指定版本时扫描 Downloads 自动从 `0.01` 顺延到 `0.02`、`0.03`。压缩包固定以 `roms/ports/ROCgalgame.sh` 和 `roms/ports/ROCgalgame/` 为安装结构。
+- ZIP 改由 Python 标准库生成并写入 UTF-8 文件名标志，Windows 读取确认 27 个中文贡献者头像名称完整。包内共 74 个条目，全部位于 `roms/`；`games`、`covers`、`saves`、`cache` 仅包含空目录，没有复制本地游戏、封面、存档或缓存。
+- 正式包：`GKD350HUltra/Downloads/ROCgalgame ver0.01 for GKD350H Ultra.zip`，大小 `15,290,564` 字节，SHA-256：`F8000B17432D52EFE82B751056A4B2EF7EF17BBC387864CE17D9613F4FA9E3BD`。包内 Docker 前端 SHA-256：`033B29E53916EA14E4DD79F7AC7536CF1343D960FADD10D8F71412C2F5D59771`。

@@ -10,8 +10,8 @@ void DrawKeyCalibrationPanel(const SDL_Rect &preview,
     const int current = std::clamp(model.current, 0, std::max(0, model.total - 1));
     if (services.draw_text_centered) {
       services.draw_text_centered(u8"按键校准",
-                                  SDL_Rect{preview.x + 40, preview.y + 135, preview.w - 80, 70},
-                                  SDL_Color{240, 246, 255, 255}, MenuPanelTextStyle::Menu);
+                                  SDL_Rect{preview.x + 40, preview.y + 110, preview.w - 80, 96},
+                                  SDL_Color{240, 246, 255, 255}, MenuPanelTextStyle::Title);
       services.draw_text_centered(u8"进度 " + std::to_string(current) + " / " +
                                       std::to_string(model.total) + u8" 个按键",
                                   SDL_Rect{preview.x + 40, center_y - 180, preview.w - 80, 60},
@@ -30,10 +30,10 @@ void DrawKeyCalibrationPanel(const SDL_Rect &preview,
   const std::string title = model.complete || model.failed ? model.status : u8"按键校准";
   if (services.draw_text_centered) {
     services.draw_text_centered(title,
-                                SDL_Rect{preview.x + 60, action.y - 110, preview.w - 120, 76},
+                                SDL_Rect{preview.x + 60, action.y - 142, preview.w - 120, 96},
                                 model.failed ? SDL_Color{255, 184, 164, 255}
                                              : SDL_Color{240, 246, 255, 255},
-                                MenuPanelTextStyle::Menu);
+                                MenuPanelTextStyle::Title);
   }
   services.draw_rect(action, model.panel_active ? SDL_Color{41, 82, 113, 255}
                                                 : SDL_Color{29, 42, 57, 255},

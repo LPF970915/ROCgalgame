@@ -3,7 +3,7 @@ param(
   [string]$OnsRoot = "D:\Works\Tyranor\OnscripterYuri",
   [string]$KrkrRoot = "D:\Works\Tyranor\krkrsdl2",
   [ValidatePattern('^[0-9A-Za-z._-]+$')]
-  [string]$Version = "0.1",
+  [string]$Version = "0.01",
   [ValidateSet("Fast", "Incremental", "Full")]
   [string]$Mode = "Fast",
   [string[]]$BuildTargets = @(),
@@ -53,8 +53,9 @@ if ($LASTEXITCODE -ne 0) { throw "Package build failed with exit code $LASTEXITC
 & (Join-Path $PSScriptRoot "write_build_checkpoint.ps1") -KrkrRoot $KrkrRoot
 
 $downloads = Join-Path $PSScriptRoot "Downloads"
-$zipPath = Join-Path $downloads "ROCgalgame_GKD350HUltra_v$Version.zip"
-$tarPath = Join-Path $downloads "ROCgalgame_GKD350HUltra_v$Version.tar.gz"
+$packageName = "ROCgalgame ver$Version for GKD350H Ultra"
+$zipPath = Join-Path $downloads "$packageName.zip"
+$tarPath = Join-Path $downloads "$packageName.tar.gz"
 if ($Output -eq "Stage") {
   Write-Host "[package] staged and validated: $(Join-Path $PSScriptRoot 'dist_lowglibc')"
 } elseif (($Output -eq "Zip" -or $Output -eq "Both") -and (Test-Path -LiteralPath $zipPath)) {

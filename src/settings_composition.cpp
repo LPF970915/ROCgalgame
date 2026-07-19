@@ -40,11 +40,12 @@ SettingsPanelInputHandlers MakeSettingsPanelInputHandlers(
         });
   };
   handlers.contributor_avatars = [input = &composition.input,
+                                  dt = composition.dt,
                                   contributor = &composition.contributor_avatar,
                                   count = composition.contributor_avatar_count,
                                   confirm = std::move(composition.confirm_contributor_avatar)](
                                      SettingsRuntimeState &state) {
-    return HandleContributorAvatarInput(*input, state, *contributor, count, confirm);
+    return HandleContributorAvatarInput(*input, dt, state, *contributor, count, confirm);
   };
   handlers.version_update = [input = &composition.input,
                              update = &composition.version_update,
@@ -117,18 +118,18 @@ SettingsPanelDrawHandlers MakeSettingsPanelDrawHandlers(
   };
   panels.contributor_avatars = [renderer = composition.renderer,
                                 assets = &composition.assets,
-                                layout = &composition.layout,
                                 avatars = &composition.avatars,
                                 contributor = &composition.contributor_avatar,
                                 menu = &composition.menu_state,
+                                language,
                                 services = composition.services](const SDL_Rect &preview,
                                                                   int) {
-    DrawContributorAvatarPanel(renderer, *assets, preview, layout->bottom_bar_y,
-                               *avatars, *contributor, *menu, services);
+    DrawContributorAvatarPanel(renderer, *assets, preview, *avatars, *contributor, *menu,
+                               language, services);
   };
-  panels.contact = [language, services = composition.services](const SDL_Rect &preview,
-                                                               int first_y) {
-    DrawContactPanel(preview, first_y, language, services);
+  panels.contact = [language, layout = &composition.layout,
+                    services = composition.services](const SDL_Rect &preview, int) {
+    DrawContactPanel(preview, *layout, language, services);
   };
   panels.version_update = [language, update = composition.version_update,
                            active = composition.menu_state.panel_active,

@@ -17,6 +17,7 @@
 
 struct SettingsPanelInputComposition {
   InputManager &input;
+  float dt = 0.0f;
   KeyCalibrationState &calibration;
   VersionUpdateState &version_update;
   ContributorAvatarState &contributor_avatar;

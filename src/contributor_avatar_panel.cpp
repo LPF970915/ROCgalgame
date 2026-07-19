@@ -1,16 +1,20 @@
 #include "contributor_avatar_panel.h"
 
+#include "app_language.h"
+
 #include <algorithm>
+#include <cmath>
 
 namespace {
-std::string AvatarDisplayName(const std::string &filename) {
+constexpr float kAvatarNameMarqueeGapPx = 4.0f;
+
+std::string AvatarRawLabel(const std::string &filename) {
   size_t begin = filename.find('_');
   if (begin == std::string::npos) return filename;
   begin = filename.find('_', begin + 1);
   if (begin == std::string::npos) return filename;
   ++begin;
-  size_t end = filename.find(u8"_贡献值", begin);
-  if (end == std::string::npos) end = filename.find_last_of('.');
+  const size_t end = filename.find_last_of('.');
   return filename.substr(begin, end == std::string::npos ? std::string::npos : end - begin);
 }
 
@@ -23,19 +27,30 @@ void DrawTextureCrop(SDL_Renderer *renderer, TextureHandle *texture, const SDL_R
 }  // namespace
 
 void DrawContributorAvatarPanel(
-    SDL_Renderer *renderer, UiAssets &assets, const SDL_Rect &preview, int bottom_bar_y,
+    SDL_Renderer *renderer, UiAssets &assets, const SDL_Rect &preview,
     const std::vector<ContributorAvatarEntry> &entries,
     const ContributorAvatarState &state, const SettingsRuntimeState &menu_state,
-    const MenuPanelDrawServices &services) {
+    int language_index, const MenuPanelDrawServices &services) {
   if (!renderer || entries.empty()) return;
+  constexpr float ui_scale = 2.0f;
   const int safe_left = preview.x + 48;
   const int safe_right = preview.x + preview.w - 48;
   const int safe_top = preview.y + 100;
-  const int safe_bottom = bottom_bar_y - 40;
-  const int gap_x = 28;
-  const int tile_w = (safe_right - safe_left - gap_x * 2) / 3;
-  const int row_pitch = 410;
-  const int image_size = 280;
+  const int safe_bottom = preview.y + preview.h - 96;
+  const int safe_w = std::max(0, safe_right - safe_left);
+  const int safe_h = std::max(0, safe_bottom - safe_top);
+  if (safe_w <= 0 || safe_h <= 0) return;
+  const int col_gap = 28;
+  const int row_gap = 40;
+  const int name_gap = 24;
+  const int name_h = 68;
+  const int tile_w = std::max(120, (safe_w - col_gap * 2) / 3);
+  const int row_pitch = std::clamp(
+      static_cast<int>(std::floor((safe_h - row_gap * 1.5f) / 2.5f)), 300, 424);
+  const int image_size = std::max(144, std::min(tile_w, row_pitch - name_gap - name_h - row_gap));
+  const int x_base = safe_left + std::max(0, (safe_w - (tile_w * 3 + col_gap * 2)) / 2);
+  const int y_base = safe_top + std::max(24, safe_h / 24);
+  const int scroll_y = state.scroll_row * row_pitch;
   const SDL_Rect viewport{safe_left, safe_top, safe_right - safe_left, safe_bottom - safe_top};
   SDL_Rect old_clip{};
   const SDL_bool had_clip = SDL_RenderIsClipEnabled(renderer);
@@ -44,12 +59,15 @@ void DrawContributorAvatarPanel(
   for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
     const int row = i / 3;
     const int col = i % 3;
-    const int tile_x = safe_left + col * (tile_w + gap_x);
-    const int tile_y = safe_top + 16 + (row - state.scroll_row) * row_pitch;
-    if (tile_y + image_size < safe_top || tile_y > safe_bottom) continue;
+    const int tile_x = x_base + col * (tile_w + col_gap);
+    const int tile_y = y_base + row * row_pitch - scroll_y;
     const bool focused = menu_state.panel_active && i == state.focus_index;
-    const int draw_size = focused ? 302 : image_size;
+    const int draw_size = static_cast<int>(std::lround(image_size * (focused ? 1.08f : 1.0f)));
     const int image_x = tile_x + (tile_w - draw_size) / 2;
+    const int label_w = image_size;
+    const int label_x = tile_x + (tile_w - label_w) / 2;
+    const int label_y = tile_y + draw_size + name_gap;
+    if (label_y + name_h < safe_top || tile_y > safe_bottom) continue;
     TextureHandle *avatar = assets.LoadExternal(renderer, entries[static_cast<size_t>(i)].path);
     DrawTextureCrop(renderer, avatar, SDL_Rect{image_x, tile_y, draw_size, draw_size});
     int frame_no = -1;
@@ -63,14 +81,37 @@ void DrawContributorAvatarPanel(
     }
     if (focused) {
       services.draw_rect(SDL_Rect{image_x - 6, tile_y - 6, draw_size + 12, draw_size + 12},
-                         SDL_Color{120, 205, 255, 255}, false, 4);
+                         SDL_Color{120, 205, 255, 255}, false, 2);
     }
-    std::string label = AvatarDisplayName(entries[static_cast<size_t>(i)].filename);
-    if (services.ellipsize) label = services.ellipsize(label, MenuPanelTextStyle::Small, tile_w);
-    if (services.draw_text_centered) {
-      services.draw_text_centered(label,
-                                  SDL_Rect{tile_x, tile_y + draw_size + 18, tile_w, 58},
-                                  SDL_Color{235, 241, 248, 255}, MenuPanelTextStyle::Small);
+    const std::string label = LocalizeContributionLabel(
+        language_index, AvatarRawLabel(entries[static_cast<size_t>(i)].filename));
+    if (services.get_text_texture && !label.empty()) {
+      TextCacheEntry *label_texture = services.get_text_texture(
+          label, SDL_Color{235, 241, 248, 255}, MenuPanelTextStyle::Menu);
+      if (label_texture && label_texture->texture) {
+        const SDL_Rect label_clip{label_x, label_y, label_w, name_h};
+        SDL_RenderSetClipRect(renderer, &label_clip);
+        const int draw_y = label_y + std::max(0, (name_h - label_texture->h) / 2);
+        if (label_texture->w <= label_w) {
+          const int centered_x = label_x + std::max(0, (label_w - label_texture->w) / 2);
+          const SDL_Rect dst{centered_x, draw_y, label_texture->w, label_texture->h};
+          SDL_RenderCopy(renderer, label_texture->texture, nullptr, &dst);
+        } else if (focused) {
+          const float span = static_cast<float>(label_texture->w) +
+                             kAvatarNameMarqueeGapPx * ui_scale;
+          const float offset = span > 0.0f ? std::fmod(state.marquee_offset, span) : 0.0f;
+          const SDL_Rect first{label_x - static_cast<int>(std::lround(offset)), draw_y,
+                               label_texture->w, label_texture->h};
+          const SDL_Rect second{first.x + static_cast<int>(std::lround(span)), draw_y,
+                                label_texture->w, label_texture->h};
+          SDL_RenderCopy(renderer, label_texture->texture, nullptr, &first);
+          SDL_RenderCopy(renderer, label_texture->texture, nullptr, &second);
+        } else {
+          const SDL_Rect dst{label_x, draw_y, label_texture->w, label_texture->h};
+          SDL_RenderCopy(renderer, label_texture->texture, nullptr, &dst);
+        }
+        SDL_RenderSetClipRect(renderer, &viewport);
+      }
     }
   }
   SDL_RenderSetClipRect(renderer, had_clip == SDL_TRUE ? &old_clip : nullptr);

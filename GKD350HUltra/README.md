@@ -137,6 +137,39 @@ Suggested local workspace layout:
 - `Downloads/`: final release zip files
 - `logs/`: build logs
 
+## Docker Release Build
+
+The canonical release command is:
+
+```powershell
+.\GKD350HUltra\build_release_docker.ps1
+```
+
+The first run builds the cached `rocgalgame-gkd350h-release:22.04` image. Later runs normally finish in a few minutes because only the ROCgalgame frontend is rebuilt. ONS and KRKR are never compiled by this command: their staged binaries must match `release_core_hashes.sha256` before the frontend build, after the frontend build, and after packaging. ZIP files are written through Python's UTF-8-aware standard library so Chinese avatar and UI filenames remain intact when extracted on Windows.
+
+Without `-Version`, the PowerShell wrapper scans `Downloads/` and advances the release number from `0.01` to `0.02`, `0.03`, and so on. A fixed version can be requested explicitly:
+
+```powershell
+.\GKD350HUltra\build_release_docker.ps1 -Version 0.01 -Jobs 2
+```
+
+The output name is `ROCgalgame verX.XX for GKD350H Ultra.zip`, with this archive layout:
+
+```text
+roms/
+  ports/
+    ROCgalgame.sh
+    ROCgalgame/
+      rocgalgame_sdl
+      cores/
+      fonts/
+      lib/
+      sounds/
+      ui/
+```
+
+Mutable `games/`, `covers/`, `saves/`, and `cache/` directories are included empty. Local games, covers, cache files, and saves are never copied into a release.
+
 The first build route should reuse the repository low-glibc flow with a target
 sysroot:
 

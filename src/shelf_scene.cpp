@@ -72,7 +72,9 @@ void DrawTitle(const ShelfSceneRenderContext &context, const GameEntry &game,
   SDL_Rect previous_clip{};
   const SDL_bool had_clip = SDL_RenderIsClipEnabled(context.renderer);
   if (had_clip == SDL_TRUE) SDL_RenderGetClipRect(context.renderer, &previous_clip);
-  SDL_RenderSetClipRect(context.renderer, &clip);
+  SDL_Rect effective_clip = clip;
+  if (had_clip == SDL_TRUE) SDL_IntersectRect(&clip, &previous_clip, &effective_clip);
+  SDL_RenderSetClipRect(context.renderer, &effective_clip);
   std::string title = game.title;
   int title_w = 0;
   int title_h = 0;
@@ -112,7 +114,7 @@ void DrawGameCard(const ShelfSceneRenderContext &context, const GameEntry &game,
   }
 }
 
-void DrawPage(const ShelfSceneRenderContext &context, int page, int x_offset,
+void DrawPage(const ShelfSceneRenderContext &context, int page, int y_offset,
               bool draw_focus) {
   const auto &state = context.state;
   const auto &games = context.library.Games();
@@ -132,8 +134,8 @@ void DrawPage(const ShelfSceneRenderContext &context, int page, int x_offset,
     const int game_index = state.visible_games[static_cast<size_t>(index)];
     if (game_index < 0 || game_index >= static_cast<int>(games.size())) continue;
     DrawGameCard(context, games[static_cast<size_t>(game_index)],
-                 SDL_Rect{context.layout.grid_start_x + col * GridStepX(context.layout) + x_offset,
-                          context.layout.grid_start_y + row * GridStepY(context.layout),
+                 SDL_Rect{context.layout.grid_start_x + col * GridStepX(context.layout),
+                          context.layout.grid_start_y + row * GridStepY(context.layout) + y_offset,
                           context.layout.cover_w, context.layout.cover_h}, false);
   }
   if (focused_index >= begin && focused_index < end) {
@@ -146,11 +148,58 @@ void DrawPage(const ShelfSceneRenderContext &context, int page, int x_offset,
     const int height = FocusedCoverHeight(context.layout);
     DrawGameCard(context, games[static_cast<size_t>(game_index)],
                  SDL_Rect{context.layout.grid_start_x + col * GridStepX(context.layout) +
-                              (context.layout.cover_w - width) / 2 + x_offset,
+                              (context.layout.cover_w - width) / 2,
                           context.layout.grid_start_y + row * GridStepY(context.layout) +
-                              (context.layout.cover_h - height) / 2,
+                              (context.layout.cover_h - height) / 2 + y_offset,
                           width, height}, true);
   }
+}
+
+void DrawAnimatedPage(const ShelfSceneRenderContext &context, int page, int y_offset,
+                      bool draw_focus) {
+  SDL_Rect clip{0, context.layout.main_grid_y + y_offset,
+                context.layout.screen_w, context.layout.main_grid_h};
+  const SDL_Rect shelf_viewport{0, context.layout.main_grid_y,
+                                context.layout.screen_w, context.layout.main_grid_h};
+  SDL_Rect visible_clip{};
+  if (SDL_IntersectRect(&clip, &shelf_viewport, &visible_clip) != SDL_TRUE) return;
+
+  SDL_Rect previous_clip{};
+  const SDL_bool had_clip = SDL_RenderIsClipEnabled(context.renderer);
+  if (had_clip == SDL_TRUE) {
+    SDL_RenderGetClipRect(context.renderer, &previous_clip);
+    SDL_Rect intersected{};
+    if (SDL_IntersectRect(&visible_clip, &previous_clip, &intersected) != SDL_TRUE) return;
+    visible_clip = intersected;
+  }
+  SDL_RenderSetClipRect(context.renderer, &visible_clip);
+  DrawPage(context, page, y_offset, draw_focus);
+  SDL_RenderSetClipRect(context.renderer, had_clip == SDL_TRUE ? &previous_clip : nullptr);
+}
+
+void DrawShelfTopMask(const ShelfSceneRenderContext &context) {
+  TextureHandle *background =
+      context.services.get_asset ? context.services.get_asset("background_main.png") : nullptr;
+  if (!background || !background->texture) return;
+
+  SDL_Rect previous_clip{};
+  const SDL_bool had_clip = SDL_RenderIsClipEnabled(context.renderer);
+  if (had_clip == SDL_TRUE) SDL_RenderGetClipRect(context.renderer, &previous_clip);
+
+  const int mask_height = context.layout.screen_w == 1600 && context.layout.screen_h == 1440
+                              ? 180
+                              : context.layout.main_grid_y;
+  SDL_Rect mask{0, 0, context.layout.screen_w,
+                std::clamp(mask_height, 0, context.layout.screen_h)};
+  if (had_clip == SDL_TRUE) {
+    SDL_Rect intersected{};
+    if (SDL_IntersectRect(&mask, &previous_clip, &intersected) != SDL_TRUE) return;
+    mask = intersected;
+  }
+  SDL_RenderSetClipRect(context.renderer, &mask);
+  DrawTexture(context.renderer, background,
+              SDL_Rect{0, 0, context.layout.screen_w, context.layout.screen_h});
+  SDL_RenderSetClipRect(context.renderer, had_clip == SDL_TRUE ? &previous_clip : nullptr);
 }
 
 void DrawNavigation(const ShelfSceneRenderContext &context) {
@@ -203,18 +252,21 @@ void ShelfScene::Draw(const ShelfSceneRenderContext &context) const {
   DrawTexture(context.renderer,
               context.services.get_asset ? context.services.get_asset("background_main.png") : nullptr,
               SDL_Rect{0, 0, context.layout.screen_w, context.layout.screen_h});
-  if (context.state.page_animation < 1.0f &&
-      context.state.previous_page != context.state.page) {
+  const bool page_animating = context.state.page_animation < 1.0f &&
+                              context.state.previous_page != context.state.page;
+  if (page_animating) {
     const float eased = 1.0f - std::pow(1.0f - context.state.page_animation, 3.0f);
+    const int transition_span = std::max(1, context.layout.main_grid_h);
     const int current_offset = static_cast<int>((1.0f - eased) *
-                                                 context.layout.screen_w *
+                                                 transition_span *
                                                  context.state.page_direction);
     const int previous_offset = current_offset -
-                                context.layout.screen_w * context.state.page_direction;
-    DrawPage(context, context.state.previous_page, previous_offset, false);
-    DrawPage(context, context.state.page, current_offset, true);
+                                transition_span * context.state.page_direction;
+    DrawAnimatedPage(context, context.state.previous_page, previous_offset, false);
+    DrawAnimatedPage(context, context.state.page, current_offset, true);
   } else {
     DrawPage(context, context.state.page, 0, true);
   }
+  DrawShelfTopMask(context);
   DrawNavigation(context);
 }

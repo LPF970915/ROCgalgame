@@ -9,7 +9,7 @@
 #include <vector>
 
 void DrawContributorAvatarPanel(
-    SDL_Renderer *renderer, UiAssets &assets, const SDL_Rect &preview, int bottom_bar_y,
+    SDL_Renderer *renderer, UiAssets &assets, const SDL_Rect &preview,
     const std::vector<ContributorAvatarEntry> &entries,
     const ContributorAvatarState &state, const SettingsRuntimeState &menu_state,
-    const MenuPanelDrawServices &services);
+    int language_index, const MenuPanelDrawServices &services);

@@ -5,9 +5,9 @@ SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
 RUNTIME_DIR="$DIST_ROOT/ROCgalgame"
 DOWNLOADS_DIR="${DOWNLOADS_DIR:-$SELF_DIR/Downloads}"
-VERSION="${ROCGALGAME_VERSION:-0.1}"
-PACKAGE_NAME="ROCgalgame_GKD350HUltra_v$VERSION"
-STAGING_DIR="$DOWNLOADS_DIR/$PACKAGE_NAME"
+VERSION="${ROCGALGAME_VERSION:-0.01}"
+PACKAGE_NAME="ROCgalgame ver$VERSION for GKD350H Ultra"
+STAGING_DIR="$DOWNLOADS_DIR/.$PACKAGE_NAME.stage"
 ZIP_FILE="$DOWNLOADS_DIR/$PACKAGE_NAME.zip"
 TAR_FILE="$DOWNLOADS_DIR/$PACKAGE_NAME.tar.gz"
 BUILD_FRONTEND="${PACKAGE_BUILD_FRONTEND:-1}"
@@ -94,25 +94,27 @@ fi
 
 mkdir -p "$DOWNLOADS_DIR"
 rm -rf "$STAGING_DIR"
-mkdir -p "$STAGING_DIR/ROCgalgame"
-cp "$DIST_ROOT/ROCgalgame.sh" "$STAGING_DIR/ROCgalgame.sh"
+PORTS_DIR="$STAGING_DIR/roms/ports"
+PACKAGE_RUNTIME_DIR="$PORTS_DIR/ROCgalgame"
+mkdir -p "$PACKAGE_RUNTIME_DIR"
+cp "$DIST_ROOT/ROCgalgame.sh" "$PORTS_DIR/ROCgalgame.sh"
 rsync -a --delete \
   --exclude='/games/***' --exclude='/covers/***' --exclude='/saves/***' --exclude='/cache/***' \
-  "$RUNTIME_DIR/" "$STAGING_DIR/ROCgalgame/"
-mkdir -p "$STAGING_DIR/ROCgalgame/games" "$STAGING_DIR/ROCgalgame/covers" \
-  "$STAGING_DIR/ROCgalgame/saves" "$STAGING_DIR/ROCgalgame/cache"
-chmod +x "$STAGING_DIR/ROCgalgame.sh" "$STAGING_DIR/ROCgalgame/rocgalgame_sdl" \
-  "$STAGING_DIR/ROCgalgame/cores/ons/onsyuri" "$STAGING_DIR/ROCgalgame/cores/krkr/krkrsdl2" 2>/dev/null || true
+  "$RUNTIME_DIR/" "$PACKAGE_RUNTIME_DIR/"
+mkdir -p "$PACKAGE_RUNTIME_DIR/games" "$PACKAGE_RUNTIME_DIR/covers" \
+  "$PACKAGE_RUNTIME_DIR/saves" "$PACKAGE_RUNTIME_DIR/cache"
+chmod +x "$PORTS_DIR/ROCgalgame.sh" "$PACKAGE_RUNTIME_DIR/rocgalgame_sdl" \
+  "$PACKAGE_RUNTIME_DIR/cores/ons/onsyuri" "$PACKAGE_RUNTIME_DIR/cores/krkr/krkrsdl2" 2>/dev/null || true
 
 if [ "$PACKAGE_OUTPUT" = "Zip" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
-  command -v zip >/dev/null 2>&1 || { echo "[package] ERROR: zip is required for $PACKAGE_OUTPUT output"; exit 1; }
+  command -v python3 >/dev/null 2>&1 || { echo "[package] ERROR: python3 is required for UTF-8 zip output"; exit 1; }
   rm -f "$ZIP_FILE"
-  (cd "$STAGING_DIR" && nice -n 10 zip -qr "$ZIP_FILE" ROCgalgame.sh ROCgalgame)
+  nice -n 10 python3 "$SELF_DIR/create_release_zip.py" "$STAGING_DIR" "$ZIP_FILE" roms
   echo "[package] wrote $ZIP_FILE"
 fi
 if [ "$PACKAGE_OUTPUT" = "Tar" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
   rm -f "$TAR_FILE"
-  (cd "$STAGING_DIR" && nice -n 10 tar -czf "$TAR_FILE" ROCgalgame.sh ROCgalgame)
+  (cd "$STAGING_DIR" && nice -n 10 tar -czf "$TAR_FILE" roms)
   echo "[package] wrote $TAR_FILE"
 fi
 

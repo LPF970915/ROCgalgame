@@ -450,6 +450,7 @@ void HandleMenuInput(AppState &app, float dt) {
   SettingsPanelInputHandlers panel_handlers = MakeSettingsPanelInputHandlers(
       SettingsPanelInputComposition{
           app.input,
+          dt,
           app.calibration,
           app.version_update_state,
           app.contributor_avatar_state,
@@ -654,6 +655,10 @@ MenuPanelDrawServices MakeMenuPanelDrawServices(AppState &app) {
   };
   services.ellipsize = [&](const std::string &text, MenuPanelTextStyle style, int max_width) {
     return Ellipsize(MenuPanelFont(app, style), text, max_width);
+  };
+  services.get_text_texture = [&](const std::string &text, SDL_Color color,
+                                  MenuPanelTextStyle style) {
+    return app.text_cache.Get(app.renderer, MenuPanelFont(app, style), text, color);
   };
 #endif
   return services;

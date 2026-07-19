@@ -125,6 +125,12 @@ int main() {
   MoveShelfFocus(shelf, -1, 0, 4);
   assert(shelf.page == 0);
   assert(shelf.focus_index == 3);
+  MoveShelfFocus(shelf, 0, 1, 4);
+  assert(shelf.page == 1);
+  assert(shelf.focus_index == 4);
+  MoveShelfFocus(shelf, 0, -1, 4);
+  assert(shelf.page == 0);
+  assert(shelf.focus_index == 0);
   ChangeShelfCategory(shelf, library, 1, 4);
   assert(shelf.category_index == 1);
   assert(shelf.visible_games.size() == 1);
