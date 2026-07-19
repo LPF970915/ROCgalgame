@@ -83,7 +83,8 @@ bool IsAspectValue(const std::string &value) {
 
 bool IsFilterValue(const std::string &value) {
   const std::string v = ToLowerAscii(Trim(value));
-  return v == "clean" || v == "scanline" || v == "crt-soft" || v == "mask";
+  return v == "clean" || v == "antialias" || v == "scanline" ||
+         v == "dot" || v == "reflection" || v == "crt-soft" || v == "mask";
 }
 
 void ReadGameIni(const fs::path &dir, GameEntry &game) {

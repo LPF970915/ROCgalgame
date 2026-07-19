@@ -42,9 +42,10 @@ bool ApplyDelta(int row, int delta, GameSettingsState &state,
              callbacks.set_aspect(CycleValue(state.aspect, values, delta), state);
     }
     case 1: {
-      constexpr std::array<GameFilterMode, 4> values = {
-          GameFilterMode::Clean, GameFilterMode::Scanline,
-          GameFilterMode::CrtSoft, GameFilterMode::Mask};
+      constexpr std::array<GameFilterMode, 5> values = {
+          GameFilterMode::Native, GameFilterMode::AntiAlias,
+          GameFilterMode::Scanline, GameFilterMode::DotMatrix,
+          GameFilterMode::Reflection};
       return callbacks.set_filter &&
              callbacks.set_filter(CycleValue(state.filter, values, delta), state);
     }
@@ -90,18 +91,20 @@ const char *GameAspectConfigValue(GameAspectMode value) {
 }
 
 GameFilterMode ParseGameFilterMode(const std::string &value) {
+  if (value == "antialias" || value == "crt-soft") return GameFilterMode::AntiAlias;
   if (value == "scanline") return GameFilterMode::Scanline;
-  if (value == "crt-soft") return GameFilterMode::CrtSoft;
-  if (value == "mask") return GameFilterMode::Mask;
-  return GameFilterMode::Clean;
+  if (value == "dot" || value == "mask") return GameFilterMode::DotMatrix;
+  if (value == "reflection") return GameFilterMode::Reflection;
+  return GameFilterMode::Native;
 }
 
 const char *GameFilterConfigValue(GameFilterMode value) {
   switch (value) {
-    case GameFilterMode::Clean: return "clean";
+    case GameFilterMode::Native: return "clean";
+    case GameFilterMode::AntiAlias: return "antialias";
     case GameFilterMode::Scanline: return "scanline";
-    case GameFilterMode::CrtSoft: return "crt-soft";
-    case GameFilterMode::Mask: return "mask";
+    case GameFilterMode::DotMatrix: return "dot";
+    case GameFilterMode::Reflection: return "reflection";
   }
   return "clean";
 }
@@ -180,16 +183,18 @@ std::string LocalizedGameAspectLabel(int language_index, GameAspectMode value) {
 
 std::string LocalizedGameFilterLabel(int language_index, GameFilterMode value) {
   switch (value) {
-    case GameFilterMode::Clean:
-      return LabelForLanguage(language_index, u8"清晰", u8"清晰", "Clean");
+    case GameFilterMode::Native:
+      return LabelForLanguage(language_index, u8"原生", u8"原生", "Native");
+    case GameFilterMode::AntiAlias:
+      return LabelForLanguage(language_index, u8"抗锯齿", u8"抗鋸齒", "Anti-Alias");
     case GameFilterMode::Scanline:
       return LabelForLanguage(language_index, u8"扫描线", u8"掃描線", "Scanline");
-    case GameFilterMode::CrtSoft:
-      return "CRT Soft";
-    case GameFilterMode::Mask:
-      return LabelForLanguage(language_index, u8"像素遮罩", u8"像素遮罩", "Pixel Mask");
+    case GameFilterMode::DotMatrix:
+      return LabelForLanguage(language_index, u8"点阵", u8"點陣", "Dot Matrix");
+    case GameFilterMode::Reflection:
+      return LabelForLanguage(language_index, u8"屏幕反射", u8"螢幕反射", "Reflection");
   }
-  return "Clean";
+  return "Native";
 }
 
 std::string GameMouseAccelerationLabel(float value) {

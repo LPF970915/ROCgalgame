@@ -9,6 +9,7 @@ OBJ_DIR="$OUT_DIR/obj"
 LUA_BUILD_DIR="$OUT_DIR/lua"
 TARGET="$OUT_DIR/onsyuri.exe"
 RUNTIME_TARGET="$PROJECT_ROOT/cores/ons/onsyuri.exe"
+FILTER_OVERLAY="$PROJECT_ROOT/GKD350HUltra/ons_filter_overlay"
 
 for tool in g++ gcc ar ranlib make pkg-config; do
   command -v "$tool" >/dev/null 2>&1 || { echo "[ERROR] missing tool: $tool"; exit 10; }
@@ -57,6 +58,9 @@ CXXFLAGS=(
 OBJECTS=()
 for source in "${SOURCES[@]}"; do
   src="$ONS_ROOT/src/onsyuri/$source"
+  if [ -f "$FILTER_OVERLAY/$source" ]; then
+    src="$FILTER_OVERLAY/$source"
+  fi
   obj="$OBJ_DIR/${source%.cpp}.o"
   mkdir -p "$(dirname "$obj")"
   if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then

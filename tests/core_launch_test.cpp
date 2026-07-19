@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 
 int main() {
   namespace fs = std::filesystem;
@@ -53,6 +54,17 @@ int main() {
              std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--enc:gbk"));
       assert(built.spec.arguments.end() !=
              std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--fullscreen"));
+      assert(built.spec.arguments.end() ==
+             std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--sharpness"));
+      config.default_filter = "scanline";
+      const CoreSpecResult filtered = launch_service.BuildSpec(config, game);
+      assert(filtered.Ok());
+      const auto sharpness = std::find(filtered.spec.arguments.begin(),
+                                       filtered.spec.arguments.end(), "--sharpness");
+      assert(sharpness != filtered.spec.arguments.end());
+      assert(std::next(sharpness) != filtered.spec.arguments.end());
+      assert(*std::next(sharpness) == "0");
+      config.default_filter = "clean";
       continue;
     }
 

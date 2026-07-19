@@ -74,7 +74,7 @@ int main() {
   const GameSettingsCallbacks callbacks =
       MakeGameSettingsCallbacks(store, []() { return 123u; });
   assert(callbacks.set_aspect(GameAspectMode::FillHeight, settings));
-  assert(callbacks.set_filter(GameFilterMode::CrtSoft, settings));
+  assert(callbacks.set_filter(GameFilterMode::Reflection, settings));
   assert(callbacks.set_virtual_mouse(false, settings));
   assert(callbacks.set_mouse_speed(960, settings));
   assert(callbacks.set_mouse_acceleration(2.0f, settings));
@@ -85,11 +85,13 @@ int main() {
   reloaded.LoadFromPath(config_path);
   const GameSettingsSnapshot snapshot = CaptureGameSettings(reloaded.Get());
   assert(snapshot.aspect == "fill-height");
-  assert(snapshot.filter == "crt-soft");
+  assert(snapshot.filter == "reflection");
   assert(!snapshot.virtual_mouse);
   assert(snapshot.mouse_speed == 960);
   assert(snapshot.mouse_acceleration == 2.0f);
   assert(LocalizedGameAspectLabel(9, GameAspectMode::Contain) == "Contain");
+  assert(ParseGameFilterMode("crt-soft") == GameFilterMode::AntiAlias);
+  assert(ParseGameFilterMode("mask") == GameFilterMode::DotMatrix);
 
   for (int i = 0; i < 5; ++i) {
     CreateOnsGame(root / "games" / ("ons_" + std::to_string(i)));

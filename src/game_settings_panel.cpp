@@ -59,9 +59,10 @@ void DrawGameSettingsPanel(const SDL_Rect &preview, int first_row_y, int row_pit
     }
     const int control_y = y + (row_h - button) / 2;
     if (row == 2) {
-      const int wide = 276;
+      const int toggle_gap = 28;
+      const int wide = (control_right - left_arrow - toggle_gap) / 2;
       const int off_x = control_right - wide;
-      const int on_x = off_x - 28 - wide;
+      const int on_x = left_arrow;
       draw_button(SDL_Rect{on_x, control_y, wide, button}, u8"开",
                   menu_state.panel_active && menu_state.panel_focus == row &&
                       menu_state.panel_button == 0,

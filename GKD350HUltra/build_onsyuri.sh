@@ -11,6 +11,8 @@ DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
 OUT_DIR="$REPO_ROOT/build/gkd350h/onsyuri"
 OBJ_DIR="$OUT_DIR/obj"
 INCLUDE_OVERLAY="$OUT_DIR/include_overlay"
+PATCHED_SRC_DIR="$OUT_DIR/patched_src"
+FILTER_OVERLAY="$SELF_DIR/ons_filter_overlay"
 TARGET="$OUT_DIR/onsyuri"
 RUNTIME_CORE_DIR="$DIST_ROOT/ROCgalgame/cores/ons"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
@@ -54,7 +56,8 @@ if [ "$FORCE_REBUILD" = "1" ] || [ "$CLEAN_BUILD" = "1" ] || [ ! -x "$TARGET" ];
   FULL_RECOMPILE=1
   NEEDS_REBUILD=1
 elif [ "$SELF_DIR/build_onsyuri.sh" -nt "$TARGET" ] || \
-     [ "$SYSROOT/target_info.txt" -nt "$TARGET" ]; then
+     [ "$SYSROOT/target_info.txt" -nt "$TARGET" ] || \
+     [ -n "$(find "$FILTER_OVERLAY" -type f -newer "$TARGET" -print -quit 2>/dev/null)" ]; then
   FULL_RECOMPILE=1
   NEEDS_REBUILD=1
 elif [ -n "$(find "$ONS_ROOT/src/onsyuri" "$LUA_DIR" -type f \
@@ -142,23 +145,33 @@ LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lGLESv2 -ljpeg -lbz2 -ldl -lp
     MYLIBS="" \
     -j"$BUILD_JOBS"
   if [ "$FULL_RECOMPILE" = "1" ]; then
-    rm -rf "$OBJ_DIR" "$INCLUDE_OVERLAY" "$TARGET"
+    rm -rf "$OBJ_DIR" "$INCLUDE_OVERLAY" "$PATCHED_SRC_DIR" "$TARGET"
   else
-    rm -rf "$INCLUDE_OVERLAY"
+    rm -rf "$INCLUDE_OVERLAY" "$PATCHED_SRC_DIR"
   fi
-  mkdir -p "$OBJ_DIR" "$INCLUDE_OVERLAY/SDL2"
+  mkdir -p "$OBJ_DIR" "$INCLUDE_OVERLAY/SDL2" "$PATCHED_SRC_DIR"
   cp "$ONS_ROOT/src/onsyuri_libretro/deps/SDL_mixer/include/SDL_mixer.h" "$INCLUDE_OVERLAY/SDL2/SDL_mixer.h"
   cp "$SYSROOT/usr/include/SDL2/begin_code.h" "$INCLUDE_OVERLAY/SDL2/begin_code.h"
   cp "$SYSROOT/usr/include/SDL2/close_code.h" "$INCLUDE_OVERLAY/SDL2/close_code.h"
+  sed 's/roc_gkd_fullscreen = fullscreen_mode && std::getenv/roc_gkd_fullscreen = fullscreen_mode \&\& isnan(sharpness) \&\& std::getenv/' \
+    "$ONS_ROOT/src/onsyuri/ONScripter.cpp" > "$PATCHED_SRC_DIR/ONScripter.cpp"
+  grep -q 'roc_gkd_fullscreen = fullscreen_mode && isnan(sharpness)' "$PATCHED_SRC_DIR/ONScripter.cpp"
   OBJS=""
   COMPILED_OBJECTS=0
   OBJECTS_NEWER_THAN_TARGET=0
   for src in $SRCS; do
     obj="$OBJ_DIR/${src%.cpp}.o"
+    source_path="$ONS_ROOT/src/onsyuri/$src"
+    if [ -f "$PATCHED_SRC_DIR/$src" ]; then
+      source_path="$PATCHED_SRC_DIR/$src"
+    fi
+    if [ -f "$FILTER_OVERLAY/$src" ]; then
+      source_path="$FILTER_OVERLAY/$src"
+    fi
     mkdir -p "$(dirname "$obj")"
-    if [ "$FULL_RECOMPILE" = "1" ] || [ ! -f "$obj" ] || [ "$ONS_ROOT/src/onsyuri/$src" -nt "$obj" ]; then
+    if [ "$FULL_RECOMPILE" = "1" ] || [ ! -f "$obj" ] || [ "$source_path" -nt "$obj" ]; then
       echo "[ons_build] compile $src"
-      nice -n 10 "$CXX_CMD" $CXXFLAGS -c "$ONS_ROOT/src/onsyuri/$src" -o "$obj"
+      nice -n 10 "$CXX_CMD" $CXXFLAGS -c "$source_path" -o "$obj"
       COMPILED_OBJECTS=$((COMPILED_OBJECTS + 1))
     else
       echo "[ons_build] reuse object $src"

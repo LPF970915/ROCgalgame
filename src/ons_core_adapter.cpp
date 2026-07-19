@@ -30,7 +30,11 @@ CoreSpecResult OnsCoreAdapter::BuildSpec(const AppConfig &config,
   const std::filesystem::path font = PreferredGameFont(config, game);
   spec.arguments = {spec.executable.u8string(), "--root", game.path.u8string(),
                     "--save-dir", spec.save_path.u8string(), "--font",
-                    font.u8string(), encoding_arg, "--force-button-shortcut",
-                    settings.aspect == "stretch" ? "--fullscreen2" : "--fullscreen"};
+                    font.u8string(), encoding_arg, "--force-button-shortcut"};
+  if (settings.filter != "clean") {
+    spec.arguments.push_back("--sharpness");
+    spec.arguments.push_back("0");
+  }
+  spec.arguments.push_back(settings.aspect == "stretch" ? "--fullscreen2" : "--fullscreen");
   return CoreSpecResult{LaunchStatus::NormalExit, std::move(spec), {}};
 }

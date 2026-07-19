@@ -18,15 +18,16 @@ enum class GameAspectMode {
 };
 
 enum class GameFilterMode {
-  Clean,
+  Native,
+  AntiAlias,
   Scanline,
-  CrtSoft,
-  Mask,
+  DotMatrix,
+  Reflection,
 };
 
 struct GameSettingsState {
   GameAspectMode aspect = GameAspectMode::Contain;
-  GameFilterMode filter = GameFilterMode::Clean;
+  GameFilterMode filter = GameFilterMode::Native;
   bool virtual_mouse = true;
   int mouse_speed = 720;
   float mouse_acceleration = 1.6f;

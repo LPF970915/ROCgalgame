@@ -49,7 +49,7 @@ Aspect values currently used by the frontend are:
 - `fill-height`: keep source ratio and fill vertically, allowing horizontal crop if needed.
 - `contain`: keep source ratio inside the panel without crop.
 
-Filter values are `clean`, `scanline`, `crt-soft`, and `mask`. The frontend records the chosen value now; the actual shader/filter implementation belongs in each core wrapper or in a later shared render layer.
+Filter values are `clean`, `antialias`, `scanline`, `dot`, and `reflection`. ONS uses a GKD-tuned GLES2 single-pass implementation: FXAA for anti-aliasing, a thin phosphor-line treatment based on `D01_PLB-Thin`, a lightweight dot treatment based on `fast-Dot`, and a reduced-cost reflection treatment based on `F00_PhosphorLineReflex`. Legacy `crt-soft` and `mask` game overrides remain accepted and map to anti-aliasing and dot matrix respectively.
 
 ## Core Integration Notes
 
