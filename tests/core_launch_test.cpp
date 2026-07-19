@@ -1,5 +1,10 @@
-#include "core_launcher.h"
+#include "core_process_runner.h"
+#include "game_core_registry.h"
+#include "game_launch_service.h"
+#include "game_scanner.h"
 #include "game_library.h"
+#include "krkr_core_adapter.h"
+#include "ons_core_adapter.h"
 
 #include <algorithm>
 #include <cassert>
@@ -27,6 +32,13 @@ int main() {
   const auto games = ScanGameLibrary(root, "games", "covers", "saves");
   assert(games.size() == 4);
   AppConfig config; config.root = root;
+  OnsCoreAdapter ons_adapter;
+  KrkrCoreAdapter krkr_adapter;
+  GameCoreRegistry registry;
+  registry.Register(&ons_adapter);
+  registry.Register(&krkr_adapter);
+  CoreProcessRunner runner;
+  GameLaunchService launch_service(registry, runner);
   bool saw_directory = false;
   bool saw_archive = false;
   bool saw_flat_krkr = false;
@@ -35,11 +47,18 @@ int main() {
     if (game.path.filename() == "flat_ons") {
       saw_flat_ons = true;
       assert(game.core == CoreKind::Ons);
+      const CoreSpecResult built = launch_service.BuildSpec(config, game);
+      assert(built.Ok());
+      assert(built.spec.arguments.end() !=
+             std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--enc:gbk"));
+      assert(built.spec.arguments.end() !=
+             std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--fullscreen"));
       continue;
     }
 
-    CoreLaunchSpec spec;
-    assert(BuildCoreLaunchSpec(config, game, spec));
+    const CoreSpecResult built = launch_service.BuildSpec(config, game);
+    assert(built.Ok());
+    const CoreLaunchSpec &spec = built.spec;
     assert(spec.environment.at("ROCGALGAME_KRKR_VIRTUAL_MOUSE") == "1");
     assert(spec.environment.at("ROCGALGAME_KRKR_SWAP_AB") == "1");
     assert(spec.environment.at("ROCGALGAME_KRKR_CONTINUOUS_PRESENT") == "1");

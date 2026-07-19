@@ -1,6 +1,6 @@
 # ROCgalgame
 
-ROCgalgame is an SDL2/C++ frontend for Linux handheld visual novel runtimes. The first target is GKD350H Ultra, with a 1600x1440 Wayland-oriented layout copied selectively from ROCreader. OnscripterYuri is the stable gameplay path; KRKRSDL2 is integrated as an experimental core with working launch, audio, video, WebP, plugin compatibility and handheld input foundations.
+ROCgalgame is an SDL2/C++ frontend for Linux handheld visual novel runtimes. Its frontend structure and common behavior follow ROCreader, while game-specific differences are isolated in game models, callbacks, core adapters, and composition code. The first verified package target is GKD350H Ultra with a 1600x1440 Wayland-oriented layout. OnscripterYuri is the stable gameplay path; KRKRSDL2 remains an experimental core.
 
 The frontend owns the game library, covers, settings, and device-friendly controls. ONS and KRKR run as child processes managed by the still-running frontend process. Before starting a core, the frontend destroys its SDL renderer, window, audio, and input state so the core can take over the display without a competing black surface. When the core exits, the frontend rebuilds its SDL state and returns to the matching cover shelf. See [CURRENT_PORT_STATUS.md](CURRENT_PORT_STATUS.md) for the current capability boundary and known KRKR issues.
 
@@ -29,32 +29,19 @@ Roms/ports/ROCgalgame/
 
 - D-pad / left stick: move focus
 - A: launch focused game or confirm menu item
-- B: close menu
-- Menu / Start: open settings menu
-- L1 / R1: previous / next page
-- Y: rescan library
+- B: return from a panel or close the menu
+- Menu / Start: open or close the settings menu
+- L1 / R1: previous / next category
+- X: add the focused game to favorites
+- Y: remove the focused game from favorites
 
-The current menu already persists the first core-facing settings to `native_config.ini`: virtual mouse on/off, aspect mode, filter mode, and mouse cursor speed. These values are also written to `cache/launch_request.ini` for the runtime core.
+Game Settings persist virtual mouse, aspect mode, filter mode, mouse speed, and mouse acceleration to `native_config.ini`. The selected game and optional `game.ini` overrides are converted directly into an immutable core launch spec.
 
 ## Core Contract
 
 Selecting an ONS or KRKR cover with A does not exit the frontend. The frontend records the selected game internally, fully releases its SDL resources, starts the selected core as a child process, and waits for it. This ordering is required on Wayland/KMS devices: keeping the cover window alive as a black surface can obscure the core window. After the core exits, the same frontend process initializes SDL again and restores the cover shelf.
 
-`cache/launch_request.ini` and exit code `42` remain as an outer-launcher recovery contract. A request left by an interrupted older build is discarded at cold startup and is never auto-launched.
-
-The fallback launch file is intentionally simple:
-
-```ini
-core=ons
-path=/storage/roms/ports/ROCgalgame/games/example
-save=/storage/roms/ports/ROCgalgame/saves/ons/example
-encoding=gbk
-aspect=contain
-filter=clean
-virtual_mouse=1
-mouse_speed=720
-mouse_accel=1.6
-```
+There is one launch pipeline: `GameLaunchService` selects an `IGameCoreAdapter`, builds a typed `CoreLaunchSpec`, and passes it to `CoreProcessRunner`. The old `cache/launch_request.ini` and exit-code `42` launcher protocol have been removed.
 
 Aspect values currently used by the frontend are:
 
@@ -66,7 +53,7 @@ Filter values are `clean`, `scanline`, `crt-soft`, and `mask`. The frontend reco
 
 ## Core Integration Notes
 
-The frontend launches either core as a child process after releasing its SDL resources, then rebuilds the frontend when the core exits. `ROCgalgame.sh` retains the exit-code fallback for recovery and compatibility.
+The frontend launches either core as a child process after releasing its SDL resources, then rebuilds the frontend when the core exits. `ROCgalgame.sh` only prepares the runtime environment and starts the frontend.
 
 Expected core paths:
 
@@ -94,13 +81,16 @@ For handheld use, ROCgalgame passes ONS runtime settings through environment var
 
 ## Build
 
-Windows interactive preview (MSYS2 UCRT64):
+Windows frontend-only build (MSYS2 UCRT64):
 
-```text
-Windows\run_windows_preview.bat
+```powershell
+$env:MSYSTEM = "UCRT64"
+$env:CHERE_INVOKING = "1"
+& "D:\Program Files\MSYS2\usr\bin\bash.exe" -lc `
+  'export PATH=/ucrt64/bin:/usr/bin:$PATH; cd /d/Works/ROCgalgame; make -j2 TARGET=Windows/build/rocgalgame_sdl.exe OBJDIR=Windows/build/frontend-obj'
 ```
 
-The script incrementally builds the native Windows frontend and OnscripterYuri core, then opens the 1000x900 preview against the real local `games` directory. Arrow keys simulate the D-pad, `A` (or `Z`) simulates A, and `B` (or `X`) simulates B. `I/J/K/L` simulate continuous left-stick movement. Tap A to click or advance dialogue; hold A while using `I/J/K/L` to test dragging. The generated Windows binaries stay under `Windows/build` and `cores/ons/onsyuri.exe`.
+This command builds only the frontend and does not rebuild ONS or KRKR. The executable supports deterministic screenshot capture through `ROCGALGAME_CAPTURE_FRAME`, `ROCGALGAME_EXIT_AFTER_CAPTURE`, `ROCGALGAME_OPEN_MENU`, `ROCGALGAME_MENU_INDEX`, `ROCGALGAME_OPEN_PANEL`, `ROCGALGAME_PREVIEW_VOLUME`, and `ROCGALGAME_NAV_INDEX`. `Windows\run_windows_preview.bat` also builds OnscripterYuri and should only be used when core validation is explicitly intended.
 
 Local Linux build:
 
@@ -132,6 +122,8 @@ Create a distributable zip only when needed by adding `-Output Zip`. Building KR
 
 The GKD sysroot and helper scripts were copied from `D:\Works\ROCreader\GKD350HUltra` as the initial target toolchain baseline.
 The checked-in `GKD350HUltra/toolchain` folder is currently a placeholder/notes directory. The working compiler used by the build script is the WSL Ubuntu `aarch64-linux-gnu-g++`, unless `CROSS_CXX` or a populated `GKD350HUltra/toolchain/bin/aarch64-linux-gnu-g++` is provided.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for maintained module boundaries, the adapter contract, platform capabilities, protected paths, and intentional differences from ROCreader.
 
 ## Repository Contents
 

@@ -29,7 +29,10 @@ struct AppConfig {
 };
 
 AppConfig LoadAppConfig(const char *argv0);
+AppConfig LoadAppConfigFromFile(const std::filesystem::path &path,
+                                const std::filesystem::path &root);
 bool SaveAppConfig(const AppConfig &config);
+bool SaveAppConfigToFile(const AppConfig &config, const std::filesystem::path &path);
 std::string Trim(std::string value);
 std::string ToLowerAscii(std::string value);
 bool IsTruthy(const std::string &value);

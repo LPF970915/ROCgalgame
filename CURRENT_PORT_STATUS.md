@@ -1,16 +1,19 @@
 ﻿# 当前移植状态与后续开发边界
 
-更新时间：2026-07-18。
+更新时间：2026-07-19。
 
-当前仓库已经具备 ONS 与 KRKR 双核心的完整前端接入基础。本阶段建议冻结 KRKR 功能面，优先调整 UI 交互和 ONS 实际游玩体验；KRKR 的构建缓存、补丁、依赖与测试入口继续保留，之后从现有增量状态恢复，而不是重新全量移植。
+当前仓库已经完成 Stage 6–10 的前端架构重构：公共菜单、Game Settings、书架服务、核心 adapter/registry/process runner 和 capability 层已经拆分，旧 `launch_request.ini`/退出码 `42` 协议已删除。Stage 11 的文档、自动化和 Windows 模拟校验已经完成；候选前端与 launcher 已部署到 GKD350H Ultra，并通过书架、菜单、系统设置和游戏设置的轻量截图冒烟。完整 GKD 真机功能矩阵按用户要求留给重构后的手工测试。
 
 ## 已固化能力
 
 - 前端：ONS/KRKR 独立导航栏、平铺 `games/` 自动识别、封面与存档隔离、核心退出后返回原书架。
+- 架构：公共前端模块边界对齐 ROCreader；游戏差异集中在 `GameEntry`、Game Settings callbacks、core adapters 和应用组合层。
+- 启动：只有 `GameLaunchService -> IGameCoreAdapter -> CoreProcessRunner` 一条内部管线，前端负责核心退出后的 SDL 重建和书架状态恢复。
+- 平台：Windows 使用 desktop capability；GKD350H Ultra 是当前唯一声明 packaging verified 的设备 profile。
 - ONS：手柄导航、同款圆形虚拟光标、A 确认/B 取消、拖动、画面比例与 `fill-height` 文本安全区处理。
 - KRKR：ARM64 交叉构建、XP3/项目目录启动、基础插件兼容、`System.addFont`、中文字体、WebP、AAC/FFmpeg 音频、FFmpeg 视频、存档目录、手柄与虚拟光标基础。
 - 默认中文字体：`fonts/ui_font_02.ttf`。
-- 安全部署基础：已有前端/KRKR 原子替换、哈希校验与备份脚本；游戏、封面和存档不属于构建产物。
+- 安全部署：Stage 11 只原子替换 launcher 与前端，ONS/KRKR、配置、键位和用户数据保持原哈希/目录状态；回滚备份与部署前哈希清单已保存。游戏、封面和存档不属于构建产物。
 
 ## KRKR 已知问题
 

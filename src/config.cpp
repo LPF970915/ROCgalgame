@@ -71,6 +71,15 @@ void ParseConfigLine(AppConfig &config, const std::string &raw_line) {
     config.update_manifest_url = value;
   }
 }
+
+void NormalizeConfig(AppConfig &config) {
+  config.default_aspect = ToLowerAscii(Trim(config.default_aspect));
+  if (config.default_aspect == "fit-width") config.default_aspect = "contain";
+  if (config.default_aspect != "stretch" && config.default_aspect != "fill-height" &&
+      config.default_aspect != "contain") {
+    config.default_aspect = "contain";
+  }
+}
 }  // namespace
 
 std::string Trim(std::string value) {
@@ -98,10 +107,8 @@ AppConfig LoadAppConfig(const char *argv0) {
       std::filesystem::current_path() / "native_config.ini",
   };
   for (const auto &path : candidates) {
-    std::ifstream in(path);
-    if (!in) continue;
-    std::string line;
-    while (std::getline(in, line)) ParseConfigLine(config, line);
+    if (!std::filesystem::exists(path)) continue;
+    config = LoadAppConfigFromFile(path, config.root);
     break;
   }
 
@@ -112,19 +119,25 @@ AppConfig LoadAppConfig(const char *argv0) {
       config.screen_h = 1440;
     }
   }
-  config.default_aspect = ToLowerAscii(Trim(config.default_aspect));
-  if (config.default_aspect == "fit-width") config.default_aspect = "contain";
-  if (config.default_aspect != "stretch" && config.default_aspect != "fill-height" &&
-      config.default_aspect != "contain") {
-    config.default_aspect = "contain";
-  }
+  NormalizeConfig(config);
   return config;
 }
 
-bool SaveAppConfig(const AppConfig &config) {
+AppConfig LoadAppConfigFromFile(const std::filesystem::path &path,
+                                const std::filesystem::path &root) {
+  AppConfig config;
+  config.root = root;
+  std::ifstream in(path);
+  std::string line;
+  while (std::getline(in, line)) ParseConfigLine(config, line);
+  NormalizeConfig(config);
+  return config;
+}
+
+bool SaveAppConfigToFile(const AppConfig &config, const std::filesystem::path &path) {
   std::error_code ec;
-  std::filesystem::create_directories(config.root, ec);
-  std::ofstream out(config.root / "native_config.ini", std::ios::trunc);
+  std::filesystem::create_directories(path.parent_path(), ec);
+  std::ofstream out(path, std::ios::trunc);
   if (!out) return false;
   out << "screen_profile=" << config.screen_profile << "\n";
   out << "input_profile=" << config.input_profile << "\n";
@@ -145,5 +158,10 @@ bool SaveAppConfig(const AppConfig &config) {
   out << "mouse_speed=" << config.mouse_speed << "\n";
   out << "mouse_accel=" << config.mouse_accel << "\n";
   out << "update_manifest_url=" << config.update_manifest_url << "\n";
-  return true;
+  out.close();
+  return out.good();
+}
+
+bool SaveAppConfig(const AppConfig &config) {
+  return SaveAppConfigToFile(config, config.root / "native_config.ini");
 }

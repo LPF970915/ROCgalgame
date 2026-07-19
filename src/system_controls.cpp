@@ -40,13 +40,13 @@ constexpr std::array<const char *, 6> kMixerControls = {
     "DAC",
 };
 
-#ifdef HAVE_ALSA
 std::string ToLowerAscii(std::string text) {
   std::transform(text.begin(), text.end(), text.begin(),
                  [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
   return text;
 }
 
+#ifdef HAVE_ALSA
 int MixerElementScore(const std::string &name, const std::string &cached_name) {
   const std::string lower = ToLowerAscii(name);
   if (!cached_name.empty() && name == cached_name) return 1000;
@@ -149,6 +149,15 @@ int VolumeUiMaxLevel() {
 
 int VolumeOutputMaxPercent() {
   return ReadEnvInt("ROCREADER_SYSTEM_VOLUME_OUTPUT_MAX_PERCENT", 100, 1, 100);
+}
+
+bool PreferShellMixerVolume() {
+  if (const char *forced = std::getenv("ROCGALGAME_FORCE_AMIXER_SHELL"); forced && *forced) {
+    return std::string(forced) != "0";
+  }
+  const char *model = std::getenv("ROCGALGAME_DEVICE_MODEL");
+  if (!model || !*model) return false;
+  return ToLowerAscii(model).find("gkd350h") != std::string::npos;
 }
 
 int OutputPercentToUiPercent(int output_percent) {
@@ -616,7 +625,7 @@ void SystemControlService::RefreshVolume(SystemControlValue &value) {
   }
 
   int percent = -1;
-  if (TryReadVolumePercentAlsa(percent)) {
+  if (!PreferShellMixerVolume() && TryReadVolumePercentAlsa(percent)) {
     value.available = true;
     value.level = PercentToVolumeLevel(percent);
     LogSystemControl("refresh volume success via ALSA: percent=" + std::to_string(percent) +
@@ -711,7 +720,7 @@ bool SystemControlService::SetVolumeLevel(int level, SystemControlValue &value) 
     }
   }
 
-  if (TrySetVolumePercentAlsa(percent)) {
+  if (!PreferShellMixerVolume() && TrySetVolumePercentAlsa(percent)) {
     value.available = true;
     value.max_level = VolumeUiMaxLevel();
     value.level = ClampVolumeLevel(level);
@@ -722,13 +731,26 @@ bool SystemControlService::SetVolumeLevel(int level, SystemControlValue &value) 
     return true;
   }
 
-  if (!working_volume_control_.empty() && TrySetVolumePercent(working_volume_control_, percent)) {
+  auto accept_shell_result = [&](const std::string &control) {
+    int actual_percent = -1;
+    if (!TryReadVolumePercent(control, actual_percent)) return false;
+    if (std::abs(actual_percent - percent) > 3) {
+      LogSystemControl("set volume readback mismatch: control=" + control +
+                       " requested_percent=" + std::to_string(percent) +
+                       " actual_percent=" + std::to_string(actual_percent));
+      return false;
+    }
     value.available = true;
     value.max_level = VolumeUiMaxLevel();
-    value.level = ClampVolumeLevel(level);
+    value.level = PercentToVolumeLevel(actual_percent);
     cached_volume_level_ = value.level;
     volume_level_initialized_ = true;
     StoreSharedVolumeLevel(value.level);
+    return true;
+  };
+
+  if (!working_volume_control_.empty() && TrySetVolumePercent(working_volume_control_, percent) &&
+      accept_shell_result(working_volume_control_)) {
     LogSystemControl("set volume success via cached control: control=" + working_volume_control_ +
                      " resulting_level=" + std::to_string(value.level));
     return true;
@@ -736,13 +758,8 @@ bool SystemControlService::SetVolumeLevel(int level, SystemControlValue &value) 
 
   for (const char *control : kMixerControls) {
     if (!TrySetVolumePercent(control, percent)) continue;
+    if (!accept_shell_result(control)) continue;
     working_volume_control_ = control;
-    value.available = true;
-    value.max_level = VolumeUiMaxLevel();
-    value.level = ClampVolumeLevel(level);
-    cached_volume_level_ = value.level;
-    volume_level_initialized_ = true;
-    StoreSharedVolumeLevel(value.level);
     LogSystemControl("set volume success via discovered control: control=" + working_volume_control_ +
                      " resulting_level=" + std::to_string(value.level));
     return true;
@@ -800,11 +817,14 @@ bool SystemControlService::SetBrightnessLevel(int level, SystemControlValue &val
 
 bool SystemControlService::TryReadVolumePercent(const std::string &control, int &out_percent) const {
   const std::string escaped_control = "'" + control + "'";
+  const std::string amixer = PreferShellMixerVolume()
+                                 ? "env -u LD_LIBRARY_PATH /usr/bin/amixer"
+                                 : "amixer";
   const std::array<std::string, 4> commands = {
-      "amixer -q sget " + escaped_control + " 2>/dev/null",
-      "/usr/bin/amixer -q sget " + escaped_control + " 2>/dev/null",
-      "amixer -q -c 0 sget " + escaped_control + " 2>/dev/null",
-      "/usr/bin/amixer -q -c 0 sget " + escaped_control + " 2>/dev/null",
+      amixer + " sget " + escaped_control + " 2>/dev/null",
+      amixer + " -c 0 sget " + escaped_control + " 2>/dev/null",
+      "amixer sget " + escaped_control + " 2>/dev/null",
+      "amixer -c 0 sget " + escaped_control + " 2>/dev/null",
   };
   for (const std::string &command : commands) {
     const std::string output = RunCommandCapture(command);
@@ -822,13 +842,16 @@ bool SystemControlService::TryReadVolumePercent(const std::string &control, int 
 
 bool SystemControlService::TrySetVolumePercent(const std::string &control, int percent) {
   const std::string escaped_control = "'" + control + "'";
+  const std::string amixer = PreferShellMixerVolume()
+                                 ? "env -u LD_LIBRARY_PATH /usr/bin/amixer"
+                                 : "amixer";
   const std::string suffix =
       std::to_string(std::clamp(percent, 0, 100)) + "%" + (percent <= 0 ? " mute" : " unmute") + " >/dev/null 2>&1";
   const std::array<std::string, 4> commands = {
+      amixer + " -q sset " + escaped_control + " " + suffix,
+      amixer + " -q -c 0 sset " + escaped_control + " " + suffix,
       "amixer -q sset " + escaped_control + " " + suffix,
-      "/usr/bin/amixer -q sset " + escaped_control + " " + suffix,
       "amixer -q -c 0 sset " + escaped_control + " " + suffix,
-      "/usr/bin/amixer -q -c 0 sset " + escaped_control + " " + suffix,
   };
   for (const std::string &command : commands) {
     const int rc = std::system(command.c_str());

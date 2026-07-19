@@ -8,13 +8,14 @@ if [ ! -d "$APP_DIR" ]; then
 fi
 BIN="$APP_DIR/rocgalgame_sdl"
 LOG_FILE="${ROCGALGAME_LOG:-$APP_DIR/ROCgalgame.log}"
-REQUEST_FILE="$APP_DIR/cache/launch_request.ini"
 
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
 export SDL_NOMOUSE="${SDL_NOMOUSE:-1}"
 export ROCGALGAME_ROOT="$APP_DIR"
 export ROCGALGAME_SCREEN_PROFILE="${ROCGALGAME_SCREEN_PROFILE:-1600x1440}"
 export ROCGALGAME_DEVICE_MODEL="${ROCGALGAME_DEVICE_MODEL:-gkd350h-ultra}"
+export ROCREADER_SYSTEM_VOLUME_LEVELS="${ROCREADER_SYSTEM_VOLUME_LEVELS:-20}"
+
 if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
   for sock in \
     /run/user/$(id -u 2>/dev/null || echo 0)/wayland-* \
@@ -56,16 +57,6 @@ log_line() {
   printf '%s\n' "$1" >>"$LOG_FILE"
 }
 
-log_env() {
-  log_line "[launcher] xdg=${XDG_RUNTIME_DIR:-} wayland=${WAYLAND_DISPLAY:-} video=${SDL_VIDEODRIVER:-auto}"
-}
-
-ini_get() {
-  key="$1"
-  file="$2"
-  sed -n "s/^$key=//p" "$file" 2>/dev/null | sed -n '1p'
-}
-
 run_frontend_once() {
   set_runtime_libs "$LIB_SYSTEM_SDL_DIR"
   if [ -n "${SDL_VIDEODRIVER:-}" ]; then
@@ -78,95 +69,10 @@ run_frontend_once() {
       return 0
     fi
     rc=$?
-    [ "$rc" -eq 42 ] && return 42
     [ "$rc" -ge 128 ] 2>/dev/null && return "$rc"
   done
   set_runtime_libs "$LIB_FULL_DIR"
   "$BIN" >>"$LOG_FILE" 2>&1
-}
-
-run_core_request() {
-  [ -f "$REQUEST_FILE" ] || return 0
-  core="$(ini_get core "$REQUEST_FILE")"
-  game_path="$(ini_get path "$REQUEST_FILE")"
-  save_path="$(ini_get save "$REQUEST_FILE")"
-  encoding="$(ini_get encoding "$REQUEST_FILE")"
-  aspect="$(ini_get aspect "$REQUEST_FILE")"
-  filter="$(ini_get filter "$REQUEST_FILE")"
-  virtual_mouse="$(ini_get virtual_mouse "$REQUEST_FILE")"
-  mouse_speed="$(ini_get mouse_speed "$REQUEST_FILE")"
-  mouse_accel="$(ini_get mouse_accel "$REQUEST_FILE")"
-  entry="$(ini_get entry "$REQUEST_FILE")"
-  rm -f "$REQUEST_FILE"
-
-  [ -n "$core" ] || return 0
-  [ -n "$game_path" ] || return 0
-  mkdir -p "$save_path" 2>/dev/null || true
-
-  case "$core" in
-    ons)
-      exe="$APP_DIR/cores/ons/onsyuri"
-      if [ ! -x "$exe" ]; then
-        log_line "[launcher] missing ONS core: $exe"
-        return 0
-      fi
-      set_runtime_libs "$LIB_FULL_DIR"
-      export ROCGALGAME_VIRTUAL_MOUSE="${virtual_mouse:-1}"
-      export ROCGALGAME_MOUSE_SPEED="${mouse_speed:-720}"
-      export ROCGALGAME_MOUSE_ACCEL="${mouse_accel:-1.6}"
-      export ROCGALGAME_ASPECT="${aspect:-contain}"
-      export ROCGALGAME_FILTER="${filter:-clean}"
-      case "${encoding:-gbk}" in
-        sjis|shift-jis|shift_jis) enc_arg="--enc:sjis" ;;
-        utf8|utf-8) enc_arg="--enc:utf8" ;;
-        gbk|gb2312|cp936|*) enc_arg="--enc:gbk" ;;
-      esac
-      font_path="$APP_DIR/fonts/ui_font_02.ttf"
-      [ -f "$font_path" ] || font_path="$APP_DIR/fonts/ui_font.ttf"
-      [ -f "$game_path/default.ttf" ] && font_path="$game_path/default.ttf"
-      set -- --root "$game_path" --save-dir "$save_path" --font "$font_path" "$enc_arg" --force-button-shortcut
-      if [ "${aspect:-contain}" = "stretch" ]; then
-        set -- "$@" --fullscreen2
-      else
-        set -- "$@" --fullscreen
-      fi
-      log_line "[launcher] start ONS path=$game_path save=$save_path aspect=${aspect:-contain} enc=${encoding:-gbk} font=$font_path"
-      if [ -d "$game_path" ]; then
-        set +e
-        (cd "$game_path" && SDL_NOMOUSE=0 SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}" "$exe" "$@") >>"$LOG_FILE" 2>&1
-        core_rc=$?
-        set -e
-      else
-        log_line "[launcher] missing game path: $game_path"
-        core_rc=2
-      fi
-      log_line "[launcher] ONS exited rc=$core_rc"
-      ;;
-    krkr)
-      exe="$APP_DIR/cores/krkr/krkrsdl2"
-      if [ ! -x "$exe" ]; then
-        log_line "[launcher] missing KRKR core: $exe"
-        return 0
-      fi
-      set_runtime_libs "$LIB_FULL_DIR"
-      export KRKRSDL2_PATH="$game_path/plugin:$APP_DIR/cores/krkr/plugin:$APP_DIR/plugin"
-      export ROCGALGAME_KRKR_VIRTUAL_MOUSE="${virtual_mouse:-1}"
-      export ROCGALGAME_KRKR_CONTINUOUS_PRESENT="${ROCGALGAME_KRKR_CONTINUOUS_PRESENT:-1}"
-      [ -n "$entry" ] || entry="$game_path"
-      font_path="$APP_DIR/fonts/ui_font_02.ttf"
-      [ -f "$font_path" ] || font_path="$APP_DIR/fonts/ui_font.ttf"
-      [ -f "$game_path/default.ttf" ] && font_path="$game_path/default.ttf"
-      set +e
-      SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}" "$exe" "$entry" -datapath="$save_path" \
-        -contfreq=60 -drawthread=auto -gclim=96 -deffont="$font_path" -nosel >>"$LOG_FILE" 2>&1
-      core_rc=$?
-      set -e
-      log_line "[launcher] KRKR exited rc=$core_rc entry=$entry"
-      ;;
-    *)
-      log_line "[launcher] unknown core: $core aspect=$aspect filter=$filter virtual_mouse=$virtual_mouse"
-      ;;
-  esac
 }
 
 if [ ! -x "$BIN" ]; then
@@ -174,21 +80,9 @@ if [ ! -x "$BIN" ]; then
   exit 4
 fi
 
-log_env
-if [ -f "$REQUEST_FILE" ]; then
-  log_line "[launcher] discarded stale launch request at startup"
-  rm -f "$REQUEST_FILE"
+log_line "[launcher] xdg=${XDG_RUNTIME_DIR:-} wayland=${WAYLAND_DISPLAY:-} video=${SDL_VIDEODRIVER:-auto}"
+if run_frontend_once; then
+  exit 0
+else
+  exit $?
 fi
-
-while true; do
-  if run_frontend_once; then
-    rc=0
-  else
-    rc=$?
-  fi
-  if [ "$rc" -eq 42 ]; then
-    run_core_request
-    continue
-  fi
-  exit "$rc"
-done

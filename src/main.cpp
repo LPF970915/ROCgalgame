@@ -1,4 +1,4 @@
-#include "app.h"
+#include "app_loop.h"
 
 #include <SDL.h>
 

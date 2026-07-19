@@ -1,11 +1,6 @@
 #include "ui_assets.h"
 
-#ifdef HAVE_SDL2_IMAGE
-#include <SDL_image.h>
-#endif
-
 #include <algorithm>
-#include <system_error>
 #include <vector>
 
 namespace {
@@ -23,10 +18,11 @@ UiAssets::~UiAssets() {
 }
 
 void UiAssets::Clear() {
-  for (auto &[_, tex] : textures_) if (tex.texture) SDL_DestroyTexture(tex.texture);
-  for (auto &[_, tex] : external_) if (tex.texture) SDL_DestroyTexture(tex.texture);
+  for (auto &[_, tex] : textures_) Destroy(tex);
+  for (auto &[_, tex] : external_) Destroy(tex);
   textures_.clear();
   external_.clear();
+  registry_.Clear();
 }
 
 bool UiAssets::Load(SDL_Renderer *renderer, const std::filesystem::path &root, const std::string &profile) {
@@ -80,33 +76,35 @@ TextureHandle *UiAssets::LoadExternal(SDL_Renderer *renderer, const std::filesys
   return &inserted.first->second;
 }
 
+void UiAssets::ReleaseExternal(const std::filesystem::path &path) {
+  std::string key;
+  try {
+    key = NativePathString(path);
+  } catch (...) {
+    return;
+  }
+  auto found = external_.find(key);
+  if (found == external_.end()) return;
+  Destroy(found->second);
+  external_.erase(found);
+}
+
 void UiAssets::ClearExternal() {
-  for (auto &[_, tex] : external_) if (tex.texture) SDL_DestroyTexture(tex.texture);
+  for (auto &[_, tex] : external_) Destroy(tex);
   external_.clear();
 }
 
 TextureHandle UiAssets::LoadTexture(SDL_Renderer *renderer, const std::filesystem::path &path) {
-  TextureHandle out;
-  std::error_code ec;
-  if (!std::filesystem::exists(path, ec)) return out;
-  std::string filename;
-  try {
-    filename = NativePathString(path);
-  } catch (...) {
-    return out;
-  }
-  if (filename.empty()) return out;
-#ifdef HAVE_SDL2_IMAGE
-  SDL_Surface *surface = IMG_Load(filename.c_str());
-#else
-  SDL_Surface *surface = SDL_LoadBMP(filename.c_str());
-#endif
-  if (!surface) return out;
-  out.texture = SDL_CreateTextureFromSurface(renderer, surface);
-  out.w = surface->w;
-  out.h = surface->h;
-  SDL_FreeSurface(surface);
+  TextureHandle out = LoadUiTexture(renderer, path);
+  registry_.Remember(out.texture, out.w, out.h);
   return out;
+}
+
+void UiAssets::Destroy(TextureHandle &handle) {
+  if (!handle.texture) return;
+  registry_.Forget(handle.texture);
+  SDL_DestroyTexture(handle.texture);
+  handle = {};
 }
 
 void DrawTexture(SDL_Renderer *renderer, TextureHandle *texture, const SDL_Rect &dst) {
