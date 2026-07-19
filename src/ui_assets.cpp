@@ -22,10 +22,19 @@ void UiAssets::Clear() {
   for (auto &[_, tex] : external_) Destroy(tex);
   textures_.clear();
   external_.clear();
+  packed_assets_.clear();
+  ui_root_.clear();
   registry_.Clear();
 }
 
 bool UiAssets::Load(SDL_Renderer *renderer, const std::filesystem::path &root, const std::string &profile) {
+  Clear();
+  ui_root_ = root / "ui";
+  const std::vector<std::filesystem::path> pack_candidates = {
+      root / "ui.pack", root / "resources" / "ui.pack"};
+  for (const auto &pack_path : pack_candidates) {
+    if (LoadUiAssetPack(pack_path, packed_assets_)) break;
+  }
   const std::vector<std::string> names = {
       "background_main.png",
       "top_status_bar.png",
@@ -43,9 +52,7 @@ bool UiAssets::Load(SDL_Renderer *renderer, const std::filesystem::path &root, c
   };
   bool any = false;
   for (const auto &name : names) {
-    std::filesystem::path p = root / "ui" / profile / name;
-    TextureHandle tex = LoadTexture(renderer, p);
-    if (!tex.texture) tex = LoadTexture(renderer, root / "ui" / "common" / name);
+    TextureHandle tex = LoadUiAsset(renderer, profile, name);
     if (tex.texture) {
       textures_[name] = tex;
       any = true;
@@ -70,10 +77,22 @@ TextureHandle *UiAssets::LoadExternal(SDL_Renderer *renderer, const std::filesys
   if (key.empty()) return nullptr;
   auto found = external_.find(key);
   if (found != external_.end()) return &found->second;
-  TextureHandle tex = LoadTexture(renderer, path);
+  TextureHandle tex;
+  const std::string packed_name = PackedNameForPath(path);
+  if (!packed_name.empty()) tex = LoadPackedTexture(renderer, packed_name);
+  if (!tex.texture) tex = LoadTexture(renderer, path);
   if (!tex.texture) return nullptr;
   auto inserted = external_.emplace(key, tex);
   return &inserted.first->second;
+}
+
+std::vector<std::string> UiAssets::PackedAssetNames(const std::string &prefix) const {
+  std::vector<std::string> names;
+  for (const auto &[name, _] : packed_assets_) {
+    if (name.rfind(prefix, 0) == 0) names.push_back(name);
+  }
+  std::sort(names.begin(), names.end());
+  return names;
 }
 
 void UiAssets::ReleaseExternal(const std::filesystem::path &path) {
@@ -98,6 +117,32 @@ TextureHandle UiAssets::LoadTexture(SDL_Renderer *renderer, const std::filesyste
   TextureHandle out = LoadUiTexture(renderer, path);
   registry_.Remember(out.texture, out.w, out.h);
   return out;
+}
+
+TextureHandle UiAssets::LoadPackedTexture(SDL_Renderer *renderer, const std::string &name) {
+  auto found = packed_assets_.find(name);
+  if (found == packed_assets_.end()) return {};
+  TextureHandle out = LoadUiTexture(renderer, found->second);
+  registry_.Remember(out.texture, out.w, out.h);
+  return out;
+}
+
+TextureHandle UiAssets::LoadUiAsset(SDL_Renderer *renderer, const std::string &profile,
+                                    const std::string &name) {
+  TextureHandle out = LoadPackedTexture(renderer, profile + "/" + name);
+  if (!out.texture) out = LoadPackedTexture(renderer, "common/" + name);
+  if (!out.texture) out = LoadTexture(renderer, ui_root_ / profile / name);
+  if (!out.texture) out = LoadTexture(renderer, ui_root_ / "common" / name);
+  return out;
+}
+
+std::string UiAssets::PackedNameForPath(const std::filesystem::path &path) const {
+  if (ui_root_.empty() || path.empty()) return {};
+  const std::filesystem::path relative = path.lexically_relative(ui_root_);
+  if (relative.empty()) return {};
+  const std::string name = relative.generic_u8string();
+  if (name == ".." || name.rfind("../", 0) == 0) return {};
+  return name;
 }
 
 void UiAssets::Destroy(TextureHandle &handle) {

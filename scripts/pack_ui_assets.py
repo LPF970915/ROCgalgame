@@ -5,7 +5,7 @@ import sys
 
 
 MAGIC = b"RCUIPK01"
-KEY = b"ROCreader::native_h700::ui_pack"
+KEY = b"ROCgalgame::native_gkd350h::ui_pack"
 
 
 def xor_stream(data: bytes, name: str) -> bytes:

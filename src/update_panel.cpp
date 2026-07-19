@@ -2,6 +2,8 @@
 
 #include "app_language.h"
 
+#include <algorithm>
+
 void DrawUpdatePanel(const SDL_Rect &preview, int first_row_y,
                      const UpdatePanelModel &model,
                      const MenuPanelDrawServices &services) {
@@ -14,13 +16,25 @@ void DrawUpdatePanel(const SDL_Rect &preview, int first_row_y,
   if (services.draw_text_centered) {
     services.draw_text_centered(
         LocalizedAppText(model.language_index, AppTextId::VersionCurrentVersion) +
-            std::string(" ") + u8"开发版",
+            std::string(" ") + model.current_version,
         SDL_Rect{preview.x, line1_y - 48, preview.w, 96}, text,
         MenuPanelTextStyle::Title);
   }
   std::string status = LocalizedAppText(model.language_index, AppTextId::VersionPressAToCheck);
   if (model.status == VersionUpdateStatus::Unconfigured) status = u8"更新地址尚未配置";
-  else if (model.status == VersionUpdateStatus::Checking) status = u8"更新接口已预留，等待接入发版源";
+  else if (model.status == VersionUpdateStatus::NoNetwork) {
+    status = LocalizedAppText(model.language_index, AppTextId::VersionNoNetwork);
+  } else if (model.status == VersionUpdateStatus::Downloading) {
+    status = LocalizedAppText(model.language_index, AppTextId::VersionDownloading);
+    if (model.download_progress_pct > 0) status += " " + std::to_string(model.download_progress_pct) + "%";
+  } else if (model.status == VersionUpdateStatus::Downloaded) {
+    status = std::string(LocalizedAppText(model.language_index, AppTextId::VersionDownloadedPackage)) +
+             " " + LocalizedAppText(model.language_index, AppTextId::VersionRestartToInstall);
+  } else if (model.status == VersionUpdateStatus::UpToDate) {
+    status = LocalizedAppText(model.language_index, AppTextId::VersionAlreadyLatest);
+  } else if (model.status == VersionUpdateStatus::DownloadFailed) {
+    status = LocalizedAppText(model.language_index, AppTextId::VersionDownloadFailed);
+  }
   const SDL_Rect action{preview.x + (preview.w - 352) / 2, line2_y - 42, 352, 84};
   services.draw_rect(action, model.panel_active ? SDL_Color{41, 82, 113, 255}
                                                : SDL_Color{29, 42, 57, 255},
@@ -33,5 +47,14 @@ void DrawUpdatePanel(const SDL_Rect &preview, int first_row_y,
     services.draw_text_centered(status,
                                 SDL_Rect{preview.x, line3_y - 46, preview.w, 92},
                                 SDL_Color{155, 168, 182, 255}, MenuPanelTextStyle::Menu);
+  }
+  if (model.status == VersionUpdateStatus::Downloading && model.download_progress_pct > 0) {
+    const SDL_Rect track{preview.x + (preview.w - 520) / 2, line3_y + 44, 520, 18};
+    services.draw_rect(track, SDL_Color{29, 42, 57, 255}, true, 1);
+    const int fill_w = std::clamp(model.download_progress_pct, 0, 100) * track.w / 100;
+    if (fill_w > 0) {
+      services.draw_rect(SDL_Rect{track.x, track.y, fill_w, track.h},
+                         SDL_Color{122, 201, 255, 255}, true, 1);
+    }
   }
 }

@@ -145,7 +145,7 @@ The canonical release command is:
 .\GKD350HUltra\build_release_docker.ps1
 ```
 
-The first run builds the cached `rocgalgame-gkd350h-release:22.04` image. Later runs normally finish in a few minutes because only the ROCgalgame frontend is rebuilt. ONS and KRKR are never compiled by this command: their staged binaries must match `release_core_hashes.sha256` before the frontend build, after the frontend build, and after packaging. ZIP files are written through Python's UTF-8-aware standard library so Chinese avatar and UI filenames remain intact when extracted on Windows.
+The first run builds the cached `rocgalgame-gkd350h-release:22.04` image. Later runs normally finish in a few minutes because only the ROCgalgame frontend is rebuilt. ONS and KRKR are never compiled by this command: their staged binaries must match `release_core_hashes.sha256` before the frontend build, after the frontend build, and after packaging. The local `ui/` tree is encrypted into `ui.pack`; package validation rejects any plaintext `ui/` directory. ZIP files are written through Python's UTF-8-aware standard library so all runtime paths remain intact when extracted on Windows.
 
 Without `-Version`, the PowerShell wrapper scans `Downloads/` and advances the release number from `0.01` to `0.02`, `0.03`, and so on. A fixed version can be requested explicitly:
 

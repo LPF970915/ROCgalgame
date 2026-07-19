@@ -163,7 +163,8 @@ install-runtime: $(TARGET)
 	cp ROCgalgame.sh runtime/ROCgalgame.sh
 	cp native_config.ini runtime/native_config.ini
 	cp native_keymap.ini runtime/native_keymap.ini
-	cp -r ui fonts sounds runtime/
+	python3 scripts/pack_ui_assets.py ui runtime/ui.pack
+	cp -r fonts sounds runtime/
 
 print-config:
 	@echo CXX=$(CXX)

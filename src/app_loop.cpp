@@ -164,26 +164,37 @@ bool IsUserInputEvent(const SDL_Event &event) {
 void LoadAvatarEntries(AppState &app) {
   app.avatars.clear();
   const std::filesystem::path root = app.config.root / "ui" / "common";
-  std::error_code ec;
-  for (std::filesystem::directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied, ec), end;
-       it != end; it.increment(ec)) {
-    if (ec) {
-      ec.clear();
-      continue;
-    }
-    if (!it->is_regular_file(ec) || ec) continue;
-    const std::string filename = it->path().filename().u8string();
-    if (ToLowerAscii(filename).rfind("avatar_", 0) != 0) continue;
+  const auto add_avatar = [&](const std::string &filename) {
+    if (ToLowerAscii(filename).rfind("avatar_", 0) != 0) return;
     ContributorAvatarEntry avatar;
-    avatar.path = it->path();
+    avatar.path = root / std::filesystem::u8path(filename);
     avatar.filename = filename;
-    const size_t marker = filename.find(u8"贡献值");
-    if (marker != std::string::npos) {
-      const std::string value = filename.substr(marker + std::string(u8"贡献值").size());
+    const std::string marker = u8"贡献值";
+    const size_t marker_pos = filename.rfind(marker);
+    if (marker_pos != std::string::npos) {
+      const std::string value = filename.substr(marker_pos + marker.size());
       avatar.contribution_is_max = ToLowerAscii(value).rfind("max", 0) == 0;
       if (!avatar.contribution_is_max) avatar.contribution = std::strtod(value.c_str(), nullptr);
     }
     app.avatars.push_back(std::move(avatar));
+  };
+
+  for (const std::string &name : app.assets.PackedAssetNames("common/")) {
+    add_avatar(std::filesystem::u8path(name).filename().u8string());
+  }
+
+  std::error_code ec;
+  if (app.avatars.empty()) {
+    for (std::filesystem::directory_iterator it(
+             root, std::filesystem::directory_options::skip_permission_denied, ec), end;
+         it != end; it.increment(ec)) {
+      if (ec) {
+        ec.clear();
+        continue;
+      }
+      if (!it->is_regular_file(ec) || ec) continue;
+      add_avatar(it->path().filename().u8string());
+    }
   }
   std::sort(app.avatars.begin(), app.avatars.end(), [](const ContributorAvatarEntry &a, const ContributorAvatarEntry &b) {
     if (a.contribution_is_max != b.contribution_is_max) return !a.contribution_is_max;
@@ -457,7 +468,6 @@ void HandleMenuInput(AppState &app, float dt) {
           app.game_settings_state,
           app.game_settings_callbacks,
           app.avatars.size(),
-          !app.config.update_manifest_url.empty(),
           [&](int row, int delta) { AdjustSystemSetting(app, row, delta); },
           [&](const KeyCalibrationState &state) {
             return SaveKeyCalibrationMapping(app.config.root / "native_keymap.ini",
@@ -782,6 +792,8 @@ TTF_Font *OpenFontAny(const std::vector<std::filesystem::path> &paths, int pt) {
 
 bool Init(AppState &app, AppBootstrapResult &bootstrap, int argc, char **argv, bool allow_autolaunch) {
   app.config_store.Load(argc > 0 ? argv[0] : nullptr);
+  InitializeVersionUpdateState(app.version_update_state, app.config.root,
+                               app.config.update_manifest_url);
   app.game_settings_state = MakeGameSettingsState(app.config);
   app.game_settings_callbacks = MakeGameSettingsCallbacks(
       app.config_store, []() { return SDL_GetTicks(); });
@@ -876,6 +888,7 @@ bool Init(AppState &app, AppBootstrapResult &bootstrap, int argc, char **argv, b
 }
 
 void Shutdown(AppState &app) {
+  ShutdownVersionUpdateState(app.version_update_state);
   if (app.config_store.IsDirty()) app.config_store.Save();
   if (app.power_lifecycle) app.power_lifecycle->EnsureScreenOn(SDL_GetTicks());
   CloseAppInputDevices(app.input_devices);
@@ -978,6 +991,7 @@ int RunApp(int argc, char **argv) {
 
       TickVolumeReconcile(now, app.volume_controller, app.config_store, app.ui_state,
                           [&](int volume) { app.sfx.SetVolume(volume); });
+      TickVersionUpdateState(app.version_update_state);
 
       constexpr Uint32 kConfigFlushDelayMs = 500;
       if (app.config_store.ShouldFlush(now, kConfigFlushDelayMs) && !app.config_store.Save()) {

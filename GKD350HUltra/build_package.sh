@@ -75,7 +75,11 @@ check_executable "$RUNTIME_DIR/cores/ons/onsyuri"
 check_executable "$RUNTIME_DIR/cores/krkr/krkrsdl2"
 check_file "$RUNTIME_DIR/native_config.ini"
 check_file "$RUNTIME_DIR/native_keymap.ini"
-check_file "$RUNTIME_DIR/ui"
+check_file "$RUNTIME_DIR/ui.pack"
+if [ -e "$RUNTIME_DIR/ui" ]; then
+  echo "[package] ERROR: plaintext UI directory must not be staged"
+  exit 1
+fi
 check_file "$RUNTIME_DIR/fonts"
 check_file "$RUNTIME_DIR/sounds"
 check_file "$RUNTIME_DIR/games"
@@ -106,10 +110,16 @@ mkdir -p "$PACKAGE_RUNTIME_DIR/games" "$PACKAGE_RUNTIME_DIR/covers" \
 chmod +x "$PORTS_DIR/ROCgalgame.sh" "$PACKAGE_RUNTIME_DIR/rocgalgame_sdl" \
   "$PACKAGE_RUNTIME_DIR/cores/ons/onsyuri" "$PACKAGE_RUNTIME_DIR/cores/krkr/krkrsdl2" 2>/dev/null || true
 
+if find "$STAGING_DIR" -type d -name ui -print -quit | grep -q .; then
+  echo "[package] ERROR: plaintext UI directory leaked into release staging"
+  exit 1
+fi
+
 if [ "$PACKAGE_OUTPUT" = "Zip" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
   command -v python3 >/dev/null 2>&1 || { echo "[package] ERROR: python3 is required for UTF-8 zip output"; exit 1; }
   rm -f "$ZIP_FILE"
   nice -n 10 python3 "$SELF_DIR/create_release_zip.py" "$STAGING_DIR" "$ZIP_FILE" roms
+  python3 "$SELF_DIR/verify_release_zip.py" "$ZIP_FILE"
   echo "[package] wrote $ZIP_FILE"
 fi
 if [ "$PACKAGE_OUTPUT" = "Tar" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then

@@ -11,6 +11,7 @@
 *.log
 
 # Private local game content and user data
+/ui/
 /games/
 /covers/
 /game_covers/
@@ -22,7 +23,7 @@
 /GKD350HUltra/sysroot_device/
 /GKD350HUltra/dist_clean_ons/
 /GKD350HUltra/dist_lowglibc/
-/GKD350HUltra/Downloads/
+/GKD350HUltra/Downloads/*
 /GKD350HUltra/logs/
 /GKD350HUltra/package_check_ui/
 /GKD350HUltra/build_ffmpeg_headers_n6/
@@ -30,6 +31,10 @@
 /GKD350HUltra/tools/
 *.zip
 *.tar.gz
+
+# Published update packages are intentionally versioned.
+!/GKD350HUltra/Downloads/*.zip
+!/GKD350HUltra/Downloads/*.zip.sha256
 
 # Local diagnostics captured during device testing
 /*.png

@@ -24,7 +24,6 @@ struct SettingsPanelInputComposition {
   GameSettingsState &game_settings;
   GameSettingsCallbacks game_settings_callbacks;
   size_t contributor_avatar_count = 0;
-  bool update_manifest_configured = false;
   std::function<void(int, int)> adjust_system_setting;
   std::function<bool(const KeyCalibrationState &)> save_key_mapping;
   std::function<void()> play_select_sfx;

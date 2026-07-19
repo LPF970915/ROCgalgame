@@ -112,7 +112,7 @@ Canonical GKD350H Ultra release build (Docker, frontend-only):
 .\GKD350HUltra\build_release_docker.ps1
 ```
 
-The script automatically advances `0.01`, `0.02`, and so on based on existing release archives. It performs a clean frontend cross-build in Docker, verifies the preserved ONS/KRKR binaries against `release_core_hashes.sha256`, and writes `GKD350HUltra\Downloads\ROCgalgame verX.XX for GKD350H Ultra.zip`. The archive root is `roms/ports`, with `ROCgalgame.sh` and the complete `ROCgalgame/` runtime beneath it. Pass `-Version 0.01` to reproduce a specific release number.
+The script automatically advances `0.01`, `0.02`, and so on based on existing release archives. It performs a clean frontend cross-build in Docker, verifies the preserved ONS/KRKR binaries against `release_core_hashes.sha256`, encrypts the local `ui/` tree into `ui.pack`, and writes `GKD350HUltra\Downloads\ROCgalgame verX.XX for GKD350H Ultra.zip`. The archive root is `roms/ports`, with `ROCgalgame.sh` and the complete `ROCgalgame/` runtime beneath it. Plaintext UI files are rejected by package validation. Pass `-Version 0.01` to reproduce a specific release number.
 
 For UI/config-only work, synchronize and validate the staged runtime without compiling or creating an archive:
 

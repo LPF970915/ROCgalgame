@@ -48,17 +48,13 @@ SettingsPanelInputHandlers MakeSettingsPanelInputHandlers(
     return HandleContributorAvatarInput(*input, dt, state, *contributor, count, confirm);
   };
   handlers.version_update = [input = &composition.input,
-                             update = &composition.version_update,
-                             configured = composition.update_manifest_configured](
+                             update = &composition.version_update](
                                 SettingsRuntimeState &state) {
     return HandleVersionUpdateInput(
         *input, *update,
         VersionUpdateCallbacks{
             [&state]() { state.panel_active = false; },
-            [configured](VersionUpdateState &version_state) {
-              version_state.status = configured ? VersionUpdateStatus::Checking
-                                                : VersionUpdateStatus::Unconfigured;
-            },
+            [](VersionUpdateState &version_state) { BeginVersionUpdateDownload(version_state); },
         });
   };
   return handlers;
@@ -131,12 +127,13 @@ SettingsPanelDrawHandlers MakeSettingsPanelDrawHandlers(
                     services = composition.services](const SDL_Rect &preview, int) {
     DrawContactPanel(preview, *layout, language, services);
   };
-  panels.version_update = [language, update = composition.version_update,
+  panels.version_update = [language, update = &composition.version_update,
                            active = composition.menu_state.panel_active,
                            services = composition.services](const SDL_Rect &preview,
                                                              int first_y) {
     DrawUpdatePanel(preview, first_y,
-                    UpdatePanelModel{language, update.status, active}, services);
+                    UpdatePanelModel{language, update->status, active, update->current_version,
+                                     update->latest_version, update->download_progress_pct}, services);
   };
   panels.exit_app = [language, services = composition.services](const SDL_Rect &preview,
                                                                 int first_y) {

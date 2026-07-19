@@ -8,6 +8,9 @@ if [ ! -d "$APP_DIR" ]; then
 fi
 BIN="$APP_DIR/rocgalgame_sdl"
 LOG_FILE="${ROCGALGAME_LOG:-$APP_DIR/ROCgalgame.log}"
+UPDATE_DOWNLOADS_DIR="$APP_DIR/Downloads"
+UPDATE_MARKER="$UPDATE_DOWNLOADS_DIR/ROCgalgame_update_pending.txt"
+UPDATE_STAGE_DIR="$APP_DIR/cache/update_stage"
 
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
 export SDL_NOMOUSE="${SDL_NOMOUSE:-1}"
@@ -57,6 +60,82 @@ log_line() {
   printf '%s\n' "$1" >>"$LOG_FILE"
 }
 
+marker_value() {
+  key="$1"
+  awk -F= -v wanted="$key" '$1 == wanted { print substr($0, index($0, "=") + 1); exit }' "$UPDATE_MARKER" |
+    tr -d '\r'
+}
+
+extract_update_zip() {
+  package="$1"
+  rm -rf "$UPDATE_STAGE_DIR"
+  mkdir -p "$UPDATE_STAGE_DIR"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -oq "$package" -d "$UPDATE_STAGE_DIR" >>"$LOG_FILE" 2>&1
+    return $?
+  fi
+  if command -v busybox >/dev/null 2>&1; then
+    busybox unzip -o "$package" -d "$UPDATE_STAGE_DIR" >>"$LOG_FILE" 2>&1
+    return $?
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -m zipfile -e "$package" "$UPDATE_STAGE_DIR" >>"$LOG_FILE" 2>&1
+    return $?
+  fi
+  return 127
+}
+
+replace_runtime_entry() {
+  name="$1"
+  staged="$2/$name"
+  [ -e "$staged" ] || return 0
+  rm -rf "$APP_DIR/$name"
+  cp -a "$staged" "$APP_DIR/"
+}
+
+perform_pending_update_if_any() {
+  [ -f "$UPDATE_MARKER" ] || return 0
+  package_name="$(marker_value filename)"
+  package_version="$(marker_value version)"
+  package_path="$UPDATE_DOWNLOADS_DIR/$package_name"
+  if [ -z "$package_name" ] || [ ! -f "$package_path" ]; then
+    log_line "[update] pending package missing: $package_path"
+    return 0
+  fi
+  if ! extract_update_zip "$package_path"; then
+    log_line "[update] failed to extract: $package_path"
+    rm -rf "$UPDATE_STAGE_DIR"
+    return 0
+  fi
+
+  staged_runtime="$UPDATE_STAGE_DIR/roms/ports/ROCgalgame"
+  staged_launcher="$UPDATE_STAGE_DIR/roms/ports/ROCgalgame.sh"
+  if [ ! -x "$staged_runtime/rocgalgame_sdl" ] || [ ! -f "$staged_runtime/ui.pack" ]; then
+    log_line "[update] staged runtime validation failed"
+    rm -rf "$UPDATE_STAGE_DIR"
+    return 0
+  fi
+
+  # Only replace application-owned runtime files. User data, config, keymap,
+  # game cores, games, covers, saves, and cache stay untouched.
+  replace_runtime_entry "rocgalgame_sdl" "$staged_runtime"
+  replace_runtime_entry "ui.pack" "$staged_runtime"
+  replace_runtime_entry "fonts" "$staged_runtime"
+  replace_runtime_entry "sounds" "$staged_runtime"
+  replace_runtime_entry "lib" "$staged_runtime"
+  replace_runtime_entry "lib_system_sdl" "$staged_runtime"
+  replace_runtime_entry "version.txt" "$staged_runtime"
+
+  if [ -f "$staged_launcher" ]; then
+    cp "$staged_launcher" "$SELF_DIR/ROCgalgame.sh.new"
+    mv "$SELF_DIR/ROCgalgame.sh.new" "$SELF_DIR/ROCgalgame.sh"
+  fi
+  chmod +x "$APP_DIR/rocgalgame_sdl" "$SELF_DIR/ROCgalgame.sh" 2>/dev/null || true
+  rm -f "$UPDATE_MARKER" "$package_path"
+  rm -rf "$UPDATE_STAGE_DIR"
+  log_line "[update] installed version=${package_version:-unknown}"
+}
+
 run_frontend_once() {
   set_runtime_libs "$LIB_SYSTEM_SDL_DIR"
   if [ -n "${SDL_VIDEODRIVER:-}" ]; then
@@ -74,6 +153,13 @@ run_frontend_once() {
   set_runtime_libs "$LIB_FULL_DIR"
   "$BIN" >>"$LOG_FILE" 2>&1
 }
+
+if [ "${1:-}" = "--install-pending-update" ]; then
+  perform_pending_update_if_any
+  exit $?
+fi
+
+perform_pending_update_if_any
 
 if [ ! -x "$BIN" ]; then
   log_line "[launcher] missing frontend binary: $BIN"
