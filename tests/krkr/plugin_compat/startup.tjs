@@ -14,6 +14,16 @@ if(typeof CompoundStorageMedia == "undefined") throw new Exception("CompoundStor
 var media = new CompoundStorageMedia();
 if(!media.addArchive() || !media.addStorage()) throw new Exception("CompoundStorageMedia methods invalid");
 if(media.archiveUniqueKey == "") throw new Exception("CompoundStorageMedia key missing");
+var saveProbe = ["first", "second"];
+if(typeof saveProbe.save2 == "undefined" || typeof saveProbe.saveStruct2 == "undefined" ||
+   typeof Dictionary.saveStruct2 == "undefined")
+    throw new Exception("saveStruct methods missing");
+var saveProbePath = System.dataPath + "plugin_compat_save2.txt";
+saveProbe.save2(saveProbePath);
+if(Storages.getPlacedPath(saveProbePath) == "") throw new Exception("saveStruct write failed");
+var saveProbeString = saveProbe.toStructString();
+if(saveProbeString != "[\"first\",\"second\"]")
+    throw new Exception("saveStruct array string invalid: " + saveProbeString);
 
 class WIN32DialogEX extends WIN32Dialog {
     var itemMap = %[];
@@ -86,6 +96,27 @@ if(typeof Motion == "undefined" || typeof Motion.Player == "undefined" ||
    typeof Motion.ResourceManager == "undefined")
     throw new Exception("motionplayer classes missing");
 
+global.motionCompatWindow = new Window();
+global.motionCompatTarget = new Layer(motionCompatWindow, null);
+motionCompatTarget.width = 1920;
+motionCompatTarget.height = 1080;
+motionCompatTarget.fillRect(0, 0, 1920, 1080, 0xff101010);
+global.motionCompatSource = new Layer(motionCompatWindow, motionCompatTarget);
+motionCompatSource.width = 437;
+motionCompatSource.height = 184;
+motionCompatSource.fillRect(0, 0, 437, 184, 0xffffffff);
+
+var separateAdaptor = new Motion.SeparateLayerAdaptor(motionCompatTarget);
+separateAdaptor.targetLayer = motionCompatTarget;
+separateAdaptor.assign(motionCompatSource);
+if(motionCompatTarget.width != 1920 || motionCompatTarget.height != 1080)
+    throw new Exception("SeparateLayerAdaptor shrank target canvas");
+
+var d3dAdaptor = new Motion.D3DAdaptor(motionCompatWindow, 437, 184);
+d3dAdaptor.captureCanvas(motionCompatTarget);
+if(motionCompatTarget.width != 1920 || motionCompatTarget.height != 1080)
+    throw new Exception("D3DAdaptor shrank target canvas");
+
 Plugins.link("menu.dll");
 if(typeof MenuItem == "undefined" || typeof Window.menu == "undefined")
     throw new Exception("menu compatibility missing");
@@ -106,5 +137,42 @@ if(csvLine.count != 2 || csvLine[0] != "a" || csvLine[1] != "b")
 
 var loaded = Plugins.getList();
 if(loaded.count < 13) throw new Exception("compatibility plugins absent from Plugins.getList");
+
+// Senren Banka selects the optional Win32 "wave" transition for Save/Load.
+// SDL must retain the page exchange even when it substitutes another effect.
+global.transitionProbeWindow = new Window();
+transitionProbeWindow.width = 64;
+transitionProbeWindow.height = 64;
+global.transitionProbeRoot = new Layer(transitionProbeWindow, null);
+transitionProbeRoot.width = 64;
+transitionProbeRoot.height = 64;
+transitionProbeRoot.visible = true;
+global.transitionProbeFore = new Layer(transitionProbeWindow, transitionProbeRoot);
+transitionProbeFore.width = 64;
+transitionProbeFore.height = 64;
+transitionProbeFore.type = ltAlpha;
+transitionProbeFore.visible = true;
+global.transitionProbeBack = new Layer(transitionProbeWindow, transitionProbeRoot);
+transitionProbeBack.width = 64;
+transitionProbeBack.height = 64;
+transitionProbeBack.type = ltAlpha;
+transitionProbeBack.visible = false;
+global.transitionProbeMenu = new Layer(transitionProbeWindow, transitionProbeBack);
+transitionProbeMenu.width = 32;
+transitionProbeMenu.height = 32;
+transitionProbeMenu.visible = true;
+var transitionOptions = new Dictionary();
+transitionOptions.time = 50;
+Debug.message("TRANSITION_PROBE_BEGIN");
+transitionProbeFore.beginTransition("wave", true, transitionProbeBack,
+                                    transitionOptions);
+Debug.message("TRANSITION_PROBE_STARTED");
+transitionProbeFore.stopTransition();
+Debug.message("TRANSITION_PROBE_STOPPED");
+if(transitionProbeFore.visible || !transitionProbeBack.visible ||
+   transitionProbeMenu.parent !== transitionProbeBack)
+    throw new Exception("wave transition fallback did not exchange visible pages");
+
+["PLUGIN_COMPAT_OK"].save2(System.dataPath + "plugin_compat_ok.txt");
 Debug.message("PLUGIN_COMPAT_OK");
 System.exit(0);

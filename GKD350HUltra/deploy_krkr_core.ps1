@@ -26,10 +26,12 @@ if pidof krkrsdl2 >/dev/null 2>&1; then
   echo 'KRKR core is running; refusing replacement.' >&2
   exit 20
 fi
-ons_before=`$(sha256sum "`$app/cores/ons/onsyuri")
-frontend_before=`$(sha256sum "`$app/rocgalgame_sdl")
+set -- `$(sha256sum "`$app/cores/ons/onsyuri")
+ons_before="`$1"
+set -- `$(sha256sum "`$app/rocgalgame_sdl")
+frontend_before="`$1"
 stamp=`$(date +%Y%m%d-%H%M%S)
-backup="`$app/cores/krkr/krkrsdl2.pre-aac-`$stamp"
+backup="`$app/cores/krkr/krkrsdl2.pre-update-`$stamp"
 cp -p "`$app/cores/krkr/krkrsdl2" "`$backup"
 cp "`$incoming" "`$app/cores/krkr/.krkrsdl2.aac.new"
 chmod 755 "`$app/cores/krkr/.krkrsdl2.aac.new"
@@ -38,8 +40,10 @@ mv "`$app/cores/krkr/.krkrsdl2.aac.new" "`$app/cores/krkr/krkrsdl2"
 sync
 set -- `$(sha256sum "`$app/cores/krkr/krkrsdl2")
 test "`$1" = "`$expected"
-test "`$ons_before" = "`$(sha256sum "`$app/cores/ons/onsyuri")"
-test "`$frontend_before" = "`$(sha256sum "`$app/rocgalgame_sdl")"
+set -- `$(sha256sum "`$app/cores/ons/onsyuri")
+test "`$ons_before" = "`$1"
+set -- `$(sha256sum "`$app/rocgalgame_sdl")
+test "`$frontend_before" = "`$1"
 rm -f "`$incoming"
 echo "deployed=`$expected"
 echo "backup=`$backup"

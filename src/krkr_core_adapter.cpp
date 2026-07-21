@@ -57,8 +57,6 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
   spec.environment["ROCGALGAME_KRKR_VIRTUAL_MOUSE"] =
       settings.virtual_mouse ? "1" : "0";
   spec.environment["ROCGALGAME_KRKR_SWAP_AB"] = "1";
-  spec.environment["ROCGALGAME_KRKR_CONTINUOUS_PRESENT"] = "1";
-  spec.environment["AETHERKIRI_MOTION_DEBUG"] = "1";
 #ifndef _WIN32
   spec.environment["KRKRSDL2_PATH"] = PluginSearchPath(config, game);
 #endif

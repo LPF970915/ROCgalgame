@@ -73,8 +73,8 @@ int main() {
     const CoreLaunchSpec &spec = built.spec;
     assert(spec.environment.at("ROCGALGAME_KRKR_VIRTUAL_MOUSE") == "1");
     assert(spec.environment.at("ROCGALGAME_KRKR_SWAP_AB") == "1");
-    assert(spec.environment.at("ROCGALGAME_KRKR_CONTINUOUS_PRESENT") == "1");
-    assert(spec.environment.at("AETHERKIRI_MOTION_DEBUG") == "1");
+    assert(spec.environment.count("ROCGALGAME_KRKR_CONTINUOUS_PRESENT") == 0);
+    assert(spec.environment.count("AETHERKIRI_MOTION_DEBUG") == 0);
     if (game.path.filename() == "directory_game") {
       saw_directory = true;
       assert(game.entry_point == game.path);
