@@ -1,0 +1,24 @@
+Plugins.link("PackinOne.dll");
+
+var source = System.dataPath + "storage_source.txt";
+var first = System.dataPath + "storage_first.txt";
+var second = System.dataPath + "storage_second.txt";
+var moved = System.dataPath + "storage_moved.txt";
+
+Storages.deleteFile(source);
+Storages.deleteFile(first);
+Storages.deleteFile(second);
+Storages.deleteFile(moved);
+["quick-save-rotation"].save2(source);
+
+if(!Storages.copyFile(source, first) || !Storages.copyFile(first, second))
+    throw new Exception("storage copy failed");
+if(!Storages.deleteFile(first) || Storages.getPlacedPath(first) != "")
+    throw new Exception("storage delete failed");
+if(!Storages.moveFile(second, moved) ||
+   Storages.getPlacedPath(second) != "" || Storages.getPlacedPath(moved) == "")
+    throw new Exception("storage move failed");
+
+["STORAGE_COMPAT_OK"].save2(System.dataPath + "storage_compat_ok.txt");
+Debug.message("STORAGE_COMPAT_OK");
+System.exit(0);

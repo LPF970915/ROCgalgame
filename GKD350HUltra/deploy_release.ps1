@@ -1,13 +1,13 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
-  [string]$Version = "0.03",
+  [string]$Version = "0.04",
   [string]$AppDir = "/storage/roms/ports/ROCgalgame",
   [string]$PackagePath = ""
 )
 
 $ErrorActionPreference = "Stop"
 if ($Version -notmatch '^[0-9]+\.[0-9]{2}$') {
-  throw "Version must look like 0.03"
+  throw "Version must look like 0.04"
 }
 if ($AppDir -ne "/storage/roms/ports/ROCgalgame") {
   throw "This deployment script is intentionally restricted to /storage/roms/ports/ROCgalgame"

@@ -28,6 +28,10 @@ int Count(const std::string &text, const std::string &needle) {
 }  // namespace
 
 int main() {
+  const AppConfig defaults;
+  assert(defaults.default_aspect == "contain");
+  assert(defaults.default_filter == "reflection");
+
   const std::filesystem::path root = std::filesystem::path("build") / "config_store_test_data";
   std::error_code ec;
   std::filesystem::remove_all(root, ec);

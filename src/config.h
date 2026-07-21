@@ -13,7 +13,7 @@ struct AppConfig {
   std::filesystem::path covers_root = "covers";
   std::filesystem::path saves_root = "saves";
   std::string default_aspect = "contain";
-  std::string default_filter = "clean";
+  std::string default_filter = "reflection";
   std::string system_language = "zh";
   bool key_sound = true;
   int system_volume_percent = 50;

@@ -50,6 +50,10 @@ void CreateOnsGame(const std::filesystem::path &directory) {
 
 int main() {
   namespace fs = std::filesystem;
+  const GameSettingsState defaults;
+  assert(defaults.aspect == GameAspectMode::Contain);
+  assert(defaults.filter == GameFilterMode::Reflection);
+
   const fs::path root = fs::temp_directory_path() / "rocgalgame_game_domain_test";
   std::error_code ec;
   fs::remove_all(root, ec);

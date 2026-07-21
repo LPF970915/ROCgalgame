@@ -54,8 +54,12 @@ int main() {
              std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--enc:gbk"));
       assert(built.spec.arguments.end() !=
              std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--fullscreen"));
-      assert(built.spec.arguments.end() ==
-             std::find(built.spec.arguments.begin(), built.spec.arguments.end(), "--sharpness"));
+      assert(built.spec.environment.at("ROCGALGAME_FILTER") == "reflection");
+      const auto default_sharpness = std::find(built.spec.arguments.begin(),
+                                               built.spec.arguments.end(), "--sharpness");
+      assert(default_sharpness != built.spec.arguments.end());
+      assert(std::next(default_sharpness) != built.spec.arguments.end());
+      assert(*std::next(default_sharpness) == "0");
       config.default_filter = "scanline";
       const CoreSpecResult filtered = launch_service.BuildSpec(config, game);
       assert(filtered.Ok());
@@ -65,6 +69,10 @@ int main() {
       assert(std::next(sharpness) != filtered.spec.arguments.end());
       assert(*std::next(sharpness) == "0");
       config.default_filter = "clean";
+      const CoreSpecResult native = launch_service.BuildSpec(config, game);
+      assert(native.Ok());
+      assert(native.spec.arguments.end() ==
+             std::find(native.spec.arguments.begin(), native.spec.arguments.end(), "--sharpness"));
       continue;
     }
 

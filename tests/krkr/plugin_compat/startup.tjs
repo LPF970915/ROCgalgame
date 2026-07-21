@@ -24,6 +24,21 @@ if(Storages.getPlacedPath(saveProbePath) == "") throw new Exception("saveStruct 
 var saveProbeString = saveProbe.toStructString();
 if(saveProbeString != "[\"first\",\"second\"]")
     throw new Exception("saveStruct array string invalid: " + saveProbeString);
+var storageCopyPath = System.dataPath + "plugin_compat_copy.txt";
+var storageMovePath = System.dataPath + "plugin_compat_move.txt";
+Storages.deleteFile(storageCopyPath);
+Storages.deleteFile(storageMovePath);
+if(typeof Storages.copyFile == "undefined" || typeof Storages.moveFile == "undefined" ||
+   !Storages.copyFile(saveProbePath, storageCopyPath) ||
+   Storages.getPlacedPath(storageCopyPath) == "")
+    throw new Exception("Storages copyFile compatibility failed");
+if(!Storages.moveFile(storageCopyPath, storageMovePath) ||
+   Storages.getPlacedPath(storageCopyPath) != "" ||
+   Storages.getPlacedPath(storageMovePath) == "")
+    throw new Exception("Storages moveFile compatibility failed");
+if(!Storages.deleteFile(storageMovePath) ||
+   Storages.getPlacedPath(storageMovePath) != "")
+    throw new Exception("Storages deleteFile compatibility failed");
 
 class WIN32DialogEX extends WIN32Dialog {
     var itemMap = %[];
