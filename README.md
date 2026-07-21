@@ -4,6 +4,15 @@ ROCgalgame is an SDL2/C++ frontend for Linux handheld visual novel runtimes. Its
 
 The frontend owns the game library, covers, settings, and device-friendly controls. ONS and KRKR run as child processes managed by the still-running frontend process. Before starting a core, the frontend destroys its SDL renderer, window, audio, and input state so the core can take over the display without a competing black surface. When the core exits, the frontend rebuilds its SDL state and returns to the matching cover shelf. See [CURRENT_PORT_STATUS.md](CURRENT_PORT_STATUS.md) for the current capability boundary and known KRKR issues.
 
+## 法律免责声明
+
+1. 本项目及其软件开发仅供学习、研究和技术交流使用，不得用于任何商业获利、商业运营或其他未经授权的用途。
+2. 本项目不包含任何违反法律法规、公序良俗或他人合法权益的内容。仓库仅包含项目源代码、文档及构建/测试脚本，不包含也不会提供游戏文件、游戏封面、存档、第三方核心二进制、设备固件、违禁资源或其他受限制的内容。
+3. 任何第三方对本项目源代码、构建产物或相关工具的下载、修改、组合、分发、运行及其他使用行为，均由使用者自行判断并承担全部法律责任；该等行为不代表本项目或项目维护者的立场，也与本项目及项目维护者无关。
+4. 本项目按现状提供，不构成对任何特定用途的明示或默示保证。使用者应自行确认其使用行为符合所在地适用的法律法规、平台规则、软件许可证和第三方权利要求。
+
+如适用的法律法规、第三方许可证或平台规则与本声明存在冲突，以其强制性规定或更高优先级的法律文件为准。
+
 ## Runtime Layout
 
 ```text
