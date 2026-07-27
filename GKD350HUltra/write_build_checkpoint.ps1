@@ -1,5 +1,6 @@
 param(
   [string]$KrkrRoot = "D:\Works\Tyranor\krkrsdl2",
+  [string]$Krkr2Root = "D:\Works\Tyranor\krkr2",
   [string]$OutputPath = "$PSScriptRoot\..\build\gkd350h\build_checkpoint.json"
 )
 
@@ -35,23 +36,29 @@ function Get-GitState([string]$Path) {
 }
 
 $cmakeCache = Join-Path $repoRoot "build\gkd350h\krkrsdl2\CMakeCache.txt"
+$krkr2CmakeCache = Join-Path $repoRoot "build\gkd350h\krkr2\CMakeCache.txt"
 $checkpoint = [ordered]@{
   schema = 1
   generated_at = (Get-Date).ToUniversalTime().ToString("o")
   source = [ordered]@{
     frontend = Get-GitState $repoRoot
     krkr = Get-GitState $KrkrRoot
+    krkr2 = Get-GitState $Krkr2Root
   }
   cache = [ordered]@{
     frontend_objects = Test-Path -LiteralPath (Join-Path $repoRoot "build\gkd350h\obj")
     krkr_cmake_cache = Test-Path -LiteralPath $cmakeCache
     krkr_binary = Test-Path -LiteralPath (Join-Path $repoRoot "build\gkd350h\krkrsdl2\krkrsdl2")
+    krkr2_cmake_cache = Test-Path -LiteralPath $krkr2CmakeCache
+    krkr2_binary = Test-Path -LiteralPath (Join-Path $repoRoot "build\gkd350h\krkr2\bin\krkr2\krkr2")
     sysroot = Test-Path -LiteralPath (Join-Path $PSScriptRoot "sysroot_device\usr\lib")
   }
   artifacts = [ordered]@{
     frontend_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "dist_lowglibc\ROCgalgame\rocgalgame_sdl")
     ons_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "dist_lowglibc\ROCgalgame\cores\ons\onsyuri")
     krkr_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "dist_lowglibc\ROCgalgame\cores\krkr\krkrsdl2")
+    krkr2_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "dist_lowglibc\ROCgalgame\cores\krkr\krkr2")
+    krkr2_gl_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "dist_lowglibc\ROCgalgame\cores\krkr\lib_krkr2\libGL.so.1")
   }
   build_policy = [ordered]@{
     default_krkr_mode = "Fast"

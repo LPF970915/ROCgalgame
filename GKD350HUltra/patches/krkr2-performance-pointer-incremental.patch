@@ -1,0 +1,347 @@
+diff --git a/cpp/core/environ/cocos2d/MainScene.h b/cpp/core/environ/cocos2d/MainScene.h
+--- a/cpp/core/environ/cocos2d/MainScene.h
++++ b/cpp/core/environ/cocos2d/MainScene.h
+@@ -5,6 +5,7 @@
+ #include "base/CCIMEDelegate.h"
+ 
++#include <cstdint>
+ #include <string>
+ 
+ namespace cocos2d {
+@@ -98,15 +98,19 @@ private:
+     cocos2d::Node *UINode, *GameNode;
+     cocos2d::EventListenerTouchOneByOne *_touchListener;
+     TVPGameMainMenu *_gameMenu;
+     bool _rocgalgameInput = false;
++    bool _rocgalgameBridgeConfigured = false;
++    bool _rocgalgameBridgeActive = false;
+     bool _virtualMouseEnabled = false;
+     bool _swapFaceButtons = false;
+     bool _padStartDown = false;
+     bool _padSelectDown = false;
+     float _padExitHold = 0.0f;
+     float _virtualMouseAxisX = 0.0f;
+     float _virtualMouseAxisY = 0.0f;
+-    float _virtualMouseSpeed = 720.0f, _virtualMouseAccel = 1.6f;
++    float _virtualMouseSpeed = 1080.0f, _virtualMouseAccel = 1.0f;
++    std::uint64_t _rocgalgameAxisSequence = 0;
++    std::uint64_t _rocgalgameAxisLastTick = 0;
+     int _rocgalgameInputFd = -1;
+     std::string _rocgalgameInputBuffer;
+ };
+diff --git a/cpp/core/environ/cocos2d/MainScene.cpp b/cpp/core/environ/cocos2d/MainScene.cpp
+--- a/cpp/core/environ/cocos2d/MainScene.cpp
++++ b/cpp/core/environ/cocos2d/MainScene.cpp
+@@ -2,9 +2,11 @@
+ 
+ #include <cocos2d.h>
+ #include <cocos-ext.h>
+ #include <algorithm>
++#include <array>
+ #include <cmath>
++#include <cstdint>
+ #include <cstdlib>
+ #include <cstring>
+ #include <sstream>
+@@ -119,6 +121,12 @@ static int TVPNormalizeGKDAxis(cocos2d::Controller *controller, int code) {
+     }
+ }
+ 
++struct TVPRocgalgameRuntimeStats {
++    std::uint64_t axisMessages = 0;
++    std::uint64_t discardedAxisMessages = 0;
++};
++static TVPRocgalgameRuntimeStats _rocgalgameRuntimeStats;
++
+ static cocos2d::Label *_fpsLabel = nullptr;
+ 
+ #ifndef GL_UNPACK_ROW_LENGTH
+@@ -697,15 +705,18 @@ bool TVPMainScene::startupFrom(const std::string &path) {
+     const char *virtualMouseEnv =
+         std::getenv("ROCGALGAME_KRKR_VIRTUAL_MOUSE");
+     _rocgalgameInput = virtualMouseEnv != nullptr ||
+         std::getenv("ROCGALGAME_KRKR_RUNTIME") != nullptr;
++    _rocgalgameBridgeConfigured =
++        std::getenv("ROCGALGAME_KRKR_INPUT_FIFO") != nullptr;
+     _virtualMouseEnabled = TVPReadEnvironmentFlag(
+         "ROCGALGAME_KRKR_VIRTUAL_MOUSE", false);
+     _swapFaceButtons = TVPReadEnvironmentFlag(
+         "ROCGALGAME_KRKR_SWAP_AB", false);
+     _virtualMouseSpeed = TVPReadPositiveEnvironmentFloat(
+-        "ROCGALGAME_MOUSE_SPEED", 720.0f);
++        "ROCGALGAME_MOUSE_SPEED", 1080.0f);
+     _virtualMouseAccel = TVPReadPositiveEnvironmentFloat(
+-        "ROCGALGAME_MOUSE_ACCEL", 1.6f);
++        "ROCGALGAME_MOUSE_ACCEL", 1.0f);
+ 
+     for(int i = 0; i < std::size(_keymap); ++i) {
+         _keymap[i] = i;
+@@ -737,10 +748,24 @@ void TVPMainScene::doStartup(float dt, std::string path) {
+     TVPWindowLayer::_consoleWin = TVPConsoleWindow::create(24, nullptr);
+ 
+     auto glview = cocos2d::Director::getInstance()->getOpenGLView();
+     cocos2d::Size screenSize = glview->getFrameSize();
++    GLint viewport[4] = {0, 0, 0, 0};
++    glGetIntegerv(GL_VIEWPORT, viewport);
++    const auto glText = [](GLenum name) {
++        const GLubyte *value = glGetString(name);
++        return value ? reinterpret_cast<const char *>(value) : "unavailable";
++    };
++    const char *displayBackend = std::getenv("ROCGALGAME_KRKR_XWAYLAND")
++        ? "x11/xwayland"
++        : (std::getenv("WAYLAND_DISPLAY") ? "wayland" : "x11");
++    if(auto logger = spdlog::get("tjs2")) {
++        logger->info("[rocgalgame] display backend={} display={} "
++                     "window={:.0f}x{:.0f} framebuffer={}x{} "
++                     "GL_VENDOR={} GL_RENDERER={} GL_VERSION={}",
++                     displayBackend,
++                     std::getenv("DISPLAY") ? std::getenv("DISPLAY") : "none",
++                     screenSize.width, screenSize.height, viewport[2], viewport[3],
++                     glText(GL_VENDOR), glText(GL_RENDERER), glText(GL_VERSION));
++    }
+     float scale = screenSize.height / getContentSize().height;
+     TVPWindowLayer::_consoleWin->setScale(1 / scale);
+     TVPWindowLayer::_consoleWin->setContentSize(getContentSize() * scale);
+     GameNode->addChild(TVPWindowLayer::_consoleWin, GAME_CONSOLE_ORDER);
+@@ -787,20 +812,63 @@ tjs_uint TVPGetGraphicCacheTotalBytes();
+ 
+ void TVPMainScene::update(float delta) {
+     ::Application->Run();
+     pollRocgalgameInputBridge();
++    const std::uint64_t nowTick = TVPGetTickCount();
++    if(_rocgalgameBridgeActive && _rocgalgameAxisLastTick &&
++       nowTick - _rocgalgameAxisLastTick > 300) {
++        _virtualMouseAxisX = 0.0f;
++        _virtualMouseAxisY = 0.0f;
++    }
+     if(_virtualMouseEnabled &&
+        (_virtualMouseAxisX != 0.0f || _virtualMouseAxisY != 0.0f)) {
+-        const float frameDelta = std::max(0.0f, std::min(delta, 0.05f));
+-        const auto axisDistance = [this, frameDelta](float axis) {
+-            if(axis == 0.0f)
+-                return 0.0f;
+-            const float distance = _virtualMouseSpeed * frameDelta *
+-                std::pow(std::abs(axis), _virtualMouseAccel);
+-            return axis < 0.0f ? -distance : distance;
+-        };
+-        moveVirtualMouse(axisDistance(_virtualMouseAxisX),
+-                         -axisDistance(_virtualMouseAxisY));
++        // Use the real render-frame interval at steady low FPS. A longer gap
++        // is a suspend/stall and must not turn into a large recovery jump.
++        const float frameDelta = delta > 0.0f && delta <= 0.25f ? delta : 0.0f;
++        const float magnitude = std::sqrt(
++            _virtualMouseAxisX * _virtualMouseAxisX +
++            _virtualMouseAxisY * _virtualMouseAxisY);
++        if(frameDelta > 0.0f && magnitude > 0.0f) {
++            const float normalizedMagnitude = std::min(magnitude, 1.0f);
++            const float speed = _virtualMouseSpeed *
++                std::pow(normalizedMagnitude, _virtualMouseAccel);
++            const float scale = speed * frameDelta / magnitude;
++            moveVirtualMouse(_virtualMouseAxisX * scale,
++                             -_virtualMouseAxisY * scale);
++        }
+     }
++
++    if(_rocgalgameInput) {
++        static std::array<float, 600> frameTimes{};
++        static size_t frameCount = 0;
++        static size_t frameCursor = 0;
++        static float reportElapsed = 0.0f;
++        if(delta > 0.0f && std::isfinite(delta)) {
++            frameTimes[frameCursor] = delta * 1000.0f;
++            frameCursor = (frameCursor + 1) % frameTimes.size();
++            frameCount = std::min(frameCount + 1, frameTimes.size());
++            reportElapsed += delta;
++        }
++        if(reportElapsed >= 5.0f && frameCount > 0) {
++            std::array<float, 600> snapshot{};
++            for(size_t i = 0; i < frameCount; ++i)
++                snapshot[i] = frameTimes[i];
++            std::sort(snapshot.begin(), snapshot.begin() + frameCount);
++            float total = 0.0f;
++            for(size_t i = 0; i < frameCount; ++i)
++                total += snapshot[i];
++            const auto percentile = [&](float p) {
++                const size_t index = static_cast<size_t>(
++                    (frameCount - 1) * p);
++                return snapshot[index];
++            };
++            const float average = total / frameCount;
++            if(auto logger = spdlog::get("tjs2")) {
++                logger->info("[rocgalgame] perf fps={:.1f} frame_ms_p50={:.2f} "
++                             "p95={:.2f} p99={:.2f} max={:.2f} fifo_axis={} "
++                             "fifo_axis_discarded={}",
++                             average > 0.0f ? 1000.0f / average : 0.0f,
++                             percentile(0.50f), percentile(0.95f),
++                             percentile(0.99f), snapshot[frameCount - 1],
++                             _rocgalgameRuntimeStats.axisMessages,
++                             _rocgalgameRuntimeStats.discardedAxisMessages);
++            }
++            _rocgalgameRuntimeStats = {};
++            reportElapsed = 0.0f;
++        }
++    }
+     if(_rocgalgameInput && _padStartDown && _padSelectDown) {
+         _padExitHold += delta;
+         if(_padExitHold >= 0.4f) {
+@@ -1427,6 +1495,11 @@ void TVPMainScene::pollRocgalgameInputBridge() {
+ #if !defined(_WIN32)
+     if(_rocgalgameInputFd < 0) {
+         const char *path = std::getenv("ROCGALGAME_KRKR_INPUT_FIFO");
+         if(path && *path) {
+             _rocgalgameInputFd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+-            if(_rocgalgameInputFd >= 0)
++            if(_rocgalgameInputFd >= 0) {
++                _rocgalgameBridgeConfigured = true;
++                _rocgalgameBridgeActive = false;
++                _rocgalgameInputBuffer.clear();
+-                CCLOG("[rocgalgame] frontend input bridge ready: %s", path);
++                if(auto logger = spdlog::get("tjs2"))
++                    logger->info("[rocgalgame] frontend input bridge ready: {}",
++                                 path);
++            }
+         }
+     }
+@@ -1439,15 +1512,27 @@ void TVPMainScene::pollRocgalgameInputBridge() {
+     char chunk[512];
+     while(true) {
+         const ssize_t count = read(_rocgalgameInputFd, chunk, sizeof(chunk));
+         if(count > 0) {
++            _rocgalgameBridgeActive = true;
+             _rocgalgameInputBuffer.append(chunk, static_cast<size_t>(count));
+             continue;
+         }
++        if(count == 0 && _rocgalgameBridgeActive) {
++            close(_rocgalgameInputFd);
++            _rocgalgameInputFd = -1;
++            _rocgalgameBridgeActive = false;
++            _virtualMouseAxisX = 0.0f;
++            _virtualMouseAxisY = 0.0f;
++            _rocgalgameAxisLastTick = 0;
++        }
+         if(count < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+             close(_rocgalgameInputFd);
+             _rocgalgameInputFd = -1;
++            _rocgalgameBridgeActive = false;
++            _virtualMouseAxisX = 0.0f;
++            _virtualMouseAxisY = 0.0f;
++            _rocgalgameAxisLastTick = 0;
+         }
+         break;
+@@ -1453,19 +1538,36 @@ void TVPMainScene::pollRocgalgameInputBridge() {
+     if(_rocgalgameInputBuffer.size() > 8192)
+         _rocgalgameInputBuffer.clear();
+ 
++    bool hasLatestAxis = false;
++    float latestAxisX = 0.0f;
++    float latestAxisY = 0.0f;
++    std::uint64_t latestSequence = _rocgalgameAxisSequence;
+     size_t newline = std::string::npos;
+     while((newline = _rocgalgameInputBuffer.find('\n')) != std::string::npos) {
+         const std::string line = _rocgalgameInputBuffer.substr(0, newline);
+         _rocgalgameInputBuffer.erase(0, newline + 1);
+         std::istringstream input(line);
+         char type = 0;
+         input >> type;
+-        if(type == 'M') {
+-            int dx = 0;
+-            int dy = 0;
+-            if(input >> dx >> dy)
+-                moveVirtualMouse(static_cast<float>(dx), static_cast<float>(-dy));
+-        } else if(type == 'B') {
++        if(type == 'A') {
++            float axisX = 0.0f;
++            float axisY = 0.0f;
++            std::uint64_t sequence = 0;
++            if(input >> axisX >> axisY >> sequence &&
++               std::isfinite(axisX) && std::isfinite(axisY)) {
++                ++_rocgalgameRuntimeStats.axisMessages;
++                if(sequence > latestSequence) {
++                    if(hasLatestAxis)
++                        ++_rocgalgameRuntimeStats.discardedAxisMessages;
++                    latestAxisX = std::max(-1.0f, std::min(axisX, 1.0f));
++                    latestAxisY = std::max(-1.0f, std::min(axisY, 1.0f));
++                    latestSequence = sequence;
++                    hasLatestAxis = true;
++                } else {
++                    ++_rocgalgameRuntimeStats.discardedAxisMessages;
++                }
++            }
++        } else if(type == 'B') {
+             char button = 0;
+             int down = 0;
+             if(input >> button >> down) {
+                 postVirtualMouseButton(button == 'L', down != 0);
+-                CCLOG("[rocgalgame] frontend input button: %c %d", button, down);
+             }
+         } else if(type == 'K') {
+@@ -1475,11 +1577,18 @@ void TVPMainScene::pollRocgalgameInputBridge() {
+             int down = 0;
+             if(input >> code >> down) {
+                 postRocgalgameBridgeKey(code, down != 0);
+-                CCLOG("[rocgalgame] frontend input key: %u %d", code, down);
+             }
+         }
+     }
++    if(hasLatestAxis) {
++        _virtualMouseAxisX = latestAxisX;
++        _virtualMouseAxisY = latestAxisY;
++        _rocgalgameAxisSequence = latestSequence;
++        _rocgalgameAxisLastTick = TVPGetTickCount();
++    }
+ #endif
+ }
+ 
+ void TVPMainScene::onAxisEvent(cocos2d::Controller *ctrl, int keyCode,
+                                cocos2d::Event *e) {
++    if(_rocgalgameBridgeConfigured)
++        return;
+     const int rawKeyCode = keyCode;
+@@ -1554,14 +1663,10 @@ void TVPMainScene::onAxisEvent(cocos2d::Controller *ctrl, int keyCode,
+ }
+ 
+ void TVPMainScene::onPadKeyDown(cocos2d::Controller *ctrl, int keyCode,
+                                 cocos2d::Event *e) {
+-    const int rawKeyCode = keyCode;
++    if(_rocgalgameBridgeConfigured)
++        return;
+     keyCode = TVPNormalizeGKDButton(ctrl, keyCode);
+-    if(_rocgalgameInput)
+-        CCLOG("[rocgalgame] pad down: raw=%d normalized=%d", rawKeyCode,
+-              keyCode);
+     if(handleVirtualMouseButton(keyCode, true))
+         return;
+@@ -1576,14 +1681,10 @@ void TVPMainScene::onPadKeyDown(cocos2d::Controller *ctrl, int keyCode,
+ }
+ 
+ void TVPMainScene::onPadKeyUp(cocos2d::Controller *ctrl, int keyCode,
+                               cocos2d::Event *e) {
+-    const int rawKeyCode = keyCode;
++    if(_rocgalgameBridgeConfigured)
++        return;
+     keyCode = TVPNormalizeGKDButton(ctrl, keyCode);
+-    if(_rocgalgameInput)
+-        CCLOG("[rocgalgame] pad up: raw=%d normalized=%d", rawKeyCode,
+-              keyCode);
+     if(handleVirtualMouseButton(keyCode, false))
+         return;
+@@ -1628,18 +1729,9 @@ void TVPConsoleLog(const ttstr &l, bool important) {
+     if(TVPWindowLayer::TVPWindowLayer::_consoleWin) {
+         TVPWindowLayer::TVPWindowLayer::_consoleWin->addLine(
+             l, important ? Color3B::YELLOW : Color3B::GRAY);
+-        static tjs_uint64 lastConsoleDrawTick = 0;
+-        const tjs_uint64 now = TVPGetTickCount();
+         const bool rocgalgameRuntime =
+             std::getenv("ROCGALGAME_KRKR_RUNTIME") != nullptr;
+-        if(!rocgalgameRuntime || important || lastConsoleDrawTick == 0 ||
+-           now - lastConsoleDrawTick >= 1000) {
+-            // Software rendering can make this forced startup-console redraw
+-            // much slower than its nominal 100 ms delay. Keep ordinary logs
+-            // flowing while limiting ROCgalgame's console to one redraw/sec.
++        if(!rocgalgameRuntime)
+             TVPDrawSceneOnce(100);
+-            lastConsoleDrawTick = TVPGetTickCount();
+-        }
+     }
+     spdlog::get("tjs2")->info("{}", l.AsStdString());
+ }

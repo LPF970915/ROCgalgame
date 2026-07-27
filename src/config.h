@@ -23,8 +23,8 @@ struct AppConfig {
   int auto_sleep_interval_index = 2;
   std::string selected_avatar;
   bool virtual_mouse = true;
-  int mouse_speed = 720;
-  float mouse_accel = 1.6f;
+  int mouse_speed = 1080;
+  float mouse_accel = 1.0f;
   std::string update_manifest_url;
 };
 

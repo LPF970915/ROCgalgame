@@ -59,6 +59,10 @@ void WriteFile(const std::filesystem::path &path, const std::string &contents) {
 }  // namespace
 
 int main() {
+  assert(NormalizeLinuxAxisValue(-900, 900, 0, 0) == 0.0f);
+  assert(NormalizeLinuxAxisValue(-900, 900, 0, 100) == 0.0f);
+  assert(NormalizeLinuxAxisValue(-900, 900, 0, 900) == 1.0f);
+  assert(NormalizeLinuxAxisValue(-900, 900, 0, -900) == -1.0f);
   assert(ResolveInputProfile("desktop-default", {}, {}) == InputProfile::DesktopDefault);
   assert(ResolveInputProfile("h700-default", {}, {}) == InputProfile::H700Default);
   assert(ResolveInputProfile("h700-34xxsp", {}, {}) == InputProfile::H70034xxSp);
@@ -84,6 +88,11 @@ int main() {
   assert(desktop.IsPressed(Button::A));
   assert(desktop.IsJustPressed(Button::A));
   assert(desktop.IsRepeated(Button::A));
+  InputPumpStats pump_stats = desktop.TakePumpStats();
+  assert(pump_stats.sdl_events == 1);
+  assert(pump_stats.sdl_axis_events == 0);
+  pump_stats = desktop.TakePumpStats();
+  assert(pump_stats.sdl_events == 0);
 
   desktop.BeginFrame(0.4f);
   desktop.EndFrame();
@@ -159,6 +168,8 @@ int main() {
   desktop.BeginFrame(0.016f);
   desktop.HandleEvent(JoyAxisEvent(3, -20000));
   desktop.EndFrame();
+  pump_stats = desktop.TakePumpStats();
+  assert(pump_stats.sdl_axis_events == 1);
   RawInputBinding sample;
   assert(desktop.TakeCalibrationSample(sample));
   assert(sample.source == RawInputSource::JoystickAxis);

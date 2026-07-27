@@ -13,6 +13,7 @@
 #include "config.h"
 #include "cover_cache_runtime.h"
 #include "cover_service.h"
+#include "core_input_bridge.h"
 #include "game_library.h"
 #include "game_library_service.h"
 #include "game_core_registry.h"
@@ -1026,8 +1027,21 @@ int RunApp(int argc, char **argv) {
 
     if (launch_pending) {
       has_restore_state = true;
-      launch_message = DescribeLaunchResult(
-          game_launch_service.Launch(config, pending_game), launch_language);
+      LaunchResult launch_result;
+      const bool bridge_krkr2 =
+          pending_game.core == CoreKind::Krkr &&
+          pending_game.overrides.krkr_runtime == KrkrRuntime::Krkr2;
+      if (bridge_krkr2) {
+        const EffectiveGameSettings settings =
+            ResolveEffectiveGameSettings(config, pending_game);
+        CoreInputBridge input_bridge(app.input, settings);
+        launch_result = game_launch_service.Launch(
+            config, pending_game,
+            [&input_bridge]() { return input_bridge.Poll(); });
+      } else {
+        launch_result = game_launch_service.Launch(config, pending_game);
+      }
+      launch_message = DescribeLaunchResult(launch_result, launch_language);
       continue;
     }
     return 0;

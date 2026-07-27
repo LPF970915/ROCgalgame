@@ -1,0 +1,672 @@
+diff --git a/cpp/core/environ/CMakeLists.txt b/cpp/core/environ/CMakeLists.txt
+index 8f4513a..f52a9e1 100644
+--- a/cpp/core/environ/CMakeLists.txt
++++ b/cpp/core/environ/CMakeLists.txt
+@@ -26,6 +26,7 @@ set(ENVIRON_SOURCE_FILES
+     ${ENVIRON_PATH}/cocos2d/CCKeyCodeConv.cpp
+     ${ENVIRON_PATH}/cocos2d/CustomFileUtils.cpp
+     ${ENVIRON_PATH}/cocos2d/MainScene.cpp
++    ${ENVIRON_PATH}/cocos2d/RocgalgameInputTransport.cpp
+     ${ENVIRON_PATH}/cocos2d/YUVSprite.cpp
+ 
+     ${ENVIRON_PATH}/ConfigManager/GlobalConfigManager.cpp
+@@ -71,7 +72,8 @@ endif()
+ 
+ add_library(${PROJECT_NAME} STATIC ${ENVIRON_SOURCE_FILES})
+ target_include_directories(${PROJECT_NAME} PUBLIC ${ENVIRON_HEADERS_DIR})
+-target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_io core_visual_module core_sound_module core_plugin_module core_movie_module core_utils_module)
++find_package(Threads REQUIRED)
++target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_io core_visual_module core_sound_module core_plugin_module core_movie_module core_utils_module Threads::Threads)
+ 
+ if(ANDROID OR IOS)
+     target_compile_definitions(${PROJECT_NAME} PRIVATE TVP_HAS_MOBILE_FILE_BACKEND)
+diff --git a/cpp/core/environ/cocos2d/AppDelegate.cpp b/cpp/core/environ/cocos2d/AppDelegate.cpp
+index 547fcec..c9b8051 100644
+--- a/cpp/core/environ/cocos2d/AppDelegate.cpp
++++ b/cpp/core/environ/cocos2d/AppDelegate.cpp
+@@ -35,6 +35,8 @@ std::string TVPGetCurrentLanguage();
+ 
+ void TVPAppDelegate::applicationWillEnterForeground() {
+     ::Application->OnActivate();
++    if(TVPMainScene::GetInstance())
++        TVPMainScene::GetInstance()->resetRocgalgamePointerClock();
+     cocos2d::Director::getInstance()->startAnimation();
+ }
+ 
+diff --git a/cpp/core/environ/cocos2d/MainScene.cpp b/cpp/core/environ/cocos2d/MainScene.cpp
+index bb0ef0d..aebf9b8 100644
+--- a/cpp/core/environ/cocos2d/MainScene.cpp
++++ b/cpp/core/environ/cocos2d/MainScene.cpp
+@@ -1,4 +1,5 @@
+ #include "MainScene.h"
++#include "RocgalgameInputTransport.h"
+ 
+ #include <cocos2d.h>
+ #include <cocos-ext.h>
+@@ -8,13 +9,6 @@
+ #include <cstdint>
+ #include <cstdlib>
+ #include <cstring>
+-#include <sstream>
+-
+-#if !defined(_WIN32)
+-#include <cerrno>
+-#include <fcntl.h>
+-#include <unistd.h>
+-#endif
+ 
+ #include "tjsCommHead.h"
+ #include "StorageIntf.h"
+@@ -122,8 +116,7 @@ static int TVPNormalizeGKDAxis(cocos2d::Controller *controller, int code) {
+ }
+ 
+ struct TVPRocgalgameRuntimeStats {
+-    std::uint64_t axisMessages = 0;
+-    std::uint64_t discardedAxisMessages = 0;
++    std::uint64_t pointerDispatches = 0;
+ };
+ static TVPRocgalgameRuntimeStats _rocgalgameRuntimeStats;
+ 
+@@ -766,6 +759,16 @@ void TVPMainScene::doStartup(float dt, std::string path) {
+                      screenSize.width, screenSize.height, viewport[2], viewport[3],
+                      glText(GL_VENDOR), glText(GL_RENDERER), glText(GL_VERSION));
+     }
++    if(_rocgalgameBridgeConfigured) {
++        const char *path = std::getenv("ROCGALGAME_KRKR_INPUT_FIFO");
++        _rocgalgameTransport = std::make_unique<RocgalgameInputTransport>();
++        if(!path || !_rocgalgameTransport->start(path)) {
++            _rocgalgameTransport.reset();
++            _rocgalgameBridgeConfigured = false;
++        } else if(auto logger = spdlog::get("tjs2")) {
++            logger->info("[rocgalgame] frontend input bridge ready: {}", path);
++        }
++    }
+     float scale = screenSize.height / getContentSize().height;
+     TVPWindowLayer::_consoleWin->setScale(1 / scale);
+     TVPWindowLayer::_consoleWin->setContentSize(getContentSize() * scale);
+@@ -816,28 +819,31 @@ tjs_uint TVPGetGraphicCacheTotalBytes();
+ 
+ void TVPMainScene::update(float delta) {
+     ::Application->Run();
+-    pollRocgalgameInputBridge();
+-    const std::uint64_t nowTick = TVPGetTickCount();
+-    if(_rocgalgameBridgeActive && _rocgalgameAxisLastTick &&
+-       nowTick - _rocgalgameAxisLastTick > 300) {
+-        _virtualMouseAxisX = 0.0f;
+-        _virtualMouseAxisY = 0.0f;
+-    }
++    consumeRocgalgameInputBridge();
++    const auto now = std::chrono::steady_clock::now();
++    float frameDelta = 0.0f;
++    if(_rocgalgamePointerClockValid) {
++        frameDelta = std::chrono::duration<float>(
++            now - _rocgalgamePointerTick).count();
++    }
++    _rocgalgamePointerTick = now;
++    _rocgalgamePointerClockValid = true;
++    if(!_rocgalgameBridgeActive)
++        _virtualMouseAxisX = _virtualMouseAxisY = 0.0f;
+     if(_virtualMouseEnabled &&
+        (_virtualMouseAxisX != 0.0f || _virtualMouseAxisY != 0.0f)) {
+-        // Use the real render-frame interval at steady low FPS. A longer gap
+-        // is a suspend/stall and must not turn into a large recovery jump.
+-        const float frameDelta = delta > 0.0f && delta <= 0.25f ? delta : 0.0f;
+         const float magnitude = std::sqrt(
+             _virtualMouseAxisX * _virtualMouseAxisX +
+             _virtualMouseAxisY * _virtualMouseAxisY);
+-        if(frameDelta > 0.0f && magnitude > 0.0f) {
++        if(frameDelta > 0.0f && std::isfinite(frameDelta) &&
++           magnitude > 0.0f) {
+             const float normalizedMagnitude = std::min(magnitude, 1.0f);
+             const float speed = _virtualMouseSpeed *
+                 std::pow(normalizedMagnitude, _virtualMouseAccel);
+             const float scale = speed * frameDelta / magnitude;
+             moveVirtualMouse(_virtualMouseAxisX * scale,
+                              -_virtualMouseAxisY * scale);
++            ++_rocgalgameRuntimeStats.pointerDispatches;
+         }
+     }
+ 
+@@ -867,14 +873,22 @@ void TVPMainScene::update(float delta) {
+             };
+             const float average = total / frameCount;
+             if(auto logger = spdlog::get("tjs2")) {
++                const RocgalgameInputStats inputStats =
++                    _rocgalgameTransport ? _rocgalgameTransport->takeStats()
++                                          : RocgalgameInputStats{};
+                 logger->info("[rocgalgame] perf fps={:.1f} frame_ms_p50={:.2f} "
+-                             "p95={:.2f} p99={:.2f} max={:.2f} fifo_axis={} "
+-                             "fifo_axis_discarded={}",
++                             "p95={:.2f} p99={:.2f} max={:.2f} "
++                             "ipc_bytes={} parsed_axis={} axis_discarded={} "
++                             "parsed_buttons={} parsed_keys={} queue_depth={} "
++                             "queue_overflows={} pointer_dispatches={}",
+                              average > 0.0f ? 1000.0f / average : 0.0f,
+                              percentile(0.50f), percentile(0.95f),
+                              percentile(0.99f), snapshot[frameCount - 1],
+-                             _rocgalgameRuntimeStats.axisMessages,
+-                             _rocgalgameRuntimeStats.discardedAxisMessages);
++                             inputStats.bytes, inputStats.parsedAxis,
++                             inputStats.discardedAxis, inputStats.parsedButtons,
++                             inputStats.parsedKeys, inputStats.queueDepth,
++                             inputStats.queueOverflows,
++                             _rocgalgameRuntimeStats.pointerDispatches);
+             }
+             _rocgalgameRuntimeStats = {};
+             reportElapsed = 0.0f;
+@@ -1124,6 +1138,12 @@ TVPMainScene::TVPMainScene() {
+     TVPWindowLayer::_windowMgrOverlay = nullptr;
+ }
+ 
++TVPMainScene::~TVPMainScene() = default;
++
++void TVPMainScene::resetRocgalgamePointerClock() {
++    _rocgalgamePointerClockValid = false;
++}
++
+ void TVPMainScene::showWindowManagerOverlay(bool bVisible) {
+     if(bVisible) {
+         if(!TVPWindowLayer::_windowMgrOverlay) {
+@@ -1502,104 +1522,40 @@ void TVPMainScene::postRocgalgameBridgeKey(unsigned int code, bool down) {
+     }
+ }
+ 
+-void TVPMainScene::pollRocgalgameInputBridge() {
+-#if !defined(_WIN32)
+-    if(_rocgalgameInputFd < 0) {
+-        const char *path = std::getenv("ROCGALGAME_KRKR_INPUT_FIFO");
+-        if(path && *path) {
+-            _rocgalgameInputFd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+-            if(_rocgalgameInputFd >= 0) {
+-                _rocgalgameBridgeConfigured = true;
+-                _rocgalgameBridgeActive = false;
+-                _rocgalgameInputBuffer.clear();
+-                if(auto logger = spdlog::get("tjs2"))
+-                    logger->info("[rocgalgame] frontend input bridge ready: {}",
+-                                 path);
+-            }
+-        }
+-    }
+-    if(_rocgalgameInputFd < 0)
++void TVPMainScene::consumeRocgalgameInputBridge() {
++    if(!_rocgalgameTransport)
+         return;
+-
+-    char chunk[512];
+-    while(true) {
+-        const ssize_t count = read(_rocgalgameInputFd, chunk, sizeof(chunk));
+-        if(count > 0) {
+-            _rocgalgameBridgeActive = true;
+-            _rocgalgameInputBuffer.append(chunk, static_cast<size_t>(count));
+-            continue;
+-        }
+-        if(count == 0 && _rocgalgameBridgeActive) {
+-            close(_rocgalgameInputFd);
+-            _rocgalgameInputFd = -1;
+-            _rocgalgameBridgeActive = false;
+-            _virtualMouseAxisX = 0.0f;
+-            _virtualMouseAxisY = 0.0f;
+-            _rocgalgameAxisLastTick = 0;
+-        }
+-        if(count < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+-            close(_rocgalgameInputFd);
+-            _rocgalgameInputFd = -1;
+-            _rocgalgameBridgeActive = false;
+-            _virtualMouseAxisX = 0.0f;
+-            _virtualMouseAxisY = 0.0f;
+-            _rocgalgameAxisLastTick = 0;
+-        }
+-        break;
+-    }
+-    if(_rocgalgameInputBuffer.size() > 8192)
+-        _rocgalgameInputBuffer.clear();
+-
+-    bool hasLatestAxis = false;
+-    float latestAxisX = 0.0f;
+-    float latestAxisY = 0.0f;
+-    std::uint64_t latestSequence = _rocgalgameAxisSequence;
+-    size_t newline = std::string::npos;
+-    while((newline = _rocgalgameInputBuffer.find('\n')) != std::string::npos) {
+-        const std::string line = _rocgalgameInputBuffer.substr(0, newline);
+-        _rocgalgameInputBuffer.erase(0, newline + 1);
+-        std::istringstream input(line);
+-        char type = 0;
+-        input >> type;
+-        if(type == 'A') {
+-            float axisX = 0.0f;
+-            float axisY = 0.0f;
+-            std::uint64_t sequence = 0;
+-            if(input >> axisX >> axisY >> sequence &&
+-               std::isfinite(axisX) && std::isfinite(axisY)) {
+-                ++_rocgalgameRuntimeStats.axisMessages;
+-                if(sequence > latestSequence) {
+-                    if(hasLatestAxis)
+-                        ++_rocgalgameRuntimeStats.discardedAxisMessages;
+-                    latestAxisX = std::max(-1.0f, std::min(axisX, 1.0f));
+-                    latestAxisY = std::max(-1.0f, std::min(axisY, 1.0f));
+-                    latestSequence = sequence;
+-                    hasLatestAxis = true;
+-                } else {
+-                    ++_rocgalgameRuntimeStats.discardedAxisMessages;
+-                }
++    const RocgalgameInputSnapshot snapshot = _rocgalgameTransport->drain();
++    _rocgalgameBridgeActive = snapshot.connected;
++    _virtualMouseAxisX = snapshot.axisFresh ? snapshot.axisX : 0.0f;
++    _virtualMouseAxisY = snapshot.axisFresh ? snapshot.axisY : 0.0f;
++
++    if(snapshot.reconcile) {
++        for(std::size_t index = 0; index < _rocgalgameMouseButtons.size(); ++index) {
++            if(_rocgalgameMouseButtons[index] != snapshot.mouseButtons[index]) {
++                _rocgalgameMouseButtons[index] = snapshot.mouseButtons[index];
++                postVirtualMouseButton(index == 0, _rocgalgameMouseButtons[index]);
+             }
+-        } else if(type == 'B') {
+-            char button = 0;
+-            int down = 0;
+-            if(input >> button >> down) {
+-                postVirtualMouseButton(button == 'L', down != 0);
++        }
++        for(std::size_t code = 1; code < _rocgalgameKeys.size(); ++code) {
++            if(_rocgalgameKeys[code] != snapshot.keys[code]) {
++                _rocgalgameKeys[code] = snapshot.keys[code];
++                postRocgalgameBridgeKey(static_cast<unsigned int>(code),
++                                        _rocgalgameKeys[code]);
+             }
+-        } else if(type == 'K') {
+-            unsigned int code = 0;
+-            int down = 0;
+-            if(input >> code >> down) {
+-                postRocgalgameBridgeKey(code, down != 0);
++        }
++    } else {
++        for(const RocgalgameInputEvent &event : snapshot.events) {
++            if(event.type == RocgalgameInputEventType::MouseButton) {
++                if(event.code < _rocgalgameMouseButtons.size())
++                    _rocgalgameMouseButtons[event.code] = event.down;
++                postVirtualMouseButton(event.code == 0, event.down);
++            } else if(event.code < _rocgalgameKeys.size()) {
++                _rocgalgameKeys[event.code] = event.down;
++                postRocgalgameBridgeKey(event.code, event.down);
+             }
+         }
+     }
+-    if(hasLatestAxis) {
+-        _virtualMouseAxisX = latestAxisX;
+-        _virtualMouseAxisY = latestAxisY;
+-        _rocgalgameAxisSequence = latestSequence;
+-        _rocgalgameAxisLastTick = TVPGetTickCount();
+-    }
+-#endif
+ }
+ 
+ void TVPMainScene::onAxisEvent(cocos2d::Controller *ctrl, int keyCode,
+diff --git a/cpp/core/environ/cocos2d/MainScene.h b/cpp/core/environ/cocos2d/MainScene.h
+index 9888a25..e2538ba 100644
+--- a/cpp/core/environ/cocos2d/MainScene.h
++++ b/cpp/core/environ/cocos2d/MainScene.h
+@@ -4,7 +4,10 @@
+ #include "ui/UIWidget.h"
+ #include "base/CCIMEDelegate.h"
+ 
++#include <array>
++#include <chrono>
+ #include <cstdint>
++#include <memory>
+ #include <string>
+ 
+ namespace cocos2d {
+@@ -13,6 +16,7 @@ namespace cocos2d {
+ 
+ class TVPWindowLayer;
+ class TVPGameMainMenu;
++class RocgalgameInputTransport;
+ class TVPMainScene : public cocos2d::Scene, public cocos2d::IMEDelegate {
+     TVPMainScene();
+     static TVPMainScene *create();
+@@ -21,6 +25,7 @@ class TVPMainScene : public cocos2d::Scene, public cocos2d::IMEDelegate {
+     friend class TVPAppDelegate;
+ 
+ public:
++    ~TVPMainScene() override;
+     static TVPMainScene *GetInstance();
+     static TVPMainScene *CreateInstance();
+ 
+@@ -65,6 +70,7 @@ public:
+     static void onTextInput(const std::string &text);
+ 
+     static float convertCursorScale(float val /*0 ~ 1*/);
++    void resetRocgalgamePointerClock();
+ 
+ private:
+     void onKeyPressed(cocos2d::EventKeyboard::KeyCode keyCode,
+@@ -84,7 +90,7 @@ private:
+     void moveVirtualMouse(float dx, float dy);
+     void postVirtualMouseButton(bool left, bool down);
+     bool handleVirtualMouseButton(int code, bool down);
+-    void pollRocgalgameInputBridge();
++    void consumeRocgalgameInputBridge();
+     void postRocgalgameBridgeKey(unsigned int code, bool down);
+ 
+     bool canAttachWithIME() override;
+@@ -110,8 +116,9 @@ private:
+     float _virtualMouseAxisX = 0.0f;
+     float _virtualMouseAxisY = 0.0f;
+     float _virtualMouseSpeed = 1080.0f, _virtualMouseAccel = 1.0f;
+-    std::uint64_t _rocgalgameAxisSequence = 0;
+-    std::uint64_t _rocgalgameAxisLastTick = 0;
+-    int _rocgalgameInputFd = -1;
+-    std::string _rocgalgameInputBuffer;
++    std::unique_ptr<RocgalgameInputTransport> _rocgalgameTransport;
++    std::chrono::steady_clock::time_point _rocgalgamePointerTick{};
++    bool _rocgalgamePointerClockValid = false;
++    std::array<bool, 2> _rocgalgameMouseButtons{};
++    std::array<bool, 0x200> _rocgalgameKeys{};
+ };
+diff --git a/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp b/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp
+new file mode 100644
+index 0000000..d1ccd27
+--- /dev/null
++++ b/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp
+@@ -0,0 +1,237 @@
++#include "RocgalgameInputTransport.h"
++
++#include <algorithm>
++#include <atomic>
++#include <chrono>
++#include <cmath>
++#include <cstdlib>
++#include <deque>
++#include <mutex>
++#include <sstream>
++#include <thread>
++
++#if !defined(_WIN32)
++#include <cerrno>
++#include <fcntl.h>
++#include <poll.h>
++#include <unistd.h>
++#endif
++
++namespace {
++constexpr std::size_t kDiscreteQueueCapacity = 128;
++constexpr std::uint64_t kAxisTimeoutMs = 400;
++
++std::uint64_t SteadyMilliseconds() {
++    return static_cast<std::uint64_t>(
++        std::chrono::duration_cast<std::chrono::milliseconds>(
++            std::chrono::steady_clock::now().time_since_epoch()).count());
++}
++}
++
++struct RocgalgameInputTransport::Impl {
++    std::atomic<bool> stopRequested{false};
++    std::thread reader;
++    std::mutex mutex;
++    std::string path;
++    std::string inputBuffer;
++    std::deque<RocgalgameInputEvent> events;
++    std::array<bool, 2> mouseButtons{};
++    std::array<bool, 0x200> keys{};
++    float axisX = 0.0f;
++    float axisY = 0.0f;
++    std::uint64_t axisSequence = 0;
++    std::uint64_t axisTimestampMs = 0;
++    std::uint64_t deliveredAxisSequence = 0;
++    bool connected = false;
++    bool reconcile = false;
++    RocgalgameInputStats stats;
++
++    void pushEvent(const RocgalgameInputEvent &event) {
++        if(reconcile)
++            return;
++        if(events.size() >= kDiscreteQueueCapacity) {
++            events.clear();
++            reconcile = true;
++            ++stats.queueOverflows;
++            return;
++        }
++        events.push_back(event);
++    }
++
++    void parseLine(const std::string &line) {
++        std::istringstream input(line);
++        char type = 0;
++        input >> type;
++        std::lock_guard<std::mutex> lock(mutex);
++        if(type == 'A') {
++            float nextX = 0.0f;
++            float nextY = 0.0f;
++            std::uint64_t sequence = 0;
++            if(!(input >> nextX >> nextY >> sequence) ||
++               !std::isfinite(nextX) || !std::isfinite(nextY))
++                return;
++            ++stats.parsedAxis;
++            if(sequence <= axisSequence) {
++                ++stats.discardedAxis;
++                return;
++            }
++            if(axisSequence > deliveredAxisSequence)
++                ++stats.discardedAxis;
++            axisX = std::max(-1.0f, std::min(nextX, 1.0f));
++            axisY = std::max(-1.0f, std::min(nextY, 1.0f));
++            axisSequence = sequence;
++            axisTimestampMs = SteadyMilliseconds();
++            connected = true;
++            return;
++        }
++        if(type == 'B') {
++            char button = 0;
++            int down = 0;
++            if(!(input >> button >> down) || (button != 'L' && button != 'R'))
++                return;
++            const std::size_t index = button == 'L' ? 0 : 1;
++            mouseButtons[index] = down != 0;
++            ++stats.parsedButtons;
++            pushEvent({RocgalgameInputEventType::MouseButton,
++                       static_cast<unsigned int>(index), down != 0});
++            connected = true;
++            return;
++        }
++        if(type == 'K') {
++            unsigned int code = 0;
++            int down = 0;
++            if(!(input >> code >> down) || code == 0 || code >= keys.size())
++                return;
++            keys[code] = down != 0;
++            ++stats.parsedKeys;
++            pushEvent({RocgalgameInputEventType::Key, code, down != 0});
++            connected = true;
++        }
++    }
++
++    void publishDisconnect() {
++        std::lock_guard<std::mutex> lock(mutex);
++        if(!connected)
++            return;
++        connected = false;
++        axisX = 0.0f;
++        axisY = 0.0f;
++        axisTimestampMs = 0;
++        mouseButtons.fill(false);
++        keys.fill(false);
++        events.clear();
++        reconcile = true;
++    }
++
++    void run() {
++#if !defined(_WIN32)
++        int fd = -1;
++        while(!stopRequested.load(std::memory_order_relaxed)) {
++            if(fd < 0) {
++                fd = open(path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
++                if(fd < 0) {
++                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
++                    continue;
++                }
++            }
++
++            pollfd descriptor{fd, POLLIN | POLLHUP | POLLERR, 0};
++            const int ready = poll(&descriptor, 1, 50);
++            if(ready < 0) {
++                if(errno == EINTR)
++                    continue;
++                close(fd);
++                fd = -1;
++                publishDisconnect();
++                continue;
++            }
++            if(ready == 0)
++                continue;
++            if(descriptor.revents & POLLIN) {
++                char chunk[512];
++                while(true) {
++                    const ssize_t count = read(fd, chunk, sizeof(chunk));
++                    if(count > 0) {
++                        {
++                            std::lock_guard<std::mutex> lock(mutex);
++                            stats.bytes += static_cast<std::uint64_t>(count);
++                        }
++                        inputBuffer.append(chunk, static_cast<std::size_t>(count));
++                        continue;
++                    }
++                    if(count < 0 && errno != EAGAIN && errno != EWOULDBLOCK &&
++                       errno != EINTR) {
++                        close(fd);
++                        fd = -1;
++                        publishDisconnect();
++                    }
++                    break;
++                }
++                if(inputBuffer.size() > 8192)
++                    inputBuffer.clear();
++                std::size_t newline = std::string::npos;
++                while((newline = inputBuffer.find('\n')) != std::string::npos) {
++                    const std::string line = inputBuffer.substr(0, newline);
++                    inputBuffer.erase(0, newline + 1);
++                    parseLine(line);
++                }
++            }
++            if(fd >= 0 && (descriptor.revents & (POLLHUP | POLLERR)))
++                publishDisconnect();
++        }
++        if(fd >= 0)
++            close(fd);
++#endif
++        publishDisconnect();
++    }
++};
++
++RocgalgameInputTransport::RocgalgameInputTransport()
++    : _impl(std::make_unique<Impl>()) {}
++
++RocgalgameInputTransport::~RocgalgameInputTransport() {
++    stop();
++}
++
++bool RocgalgameInputTransport::start(const std::string &path) {
++    if(path.empty() || _impl->reader.joinable())
++        return false;
++    _impl->path = path;
++    _impl->stopRequested.store(false, std::memory_order_relaxed);
++    _impl->reader = std::thread([this] { _impl->run(); });
++    return true;
++}
++
++void RocgalgameInputTransport::stop() {
++    _impl->stopRequested.store(true, std::memory_order_relaxed);
++    if(_impl->reader.joinable())
++        _impl->reader.join();
++}
++
++RocgalgameInputSnapshot RocgalgameInputTransport::drain() {
++    RocgalgameInputSnapshot snapshot;
++    const std::uint64_t now = SteadyMilliseconds();
++    std::lock_guard<std::mutex> lock(_impl->mutex);
++    snapshot.axisX = _impl->axisX;
++    snapshot.axisY = _impl->axisY;
++    snapshot.axisSequence = _impl->axisSequence;
++    snapshot.connected = _impl->connected;
++    snapshot.axisFresh = _impl->connected && _impl->axisTimestampMs != 0 &&
++        now - _impl->axisTimestampMs <= kAxisTimeoutMs;
++    snapshot.reconcile = _impl->reconcile;
++    snapshot.mouseButtons = _impl->mouseButtons;
++    snapshot.keys = _impl->keys;
++    snapshot.events.assign(_impl->events.begin(), _impl->events.end());
++    _impl->events.clear();
++    _impl->reconcile = false;
++    _impl->deliveredAxisSequence = _impl->axisSequence;
++    return snapshot;
++}
++
++RocgalgameInputStats RocgalgameInputTransport::takeStats() {
++    std::lock_guard<std::mutex> lock(_impl->mutex);
++    RocgalgameInputStats result = _impl->stats;
++    result.queueDepth = _impl->events.size();
++    _impl->stats = {};
++    return result;
++}
+diff --git a/cpp/core/environ/cocos2d/RocgalgameInputTransport.h b/cpp/core/environ/cocos2d/RocgalgameInputTransport.h
+new file mode 100644
+index 0000000..2e4eba3
+--- /dev/null
++++ b/cpp/core/environ/cocos2d/RocgalgameInputTransport.h
+@@ -0,0 +1,59 @@
++#pragma once
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <memory>
++#include <string>
++#include <vector>
++
++enum class RocgalgameInputEventType {
++    MouseButton,
++    Key,
++};
++
++struct RocgalgameInputEvent {
++    RocgalgameInputEventType type = RocgalgameInputEventType::Key;
++    unsigned int code = 0;
++    bool down = false;
++};
++
++struct RocgalgameInputSnapshot {
++    float axisX = 0.0f;
++    float axisY = 0.0f;
++    std::uint64_t axisSequence = 0;
++    bool connected = false;
++    bool axisFresh = false;
++    bool reconcile = false;
++    std::array<bool, 2> mouseButtons{};
++    std::array<bool, 0x200> keys{};
++    std::vector<RocgalgameInputEvent> events;
++};
++
++struct RocgalgameInputStats {
++    std::uint64_t bytes = 0;
++    std::uint64_t parsedAxis = 0;
++    std::uint64_t discardedAxis = 0;
++    std::uint64_t parsedButtons = 0;
++    std::uint64_t parsedKeys = 0;
++    std::uint64_t queueOverflows = 0;
++    std::size_t queueDepth = 0;
++};
++
++class RocgalgameInputTransport final {
++public:
++    RocgalgameInputTransport();
++    ~RocgalgameInputTransport();
++
++    RocgalgameInputTransport(const RocgalgameInputTransport &) = delete;
++    RocgalgameInputTransport &operator=(const RocgalgameInputTransport &) = delete;
++
++    bool start(const std::string &path);
++    void stop();
++    RocgalgameInputSnapshot drain();
++    RocgalgameInputStats takeStats();
++
++private:
++    struct Impl;
++    std::unique_ptr<Impl> _impl;
++};

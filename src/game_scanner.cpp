@@ -76,6 +76,14 @@ CoreKind ParseCoreKind(const std::string &value) {
   return CoreKind::Unknown;
 }
 
+KrkrRuntime ParseKrkrRuntime(const std::string &value) {
+  const std::string v = ToLowerAscii(Trim(value));
+  if (v == "sdl2" || v == "krkrsdl2" || v == "fast") return KrkrRuntime::Sdl2;
+  if (v == "krkr2" || v == "kirikiroid2" || v == "native") return KrkrRuntime::Krkr2;
+  if (v == "wine" || v == "windows") return KrkrRuntime::Wine;
+  return KrkrRuntime::Auto;
+}
+
 bool IsAspectValue(const std::string &value) {
   const std::string v = ToLowerAscii(Trim(value));
   return v == "stretch" || v == "contain" || v == "fill-height";
@@ -102,6 +110,8 @@ void ReadGameIni(const fs::path &dir, GameEntry &game) {
       game.title = value;
     } else if (key == "entry" && !value.empty()) {
       game.overrides.entry = value;
+    } else if (key == "runtime" || key == "krkr_runtime") {
+      game.overrides.krkr_runtime = ParseKrkrRuntime(value);
     } else if (key == "core") {
       CoreKind parsed = ParseCoreKind(value);
       if (parsed != CoreKind::Unknown) game.core = parsed;

@@ -73,6 +73,19 @@ check_executable "$DIST_ROOT/ROCgalgame.sh"
 check_executable "$RUNTIME_DIR/rocgalgame_sdl"
 check_executable "$RUNTIME_DIR/cores/ons/onsyuri"
 check_executable "$RUNTIME_DIR/cores/krkr/krkrsdl2"
+check_executable "$RUNTIME_DIR/cores/krkr/krkr2"
+check_file "$RUNTIME_DIR/cores/krkr/Resources"
+check_file "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1"
+readelf -h "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1" |
+  grep -Eq 'Machine:[[:space:]]+AArch64' || {
+    echo "[package] ERROR: KRKR2 private GLVND library is not AArch64"
+    exit 1
+  }
+readelf -d "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1" |
+  grep -Eq 'SONAME.*libGL\.so\.1' || {
+    echo "[package] ERROR: KRKR2 private GLVND library has the wrong SONAME"
+    exit 1
+  }
 check_file "$RUNTIME_DIR/native_config.ini"
 check_file "$RUNTIME_DIR/native_keymap.ini"
 check_file "$RUNTIME_DIR/ui.pack"
@@ -89,6 +102,7 @@ check_file "$RUNTIME_DIR/saves"
 show_elf_info "$RUNTIME_DIR/rocgalgame_sdl"
 show_elf_info "$RUNTIME_DIR/cores/ons/onsyuri"
 show_elf_info "$RUNTIME_DIR/cores/krkr/krkrsdl2"
+show_elf_info "$RUNTIME_DIR/cores/krkr/krkr2"
 "$SELF_DIR/validate_runtime_deps.sh"
 
 if [ "$PACKAGE_OUTPUT" = "Stage" ]; then
@@ -104,13 +118,15 @@ mkdir -p "$PACKAGE_RUNTIME_DIR"
 cp "$DIST_ROOT/ROCgalgame.sh" "$PORTS_DIR/ROCgalgame.sh"
 rsync -a --delete \
   --exclude='/games/***' --exclude='/covers/***' --exclude='/saves/***' --exclude='/cache/***' \
+  --exclude='/cores/krkr/*debug*' \
   "$RUNTIME_DIR/" "$PACKAGE_RUNTIME_DIR/"
 mkdir -p "$PACKAGE_RUNTIME_DIR/games" "$PACKAGE_RUNTIME_DIR/covers" \
   "$PACKAGE_RUNTIME_DIR/saves" "$PACKAGE_RUNTIME_DIR/cache"
 chmod +x "$PORTS_DIR/ROCgalgame.sh" "$PACKAGE_RUNTIME_DIR/rocgalgame_sdl" \
-  "$PACKAGE_RUNTIME_DIR/cores/ons/onsyuri" "$PACKAGE_RUNTIME_DIR/cores/krkr/krkrsdl2" 2>/dev/null || true
+  "$PACKAGE_RUNTIME_DIR/cores/ons/onsyuri" "$PACKAGE_RUNTIME_DIR/cores/krkr/krkrsdl2" \
+  "$PACKAGE_RUNTIME_DIR/cores/krkr/krkr2" 2>/dev/null || true
 
-if find "$STAGING_DIR" -type d -name ui -print -quit | grep -q .; then
+if [ -e "$PACKAGE_RUNTIME_DIR/ui" ]; then
   echo "[package] ERROR: plaintext UI directory leaked into release staging"
   exit 1
 fi

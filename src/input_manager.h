@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include <array>
+#include <cstdint>
 #include <deque>
 #include <string>
 #include <unordered_map>
@@ -91,6 +92,7 @@ bool RawInputBindingWritable(const RawInputBinding &binding);
 bool SaveInputCalibrationMappings(const std::string &mapping_path,
                                   const std::string &device_model_token,
                                   const std::vector<InputCalibrationMapping> &mappings);
+float NormalizeLinuxAxisValue(int minimum, int maximum, int flat, int value);
 
 struct BtnState {
   bool down = false;
@@ -101,6 +103,15 @@ struct BtnState {
   float hold_time = 0.0f;
   float repeat_timer = 0.0f;
   bool repeat_active = false;
+};
+
+struct InputPumpStats {
+  std::uint64_t sdl_events = 0;
+  std::uint64_t sdl_axis_events = 0;
+  std::uint64_t linux_events = 0;
+  std::uint64_t linux_abs_events = 0;
+  std::uint64_t linux_key_events = 0;
+  std::uint64_t cursor_axis_updates = 0;
 };
 
 class InputManager {
@@ -133,6 +144,9 @@ public:
   bool IsRepeated(Button b) const;
   bool IsLongPressed(Button b) const;
   float HoldTime(Button b) const;
+  float CursorAxisX() const { return cursor_axis_x_; }
+  float CursorAxisY() const { return cursor_axis_y_; }
+  InputPumpStats TakePumpStats();
   bool AnyPressed() const;
   void ResetAll();
   void RefreshDevices();
@@ -200,11 +214,15 @@ private:
   std::array<bool, 512> probe_pad_axis_seen_{};
   std::array<bool, 512> probe_joy_axis_seen_{};
   std::array<bool, 512> probe_linux_key_seen_{};
+  std::array<bool, 512> probe_linux_abs_seen_{};
   std::vector<int> linux_input_fds_;
   std::unordered_map<int, std::string> linux_input_names_;
   std::string mapping_path_;
   bool full_input_log_enabled_ = false;
   bool power_suppressed_until_release_ = false;
   Uint32 power_suppressed_until_tick_ = 0;
+  float cursor_axis_x_ = 0.0f;
+  float cursor_axis_y_ = 0.0f;
   float dt_ = 1.0f / 60.0f;
+  InputPumpStats pump_stats_{};
 };

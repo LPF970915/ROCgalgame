@@ -1,0 +1,65 @@
+Debug.message("KRKR2_PROBE_TJS_BEGIN");
+
+class CapabilityProbeLayer extends Layer {
+    function CapabilityProbeLayer(owner, parent) {
+        super.Layer(owner, parent);
+    }
+
+    function onMouseDown(x, y, button, shift) {
+        Debug.message("KRKR2_PROBE_MOUSE_DOWN x=" + x + " y=" + y + " button=" + button);
+    }
+
+    function onKeyDown(key, shift) {
+        Debug.message("KRKR2_PROBE_KEY_DOWN key=" + key);
+    }
+}
+
+class CapabilityProbeWindow extends Window {
+    var probeLayer;
+    var probeSound;
+
+    function CapabilityProbeWindow() {
+        super.Window();
+        caption = "KRKR2 capability probe";
+        setSize(640, 480);
+
+        probeLayer = new CapabilityProbeLayer(this, null);
+        probeLayer.setSize(640, 480);
+        try {
+            probeLayer.loadImages("probe.png");
+            Debug.message("KRKR2_PROBE_IMAGE_OK");
+        } catch (e) {
+            Debug.message("KRKR2_PROBE_IMAGE_FAIL " + e);
+        }
+        probeLayer.setSize(640, 480);
+        probeLayer.fillRect(0, 0, 640, 480, 0xff204060);
+        probeLayer.focusable = true;
+        probeLayer.enabled = true;
+        probeLayer.visible = true;
+        focusedLayer = probeLayer;
+
+        try {
+            probeSound = new WaveSoundBuffer(this);
+            probeSound.open("probe.wav");
+            Debug.message("KRKR2_PROBE_AUDIO_OPEN_OK");
+            probeSound.play();
+            Debug.message("KRKR2_PROBE_AUDIO_PLAY_OK");
+        } catch (e) {
+            Debug.message("KRKR2_PROBE_AUDIO_FAIL " + e);
+        }
+
+        visible = true;
+        Debug.message("KRKR2_PROBE_WINDOW_OK");
+        Debug.message("KRKR2_PROBE_READY");
+    }
+
+    function onMouseDown(x, y, button, shift) {
+        Debug.message("KRKR2_PROBE_WINDOW_MOUSE_DOWN x=" + x + " y=" + y + " button=" + button);
+    }
+
+    function onKeyDown(key, shift) {
+        Debug.message("KRKR2_PROBE_WINDOW_KEY_DOWN key=" + key);
+    }
+}
+
+var capabilityProbeWindow = new CapabilityProbeWindow();

@@ -1,6 +1,6 @@
 # KRKR Core Selection ADR
 
-Status: selected for the first device vertical slice; pending target-game measurements
+Status: superseded for multi-runtime planning by `KRKR_RUNTIME_STRATEGY.md`
 
 Date: 2026-07-15
 
@@ -40,3 +40,7 @@ The device decision remains open until the aarch64 build runs the minimal TJS
 project and the target game reaches a useful compatibility checkpoint. Switch
 to a KrKr2-derived core if plugin integration requires
 replacing most of the krkrsdl2 renderer or movie stack.
+
+The first vertical slice succeeded. The 2026-07-21 follow-up keeps `krkrsdl2`
+as the default and selects KrKr2 as a second native compatibility runtime; see
+`KRKR_RUNTIME_STRATEGY.md` for the current decision and delivery gates.

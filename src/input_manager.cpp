@@ -20,6 +20,21 @@
 #include <unistd.h>
 #endif
 
+float NormalizeLinuxAxisValue(int minimum, int maximum, int flat, int value) {
+  if (maximum <= minimum) return 0.0f;
+  const int center = minimum + (maximum - minimum) / 2;
+  const int range = maximum - minimum;
+  const int deadzone = std::max(range / 6, std::max(0, flat) * 2);
+  const int delta = std::clamp(value, minimum, maximum) - center;
+  const int magnitude = std::abs(delta);
+  if (magnitude <= deadzone) return 0.0f;
+  const int directional_range = delta < 0 ? center - minimum : maximum - center;
+  if (directional_range <= deadzone) return delta < 0 ? -1.0f : 1.0f;
+  const float normalized = static_cast<float>(magnitude - deadzone) /
+                           static_cast<float>(directional_range - deadzone);
+  return std::clamp(delta < 0 ? -normalized : normalized, -1.0f, 1.0f);
+}
+
 bool IsGKD350HUltraProfile(InputProfile profile) {
   return profile == InputProfile::GKD350HUltra;
 }
@@ -402,6 +417,8 @@ void InputManager::Initialize(const std::string &mapping_path, InputProfile inpu
   input_profile_ = input_profile;
   full_input_log_enabled_ = FullInputLogEnabled();
   ResetAll();
+  pump_stats_ = {};
+  probe_linux_abs_seen_.fill(false);
   ClearCalibrationSamples();
   key_map_.clear();
   linux_key_map_.clear();
@@ -440,6 +457,7 @@ void InputManager::BeginFrame(float dt) {
 }
 
 void InputManager::HandleEvent(const SDL_Event &e) {
+  ++pump_stats_.sdl_events;
   if (e.type == SDL_KEYDOWN && !e.key.repeat) {
     if (input_profile_ == InputProfile::RGDS && e.key.keysym.sym == SDLK_AC_BACK) {
       SetDown(Button::Menu, true);
@@ -493,6 +511,7 @@ void InputManager::HandleEvent(const SDL_Event &e) {
                                             false});
     SetDown(PadToButton(e.cbutton.button), false);
   } else if (e.type == SDL_CONTROLLERAXISMOTION) {
+    ++pump_stats_.sdl_axis_events;
     if (input_profile_ == InputProfile::RGDS || IsGKD350HUltraProfile(input_profile_)) return;
     constexpr int kDeadzone = 16000;
     const int axis = e.caxis.axis;
@@ -576,6 +595,7 @@ void InputManager::HandleEvent(const SDL_Event &e) {
     if (!HasCalibratedButton(Button::Left)) SetDown(Button::Left, (v & SDL_HAT_LEFT) != 0);
     if (!HasCalibratedButton(Button::Right)) SetDown(Button::Right, (v & SDL_HAT_RIGHT) != 0);
   } else if (e.type == SDL_JOYAXISMOTION) {
+    ++pump_stats_.sdl_axis_events;
     if (input_profile_ == InputProfile::RGDS || IsGKD350HUltraProfile(input_profile_)) return;
     constexpr int kDeadzone = 16000;
     const int axis = e.jaxis.axis;
@@ -651,6 +671,12 @@ bool InputManager::EndFrame() {
   return had_input || (!had_pressed_before_poll && AnyPressed());
 }
 
+InputPumpStats InputManager::TakePumpStats() {
+  const InputPumpStats result = pump_stats_;
+  pump_stats_ = {};
+  return result;
+}
+
 bool InputManager::IsPressed(Button b) const { return Get(b).down; }
 bool InputManager::IsJustPressed(Button b) const { return Get(b).just_pressed; }
 bool InputManager::IsJustReleased(Button b) const { return Get(b).just_released; }
@@ -669,6 +695,8 @@ void InputManager::ResetAll() {
   for (auto &s : states_) {
     s = BtnState{};
   }
+  cursor_axis_x_ = 0.0f;
+  cursor_axis_y_ = 0.0f;
 }
 
 void InputManager::RefreshDevices() {
@@ -1356,9 +1384,9 @@ void InputManager::OpenLinuxInputDevices() {
     }
     linux_input_fds_.push_back(fd);
     linux_input_names_[fd] = device_name;
-    if (full_input_log_enabled_) {
+    if (full_input_log_enabled_ || IsGKD350HUltraProfile(input_profile_)) {
       std::cout << "[native_h700] input probe: opened linux_input=" << path
-                << " name=" << device_name << "\n";
+                << " fd=" << fd << " name=" << device_name << "\n";
     }
   }
   closedir(dir);
@@ -1387,13 +1415,37 @@ void InputManager::PollLinuxInputDevices() {
       input_event event{};
       const ssize_t n = read(fd, &event, sizeof(event));
       if (n == static_cast<ssize_t>(sizeof(event))) {
+        ++pump_stats_.linux_events;
         if (event.type == EV_ABS && (input_profile_ == InputProfile::RGDS ||
                                      IsH700Profile(input_profile_) ||
                                      gkd_profile)) {
           if (gkd_profile && !gkd_joypad) continue;
+          ++pump_stats_.linux_abs_events;
           const int code = static_cast<int>(event.code);
           const int value = static_cast<int>(event.value);
           const int dir = AxisDirectionFromValue(fd, code, value);
+          if (gkd_joypad && (code == ABS_X || code == ABS_Y)) {
+            input_absinfo info{};
+            float normalized = 0.0f;
+            if (ioctl(fd, EVIOCGABS(code), &info) == 0) {
+              normalized = NormalizeLinuxAxisValue(
+                  info.minimum, info.maximum, info.flat, value);
+              if (MarkProbeLogged(probe_linux_abs_seen_, code)) {
+                std::cout << "[native_h700] input axis: fd=" << fd
+                          << " name=" << linux_device_name
+                          << " code=" << code
+                          << " min=" << info.minimum
+                          << " max=" << info.maximum
+                          << " flat=" << info.flat << "\n";
+              }
+            } else {
+              normalized = std::clamp(static_cast<float>(value) / 32767.0f,
+                                      -1.0f, 1.0f);
+            }
+            if (code == ABS_X) cursor_axis_x_ = normalized;
+            else cursor_axis_y_ = normalized;
+            ++pump_stats_.cursor_axis_updates;
+          }
           RecordCalibrationSample(RawInputBinding{RawInputSource::LinuxAbs,
                                                   code,
                                                   dir,
@@ -1431,6 +1483,7 @@ void InputManager::PollLinuxInputDevices() {
         }
 
         if (event.type == EV_KEY) {
+          ++pump_stats_.linux_key_events;
           const int code = static_cast<int>(event.code);
           // Linux input EV_KEY uses:
           //   0 = release

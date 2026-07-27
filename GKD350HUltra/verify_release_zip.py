@@ -6,6 +6,9 @@ import zipfile
 
 
 EXPECTED_PACK = "roms/ports/ROCgalgame/ui.pack"
+EXPECTED_KRKR2 = "roms/ports/ROCgalgame/cores/krkr/krkr2"
+EXPECTED_KRKR2_RESOURCES = "roms/ports/ROCgalgame/cores/krkr/Resources/"
+EXPECTED_KRKR2_GL = "roms/ports/ROCgalgame/cores/krkr/lib_krkr2/libGL.so.1"
 
 
 def main() -> int:
@@ -26,7 +29,32 @@ def main() -> int:
         if EXPECTED_PACK not in names:
             print(f"[package] ERROR: missing encrypted UI pack: {EXPECTED_PACK}", file=sys.stderr)
             return 1
-        plaintext_ui = [name for name in names if "/ui/" in "/" + name.strip("/") + "/"]
+        if EXPECTED_KRKR2 not in names:
+            print(f"[package] ERROR: missing KRKR2 core: {EXPECTED_KRKR2}", file=sys.stderr)
+            return 1
+        if not any(name.startswith(EXPECTED_KRKR2_RESOURCES) for name in names):
+            print(
+                f"[package] ERROR: missing KRKR2 resources: {EXPECTED_KRKR2_RESOURCES}",
+                file=sys.stderr,
+            )
+            return 1
+        if EXPECTED_KRKR2_GL not in names:
+            print(f"[package] ERROR: missing KRKR2 private GLVND library: {EXPECTED_KRKR2_GL}", file=sys.stderr)
+            return 1
+        debug_cores = [
+            name
+            for name in names
+            if name.startswith("roms/ports/ROCgalgame/cores/krkr/")
+            and "debug" in pathlib.PurePosixPath(name).name.lower()
+        ]
+        if debug_cores:
+            print(f"[package] ERROR: debug core leaked into archive: {debug_cores[0]}", file=sys.stderr)
+            return 1
+        plaintext_ui = [
+            name
+            for name in names
+            if name.startswith("roms/ports/ROCgalgame/ui/")
+        ]
         if plaintext_ui:
             print(f"[package] ERROR: plaintext UI leaked into archive: {plaintext_ui[0]}", file=sys.stderr)
             return 1

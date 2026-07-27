@@ -31,14 +31,17 @@ public:
 
 class FakeProcessRunner final : public ICoreProcessRunner {
 public:
-  LaunchResult Run(const CoreLaunchSpec &spec) const override {
+  LaunchResult Run(const CoreLaunchSpec &spec,
+                   const CorePollCallback &poll = {}) const override {
     ++calls;
     last_core = spec.core;
+    if (poll) poll_called = poll();
     return next_result;
   }
 
   mutable int calls = 0;
   mutable CoreKind last_core = CoreKind::Unknown;
+  mutable bool poll_called = false;
   LaunchResult next_result{LaunchStatus::CoreError, 9, 0, {}, "test"};
 };
 
@@ -150,11 +153,18 @@ int main() {
   GameEntry tyrano_game;
   tyrano_game.core = CoreKind::Tyrano;
   tyrano_game.path = root / "games" / "tyrano_0";
-  const LaunchResult launched = launch_service.Launch(reloaded.Get(), tyrano_game);
+  bool callback_reached = false;
+  const LaunchResult launched = launch_service.Launch(
+      reloaded.Get(), tyrano_game, [&callback_reached]() {
+        callback_reached = true;
+        return true;
+      });
   assert(launched.status == LaunchStatus::CoreError);
   assert(launched.exit_code == 9);
   assert(runner.calls == 1);
   assert(runner.last_core == CoreKind::Tyrano);
+  assert(runner.poll_called);
+  assert(callback_reached);
   assert(DescribeLaunchResult(launched, 2) == "Core exited with code 9");
 
   fs::remove_all(root, ec);

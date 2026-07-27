@@ -11,8 +11,18 @@ enum class CoreKind {
   Tyrano,
 };
 
+// KRKR remains one frontend core family, but can select a compatibility
+// runtime without changing the library's top-level core taxonomy.
+enum class KrkrRuntime {
+  Auto,
+  Sdl2,
+  Krkr2,
+  Wine,
+};
+
 struct GameOverrides {
   std::string entry;
+  KrkrRuntime krkr_runtime = KrkrRuntime::Auto;
   std::string encoding;
   std::string aspect;
   std::string filter;
@@ -36,3 +46,4 @@ struct GameEntry {
 };
 
 const char *CoreKindName(CoreKind kind);
+const char *KrkrRuntimeName(KrkrRuntime runtime);

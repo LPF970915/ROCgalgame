@@ -1,0 +1,138 @@
+diff --git a/cpp/core/environ/cocos2d/MainScene.h b/cpp/core/environ/cocos2d/MainScene.h
+--- a/cpp/core/environ/cocos2d/MainScene.h
++++ b/cpp/core/environ/cocos2d/MainScene.h
+@@ -3,6 +3,8 @@
+ #include "ui/UIWidget.h"
+ #include "base/CCIMEDelegate.h"
+ 
++#include <string>
++
+ namespace cocos2d {
+     class Controller;
+ }
+@@ -84,5 +86,7 @@ private:
+     void postVirtualMouseButton(bool left, bool down);
+     bool handleVirtualMouseButton(int code, bool down);
++    void pollRocgalgameInputBridge();
++    void postRocgalgameBridgeKey(unsigned int code, bool down);
+ 
+     bool canAttachWithIME() override;
+     bool canDetachWithIME() override;
+@@ -107,4 +111,6 @@ private:
+     float _virtualMouseAxisX = 0.0f;
+     float _virtualMouseAxisY = 0.0f;
+     float _virtualMouseSpeed = 720.0f, _virtualMouseAccel = 1.6f;
++    int _rocgalgameInputFd = -1;
++    std::string _rocgalgameInputBuffer;
+ };
+diff --git a/cpp/core/environ/cocos2d/MainScene.cpp b/cpp/core/environ/cocos2d/MainScene.cpp
+--- a/cpp/core/environ/cocos2d/MainScene.cpp
++++ b/cpp/core/environ/cocos2d/MainScene.cpp
+@@ -6,6 +6,13 @@
+ #include <cmath>
+ #include <cstdlib>
+ #include <cstring>
++#include <sstream>
++
++#if !defined(_WIN32)
++#include <cerrno>
++#include <fcntl.h>
++#include <unistd.h>
++#endif
+ 
+ #include "tjsCommHead.h"
+ #include "StorageIntf.h"
+@@ -780,6 +788,7 @@ tjs_uint TVPGetGraphicCacheTotalBytes();
+ 
+ void TVPMainScene::update(float delta) {
+     ::Application->Run();
++    pollRocgalgameInputBridge();
+     if(_virtualMouseEnabled &&
+        (_virtualMouseAxisX != 0.0f || _virtualMouseAxisY != 0.0f)) {
+         const float frameDelta = std::max(0.0f, std::min(delta, 0.05f));
+@@ -1380,7 +1389,85 @@ bool TVPMainScene::handleVirtualMouseButton(int code, bool down) {
+     return false;
+ }
+ 
++void TVPMainScene::postRocgalgameBridgeKey(unsigned int code, bool down) {
++    if(!code || code >= 0x200 || !TVPWindowLayer::_currentWindowLayer)
++        return;
++    code = _keymap[code];
++    if(down) {
++        TVPWindowLayer::_scancode[code] = 0x11;
++        TVPWindowLayer::_currentWindowLayer->InternalKeyDown(
++            code, TVPGetCurrentShiftKeyState());
++        return;
++    }
++    const bool isPressed = TVPWindowLayer::_scancode[code] & 1;
++    TVPWindowLayer::_scancode[code] &= 0x10;
++    if(isPressed) {
++        TVPWindowLayer::_currentWindowLayer->OnKeyUp(
++            code, TVPGetCurrentShiftKeyState());
++    }
++}
++
++void TVPMainScene::pollRocgalgameInputBridge() {
++#if !defined(_WIN32)
++    if(_rocgalgameInputFd < 0) {
++        const char *path = std::getenv("ROCGALGAME_KRKR_INPUT_FIFO");
++        if(path && *path) {
++            _rocgalgameInputFd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
++            if(_rocgalgameInputFd >= 0)
++                CCLOG("[rocgalgame] frontend input bridge ready: %s", path);
++        }
++    }
++    if(_rocgalgameInputFd < 0)
++        return;
++
++    char chunk[512];
++    while(true) {
++        const ssize_t count = read(_rocgalgameInputFd, chunk, sizeof(chunk));
++        if(count > 0) {
++            _rocgalgameInputBuffer.append(chunk, static_cast<size_t>(count));
++            continue;
++        }
++        if(count < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
++            close(_rocgalgameInputFd);
++            _rocgalgameInputFd = -1;
++        }
++        break;
++    }
++    if(_rocgalgameInputBuffer.size() > 8192)
++        _rocgalgameInputBuffer.clear();
++
++    size_t newline = std::string::npos;
++    while((newline = _rocgalgameInputBuffer.find('\n')) != std::string::npos) {
++        const std::string line = _rocgalgameInputBuffer.substr(0, newline);
++        _rocgalgameInputBuffer.erase(0, newline + 1);
++        std::istringstream input(line);
++        char type = 0;
++        input >> type;
++        if(type == 'M') {
++            int dx = 0;
++            int dy = 0;
++            if(input >> dx >> dy)
++                moveVirtualMouse(static_cast<float>(dx), static_cast<float>(-dy));
++        } else if(type == 'B') {
++            char button = 0;
++            int down = 0;
++            if(input >> button >> down) {
++                postVirtualMouseButton(button == 'L', down != 0);
++                CCLOG("[rocgalgame] frontend input button: %c %d", button, down);
++            }
++        } else if(type == 'K') {
++            unsigned int code = 0;
++            int down = 0;
++            if(input >> code >> down) {
++                postRocgalgameBridgeKey(code, down != 0);
++                CCLOG("[rocgalgame] frontend input key: %u %d", code, down);
++            }
++        }
++    }
++#endif
++}
++
+ void TVPMainScene::onAxisEvent(cocos2d::Controller *ctrl, int keyCode,
+                                cocos2d::Event *e) {
+     const int rawKeyCode = keyCode;
+     if(!TVPWindowLayer::_currentWindowLayer ||

@@ -1,0 +1,49 @@
+Plugins.link("layerExImage.dll");
+Plugins.link("layerExRaster.dll");
+Plugins.link("layerExBtoA.dll");
+if(typeof Layer.light == "undefined" || typeof Layer.gaussianBlur == "undefined")
+    throw new Exception("layerExImage methods missing");
+if(typeof Layer.copyRaster == "undefined")
+    throw new Exception("layerExRaster methods missing");
+if(typeof Layer.copyRightBlueToLeftAlpha == "undefined" ||
+   typeof Layer.copyBottomBlueToTopAlpha == "undefined" ||
+   typeof Layer.fillAlpha == "undefined")
+    throw new Exception("layerExBtoA methods missing");
+
+global.layerExProbeWindow = new Window();
+layerExProbeWindow.width = 16;
+layerExProbeWindow.height = 8;
+global.layerExProbeLayer = new Layer(layerExProbeWindow, null);
+layerExProbeLayer.width = 16;
+layerExProbeLayer.height = 8;
+layerExProbeLayer.type = ltAlpha;
+layerExProbeLayer.fillRect(0, 0, 16, 8, 0xff204060);
+layerExProbeLayer.light(0, 0);
+layerExProbeLayer.colorize(0, 0, 0.0);
+layerExProbeLayer.modulate(0, 0, 0);
+layerExProbeLayer.noise(0);
+layerExProbeLayer.generateWhiteNoise();
+layerExProbeLayer.gaussianBlur(0.0);
+
+Debug.message("LAYEREX_RASTER_INFO w=" + layerExProbeLayer.imageWidth +
+             " h=" + layerExProbeLayer.imageHeight +
+             " pitch=" + layerExProbeLayer.mainImageBufferPitch +
+             " read=" + layerExProbeLayer.mainImageBuffer +
+             " write=" + layerExProbeLayer.mainImageBufferForWrite +
+             " clip=" + layerExProbeLayer.clipLeft + "," +
+             layerExProbeLayer.clipTop + "," + layerExProbeLayer.clipWidth + "," +
+             layerExProbeLayer.clipHeight);
+try {
+    layerExProbeLayer.copyRaster(layerExProbeLayer, 1, 8, 1000, 0);
+    Debug.message("LAYEREX_RASTER_CALL_OK");
+} catch (e) {
+    Debug.message("LAYEREX_RASTER_CALL_FAIL message=" + e.message +
+                 " type=" + typeof e);
+}
+
+layerExProbeLayer.fillAlpha();
+layerExProbeLayer.copyRightBlueToLeftAlpha();
+layerExProbeLayer.copyBottomBlueToTopAlpha();
+
+Debug.message("LAYEREX_COMPAT_OK");
+System.exit(0);

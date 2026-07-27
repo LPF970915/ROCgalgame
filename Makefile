@@ -12,6 +12,7 @@ INPUT_MANAGER_TEST_TARGET ?= build/input_manager_test$(TEST_EXEEXT)
 SYSTEM_RUNTIME_TEST_TARGET ?= build/system_runtime_test$(TEST_EXEEXT)
 MENU_RUNTIME_TEST_TARGET ?= build/menu_runtime_test$(TEST_EXEEXT)
 GAME_DOMAIN_TEST_TARGET ?= build/game_domain_runtime_test$(TEST_EXEEXT)
+CORE_INPUT_PROTOCOL_TEST_TARGET ?= build/core_input_protocol_test$(TEST_EXEEXT)
 
 APP_SRCS := \
   src/main.cpp \
@@ -84,6 +85,8 @@ GAME_DOMAIN_SRCS := \
   src/game_core_registry.cpp \
   src/ons_core_adapter.cpp \
   src/krkr_core_adapter.cpp \
+  src/core_input_protocol.cpp \
+  src/core_input_bridge.cpp \
   src/core_process_runner.cpp \
   src/game_launch_service.cpp
 
@@ -186,6 +189,8 @@ test:
 	./$(CONFIG_STORE_TEST_TARGET)
 	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/input_manager_test.cpp src/input_manager.cpp -o $(INPUT_MANAGER_TEST_TARGET) $(SDL_LIBS)
 	./$(INPUT_MANAGER_TEST_TARGET)
+	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src tests/core_input_protocol_test.cpp src/core_input_protocol.cpp -o $(CORE_INPUT_PROTOCOL_TEST_TARGET)
+	./$(CORE_INPUT_PROTOCOL_TEST_TARGET)
 	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/system_runtime_test.cpp src/app_runtime.cpp src/app_stores.cpp src/config.cpp src/system_controls.cpp src/system_settings_runtime.cpp src/power_lifecycle.cpp src/lid_power_control.cpp -o $(SYSTEM_RUNTIME_TEST_TARGET) $(SDL_LIBS)
 	./$(SYSTEM_RUNTIME_TEST_TARGET)
 	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/menu_runtime_test.cpp src/animation.cpp src/input_manager.cpp src/menu_scene.cpp src/settings_runtime.cpp src/settings_panel_router.cpp src/system_controls_panel.cpp src/game_settings_runtime.cpp src/game_settings_panel.cpp src/app_stores.cpp src/config.cpp src/app_language.cpp -o $(MENU_RUNTIME_TEST_TARGET) $(SDL_LIBS)

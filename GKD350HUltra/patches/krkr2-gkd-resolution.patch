@@ -1,0 +1,11 @@
+diff --git a/cpp/core/environ/cocos2d/MainScene.cpp b/cpp/core/environ/cocos2d/MainScene.cpp
+--- a/cpp/core/environ/cocos2d/MainScene.cpp
++++ b/cpp/core/environ/cocos2d/MainScene.cpp
+@@ -499,5 +499,6 @@ void TVPMainScene::initialize() {
+     cocos2d::Size designSize = glview->getDesignResolutionSize();
+     ScreenRatio = screenSize.height / designSize.height;
+-    designSize.width = designSize.height * screenSize.width / screenSize.height;
++    if(!std::getenv("ROCGALGAME_KRKR_RUNTIME"))
++        designSize.width = designSize.height * screenSize.width / screenSize.height;
+     initWithSize(designSize);
+     addChild(LayerColor::create(Color4B::BLACK, designSize.width,
