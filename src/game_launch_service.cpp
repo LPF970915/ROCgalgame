@@ -10,7 +10,8 @@ CoreSpecResult GameLaunchService::BuildSpec(const AppConfig &config,
 }
 
 LaunchResult GameLaunchService::Launch(const AppConfig &config,
-                                       const GameEntry &game) const {
+                                       const GameEntry &game,
+                                       const CorePollCallback &poll) const {
   CoreSpecResult built = BuildSpec(config, game);
   if (!built.Ok()) {
     LaunchResult result;
@@ -19,7 +20,7 @@ LaunchResult GameLaunchService::Launch(const AppConfig &config,
     result.log_path = built.spec.log_path;
     return result;
   }
-  return runner_.Run(built.spec);
+  return runner_.Run(built.spec, poll);
 }
 
 std::string DescribeLaunchResult(const LaunchResult &result, int language_index) {

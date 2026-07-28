@@ -11,7 +11,8 @@ public:
 
   CoreSpecResult BuildSpec(const AppConfig &config,
                            const GameEntry &game) const;
-  LaunchResult Launch(const AppConfig &config, const GameEntry &game) const;
+  LaunchResult Launch(const AppConfig &config, const GameEntry &game,
+                      const CorePollCallback &poll = {}) const;
 
 private:
   const GameCoreRegistry &registry_;

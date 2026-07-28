@@ -69,6 +69,43 @@ Plugins.link("layerExImage.dll");
 if(typeof Layer.light == "undefined" || typeof Layer.gaussianBlur == "undefined")
     throw new Exception("layerExImage methods missing");
 
+// layerEx* compatibility is built into KRKR2; exercise the shared Layer
+// buffer path so missing registration or invalid native access fails here,
+// before a full game reaches its first effect.
+global.layerExCompatWindow = new Window();
+layerExCompatWindow.width = 16;
+layerExCompatWindow.height = 8;
+global.layerExCompatLayer = new Layer(layerExCompatWindow, null);
+layerExCompatLayer.width = 16;
+layerExCompatLayer.height = 8;
+layerExCompatLayer.type = ltAlpha;
+layerExCompatLayer.fillRect(0, 0, 16, 8, 0xff204060);
+layerExCompatLayer.light(0, 0);
+layerExCompatLayer.colorize(0, 0, 0.0);
+layerExCompatLayer.modulate(0, 0, 0);
+layerExCompatLayer.noise(0);
+layerExCompatLayer.generateWhiteNoise();
+layerExCompatLayer.gaussianBlur(0.0);
+
+Plugins.link("layerExRaster.dll");
+if(typeof Layer.copyRaster == "undefined")
+    throw new Exception("layerExRaster methods missing");
+layerExCompatLayer.copyRaster(layerExCompatLayer, 1, 8, 1000, 0);
+
+Plugins.link("layerExBtoA.dll");
+if(typeof Layer.copyRightBlueToLeftAlpha == "undefined" ||
+   typeof Layer.copyBottomBlueToTopAlpha == "undefined" ||
+   typeof Layer.fillAlpha == "undefined" ||
+   typeof Layer.copyAlphaToProvince == "undefined" ||
+   typeof Layer.clipAlphaRect == "undefined" ||
+   typeof Layer.overwrapRect == "undefined" ||
+   typeof Layer.fillByProvince == "undefined" ||
+   typeof Layer.fillToProvince == "undefined")
+    throw new Exception("layerExBtoA methods missing");
+layerExCompatLayer.fillAlpha();
+layerExCompatLayer.copyRightBlueToLeftAlpha();
+layerExCompatLayer.copyBottomBlueToTopAlpha();
+
 Plugins.link("KAGParserEx.dll");
 if(typeof KAGParser == "undefined") throw new Exception("KAGParserEx class missing");
 var parser = new KAGParser();

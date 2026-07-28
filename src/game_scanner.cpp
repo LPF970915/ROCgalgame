@@ -4,6 +4,7 @@
 #include "cover_resolver.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <fstream>
 #include <system_error>
@@ -55,14 +56,63 @@ bool HasAnyExtension(const fs::path &dir, const std::vector<std::string> &extens
   return false;
 }
 
+bool HasXp3Signature(const fs::path &path) {
+  static constexpr std::array<unsigned char, 11> kMagic = {
+      'X', 'P', '3', '\r', '\n', ' ', '\n', 0x1a, 0x8b, 0x67, 0x01};
+  std::ifstream in(path, std::ios::binary);
+  if (!in) return false;
+  std::array<unsigned char, kMagic.size()> header{};
+  in.read(reinterpret_cast<char *>(header.data()),
+          static_cast<std::streamsize>(header.size()));
+  return in.gcount() == static_cast<std::streamsize>(header.size()) &&
+         header == kMagic;
+}
+
+bool HasXp3SignatureInDirectory(const fs::path &dir) {
+  std::error_code ec;
+  for (const auto &entry : fs::directory_iterator(dir, ec)) {
+    if (ec) break;
+    if (!entry.is_regular_file(ec)) {
+      ec.clear();
+      continue;
+    }
+    if (HasXp3Signature(entry.path())) return true;
+  }
+  return false;
+}
+
+bool IsPatchArchive(const fs::path &path) {
+  const std::string stem = ToLowerAscii(path.stem().u8string());
+  return stem.rfind("patch", 0) == 0;
+}
+
 fs::path DetectKrkrEntryPoint(const fs::path &dir) {
+  std::vector<fs::path> archives;
+  fs::path data_archive;
+  std::error_code ec;
+  for (const auto &entry : fs::directory_iterator(dir, ec)) {
+    if (ec) break;
+    if (!entry.is_regular_file(ec)) {
+      ec.clear();
+      continue;
+    }
+    const std::string filename = ToLowerAscii(entry.path().filename().u8string());
+    if (filename == "startup.tjs" || filename == "data.xp3") return dir;
+    if (!HasXp3Signature(entry.path()) || IsPatchArchive(entry.path())) continue;
+    archives.push_back(entry.path());
+    if (ToLowerAscii(entry.path().stem().u8string()) == "data") {
+      data_archive = entry.path();
+    }
+  }
+  if (!data_archive.empty()) return data_archive;
+  if (archives.size() == 1) return archives.front();
   return dir;
 }
 
 CoreKind DetectCore(const fs::path &dir) {
   if (HasAny(dir, {"0.txt", "00.txt", "nscript.dat", "nscript.___", "arc.nsa", "arc.sar"})) return CoreKind::Ons;
   if (HasAny(dir, {"startup.tjs", "Config.tjs", "config.tjs", "data.xp3"}) ||
-      HasAnyExtension(dir, {".xp3"})) {
+      HasAnyExtension(dir, {".xp3"}) || HasXp3SignatureInDirectory(dir)) {
     return CoreKind::Krkr;
   }
   return CoreKind::Unknown;
@@ -74,6 +124,14 @@ CoreKind ParseCoreKind(const std::string &value) {
   if (v == "krkr" || v == "kirikiri") return CoreKind::Krkr;
   if (v == "tyrano") return CoreKind::Tyrano;
   return CoreKind::Unknown;
+}
+
+KrkrRuntime ParseKrkrRuntime(const std::string &value) {
+  const std::string v = ToLowerAscii(Trim(value));
+  if (v == "sdl2" || v == "krkrsdl2" || v == "fast") return KrkrRuntime::Sdl2;
+  if (v == "krkr2" || v == "kirikiroid2" || v == "native") return KrkrRuntime::Krkr2;
+  if (v == "wine" || v == "windows") return KrkrRuntime::Wine;
+  return KrkrRuntime::Auto;
 }
 
 bool IsAspectValue(const std::string &value) {
@@ -102,6 +160,8 @@ void ReadGameIni(const fs::path &dir, GameEntry &game) {
       game.title = value;
     } else if (key == "entry" && !value.empty()) {
       game.overrides.entry = value;
+    } else if (key == "runtime" || key == "krkr_runtime") {
+      game.overrides.krkr_runtime = ParseKrkrRuntime(value);
     } else if (key == "core") {
       CoreKind parsed = ParseCoreKind(value);
       if (parsed != CoreKind::Unknown) game.core = parsed;
@@ -152,6 +212,10 @@ void ScanCoreBucket(std::vector<GameEntry> &out, const fs::path &bucket, CoreKin
         game.entry_point = configured.is_absolute() ? configured : dir / configured;
       } else {
         game.entry_point = DetectKrkrEntryPoint(dir);
+      }
+      if (game.overrides.krkr_runtime == KrkrRuntime::Auto &&
+          game.entry_point != dir && HasXp3Signature(game.entry_point)) {
+        game.overrides.krkr_runtime = KrkrRuntime::Krkr2;
       }
     }
     game.save_path = saves_root / CoreKindName(game.core) / dir.filename();

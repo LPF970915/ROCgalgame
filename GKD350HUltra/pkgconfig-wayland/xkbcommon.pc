@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: xkbcommon
+Description: xkbcommon library from the GKD350H Ultra sysroot
+Version: 1.7.0
+Libs: -L${libdir} -lxkbcommon
+Cflags: -I${includedir}

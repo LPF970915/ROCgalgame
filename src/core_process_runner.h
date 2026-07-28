@@ -2,6 +2,8 @@
 
 #include "game_core_adapter.h"
 
+#include <functional>
+
 struct LaunchResult {
   LaunchStatus status = LaunchStatus::Unsupported;
   int exit_code = -1;
@@ -10,13 +12,17 @@ struct LaunchResult {
   std::string detail;
 };
 
+using CorePollCallback = std::function<bool()>;
+
 class ICoreProcessRunner {
 public:
   virtual ~ICoreProcessRunner() = default;
-  virtual LaunchResult Run(const CoreLaunchSpec &spec) const = 0;
+  virtual LaunchResult Run(const CoreLaunchSpec &spec,
+                           const CorePollCallback &poll = {}) const = 0;
 };
 
 class CoreProcessRunner final : public ICoreProcessRunner {
 public:
-  LaunchResult Run(const CoreLaunchSpec &spec) const override;
+  LaunchResult Run(const CoreLaunchSpec &spec,
+                   const CorePollCallback &poll = {}) const override;
 };

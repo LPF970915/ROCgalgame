@@ -156,6 +156,18 @@ LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lGLESv2 -ljpeg -lbz2 -ldl -lp
   sed 's/roc_gkd_fullscreen = fullscreen_mode && std::getenv/roc_gkd_fullscreen = fullscreen_mode \&\& isnan(sharpness) \&\& std::getenv/' \
     "$ONS_ROOT/src/onsyuri/ONScripter.cpp" > "$PATCHED_SRC_DIR/ONScripter.cpp"
   grep -q 'roc_gkd_fullscreen = fullscreen_mode && isnan(sharpness)' "$PATCHED_SRC_DIR/ONScripter.cpp"
+  sed '/const auto hideCursorIfIdle = \[&\]() {/,/    };/ {
+    s/if (!g_roc_mouse.cursor_visible || g_roc_mouse.primary_down ||/if (!g_roc_mouse.cursor_visible || g_roc_mouse.primary_down || root_button_link.next ||/
+    s/        return true;/        return false;/
+  }' "$ONS_ROOT/src/onsyuri/ONScripter_event.cpp" > "$PATCHED_SRC_DIR/ONScripter_event.cpp"
+  IDLE_CURSOR_BLOCK="$(sed -n '/const auto hideCursorIfIdle = \[&\]() {/,/    };/p' \
+    "$PATCHED_SRC_DIR/ONScripter_event.cpp")"
+  if ! printf '%s\n' "$IDLE_CURSOR_BLOCK" | grep -q 'root_button_link.next' || \
+     ! printf '%s\n' "$IDLE_CURSOR_BLOCK" | grep -q 'return false;' || \
+     printf '%s\n' "$IDLE_CURSOR_BLOCK" | grep -q 'return true;'; then
+    echo "[ons_build] ERROR: failed to patch idle virtual-cursor handling"
+    exit 1
+  fi
   OBJS=""
   COMPILED_OBJECTS=0
   OBJECTS_NEWER_THAN_TARGET=0

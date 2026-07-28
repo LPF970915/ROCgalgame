@@ -1,0 +1,62 @@
+diff --git a/cpp/core/visual/ogl/ogl_common.h b/cpp/core/visual/ogl/ogl_common.h
+index c6640a8d..e56959d2 100644
+--- a/cpp/core/visual/ogl/ogl_common.h
++++ b/cpp/core/visual/ogl/ogl_common.h
+@@ -1,12 +1,31 @@
+ #pragma once
+ 
+-#if defined(_WIN32) || defined(LINUX)
++#if (defined(_WIN32) || defined(LINUX)) && \
++    !defined(ROCGALGAME_LINUX_GLES2)
+ #if defined(_M_X64)
+ #define GLEW_STATIC
+ #endif
+ #include "GL/glew.h"
+ #endif
+ 
++#if defined(ROCGALGAME_LINUX_GLES2)
++#define glClearDepth                glClearDepthf
++#define glDeleteVertexArrays        glDeleteVertexArraysOES
++#define glGenVertexArrays           glGenVertexArraysOES
++#define glBindVertexArray           glBindVertexArrayOES
++#define glMapBuffer                 glMapBufferOES
++#define glUnmapBuffer               glUnmapBufferOES
++#ifndef GL_GLEXT_PROTOTYPES
++#define GL_GLEXT_PROTOTYPES 1
++#endif
++#include <EGL/egl.h>
++#include <GLES2/gl2.h>
++#include <GLES2/gl2ext.h>
++#ifndef GL_WRITE_ONLY
++#define GL_WRITE_ONLY GL_WRITE_ONLY_OES
++#endif
++#endif
++
+ #ifndef GL_UNPACK_ROW_LENGTH
+ #define GL_UNPACK_ROW_LENGTH 0x0CF2
+ #endif
+
+diff --git a/platforms/linux/main.cpp b/platforms/linux/main.cpp
+--- a/platforms/linux/main.cpp
++++ b/platforms/linux/main.cpp
+@@ -1,3 +1,5 @@
++#include <cstdlib>
++#include <cstring>
+ #include <memory>
+ #include <gtk/gtk.h>
+ 
+@@ -9,7 +11,13 @@
+ #include "environ/ui/MainFileSelectorForm.h"
+ 
+ int main(int argc, char **argv) {
+-    gtk_init(&argc, &argv);
++    const char *displayBackend =
++        std::getenv("ROCGALGAME_KRKR_DISPLAY_BACKEND");
++    const bool nativeWayland =
++        displayBackend && std::strcmp(displayBackend, "wayland") == 0;
++    if(!nativeWayland) {
++        gtk_init(&argc, &argv);
++    }
+     spdlog::set_level(spdlog::level::info);
+ 
+     static auto core_logger = spdlog::stdout_color_mt("core");

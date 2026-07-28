@@ -42,8 +42,8 @@ struct EffectiveGameSettings {
   std::string aspect;
   std::string filter;
   bool virtual_mouse = true;
-  int mouse_speed = 720;
-  float mouse_acceleration = 1.6f;
+  int mouse_speed = 1080;
+  float mouse_acceleration = 1.0f;
 };
 
 class IGameCoreAdapter {

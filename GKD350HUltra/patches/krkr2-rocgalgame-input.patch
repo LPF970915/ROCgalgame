@@ -1,0 +1,308 @@
+diff --git a/cpp/core/environ/cocos2d/MainScene.h b/cpp/core/environ/cocos2d/MainScene.h
+--- a/cpp/core/environ/cocos2d/MainScene.h
++++ b/cpp/core/environ/cocos2d/MainScene.h
+@@ -78,6 +78,9 @@ private:
+     void onPadKeyDown(cocos2d::Controller *ctrl, int code, cocos2d::Event *e);
+     void onPadKeyUp(cocos2d::Controller *ctrl, int code, cocos2d::Event *e);
+     void onPadKeyRepeat(cocos2d::Controller *ctrl, int code, cocos2d::Event *e);
++    void moveVirtualMouse(float dx, float dy);
++    void postVirtualMouseButton(bool left, bool down);
++    bool handleVirtualMouseButton(int code, bool down);
+ 
+     bool canAttachWithIME() override;
+     bool canDetachWithIME() override;
+@@ -91,4 +94,11 @@ private:
+     cocos2d::Node *UINode, *GameNode;
+     cocos2d::EventListenerTouchOneByOne *_touchListener;
+-    TVPGameMainMenu *_gameMenu;
+-};
+\ No newline at end of file
++    TVPGameMainMenu *_gameMenu;
++    bool _rocgalgameInput = false;
++    bool _virtualMouseEnabled = false;
++    bool _swapFaceButtons = false;
++    bool _padStartDown = false;
++    bool _padSelectDown = false;
++    float _padExitHold = 0.0f;
++    float _virtualMouseSpeed = 720.0f, _virtualMouseAccel = 1.6f;
++};
+diff --git a/cpp/core/environ/cocos2d/MainScene.cpp b/cpp/core/environ/cocos2d/MainScene.cpp
+--- a/cpp/core/environ/cocos2d/MainScene.cpp
++++ b/cpp/core/environ/cocos2d/MainScene.cpp
+@@ -2,6 +2,10 @@
+ 
+ #include <cocos2d.h>
+ #include <cocos-ext.h>
++#include <algorithm>
++#include <cmath>
++#include <cstdlib>
++#include <cstring>
+ 
+ #include "tjsCommHead.h"
+ #include "StorageIntf.h"
+@@ -50,6 +54,24 @@ static std::set<cocos2d::Touch *> _mouseTouches;
+ static bool _mouseMoved, _mouseClickedDown;
+ 
+ static tjs_uint16 _keymap[0x200];
++
++static bool TVPReadEnvironmentFlag(const char *name, bool fallback) {
++    const char *value = std::getenv(name);
++    if(!value)
++        return fallback;
++    return std::strcmp(value, "0") != 0;
++}
++
++static float TVPReadPositiveEnvironmentFloat(const char *name, float fallback) {
++    const char *value = std::getenv(name);
++    if(!value)
++        return fallback;
++    char *end = nullptr;
++    const float parsed = std::strtof(value, &end);
++    if(end == value || !std::isfinite(parsed) || parsed <= 0.0f)
++        return fallback;
++    return parsed;
++}
++
+ static cocos2d::Label *_fpsLabel = nullptr;
+ 
+ #ifndef GL_UNPACK_ROW_LENGTH
+@@ -616,14 +638,28 @@ bool TVPMainScene::startupFrom(const std::string &path) {
+         Device::setKeepScreenOn(true);
+     }
+ 
++    const char *virtualMouseEnv =
++        std::getenv("ROCGALGAME_KRKR_VIRTUAL_MOUSE");
++    _rocgalgameInput = virtualMouseEnv != nullptr ||
++        std::getenv("ROCGALGAME_KRKR_RUNTIME") != nullptr;
++    _virtualMouseEnabled = TVPReadEnvironmentFlag(
++        "ROCGALGAME_KRKR_VIRTUAL_MOUSE", false);
++    _swapFaceButtons = TVPReadEnvironmentFlag(
++        "ROCGALGAME_KRKR_SWAP_AB", false);
++    _virtualMouseSpeed = TVPReadPositiveEnvironmentFloat(
++        "ROCGALGAME_MOUSE_SPEED", 720.0f);
++    _virtualMouseAccel = TVPReadPositiveEnvironmentFloat(
++        "ROCGALGAME_MOUSE_ACCEL", 1.6f);
++
+     for(int i = 0; i < std::size(_keymap); ++i) {
+         _keymap[i] = i;
+     }
+ 
+-    const auto &keymap = pGlobalCfgMgr->GetKeyMap();
+-    for(const auto &it : keymap) {
+-        if(!it.second)
+-            continue;
+-        _keymap[it.first] = _keymap[it.second];
++    if(!_rocgalgameInput) {
++        const auto &keymap = pGlobalCfgMgr->GetKeyMap();
++        for(const auto &it : keymap) {
++            if(it.second)
++                _keymap[it.first] = _keymap[it.second];
++        }
+     }
++    if(_rocgalgameInput)
++        showVirtualMouseCursor(_virtualMouseEnabled);
+     // 	if (pGlobalCfgMgr->GetValueBool("rot_screen_180", false)) {
+     // 		GameNode->setRotation(90);
+     // 	}
+@@ -693,6 +729,14 @@ tjs_uint TVPGetGraphicCacheTotalBytes();
+ 
+ void TVPMainScene::update(float delta) {
+     ::Application->Run();
++    if(_rocgalgameInput && _padStartDown && _padSelectDown) {
++        _padExitHold += delta;
++        if(_padExitHold >= 0.4f) {
++            _padExitHold = 0.0f;
++            ::Application->Terminate();
++        }
++    } else {
++        _padExitHold = 0.0f;
++    }
+     //	if (TVPWindowLayer::_currentWindowLayer)
+     // TVPWindowLayer::_currentWindowLayer->UpdateOverlay();
+     iTVPTexture2D::RecycleProcess();
+@@ -1217,6 +1261,67 @@ void TVPMainScene::onTextInput(const std::string &text) {
+     }
+ }
+ 
++void TVPMainScene::moveVirtualMouse(float dx, float dy) {
++    TVPWindowLayer *window = TVPWindowLayer::_currentWindowLayer;
++    if(!_virtualMouseEnabled || !window || !window->PrimaryLayerArea ||
++       !TVPWindowLayer::_mouseCursor || TVPWindowLayer::_windowMgrOverlay)
++        return;
++
++    Vec2 point = TVPWindowLayer::_mouseCursor->getPosition();
++    const Size size = GameNode->getContentSize();
++    point.x = std::max(0.0f, std::min(size.width, point.x + dx));
++    point.y = std::max(0.0f, std::min(size.height, point.y + dy));
++    TVPWindowLayer::_mouseCursor->setPosition(point);
++    window->onMouseMove(GameNode->convertToWorldSpace(point));
++}
++
++void TVPMainScene::postVirtualMouseButton(bool left, bool down) {
++    TVPWindowLayer *window = TVPWindowLayer::_currentWindowLayer;
++    if(!_virtualMouseEnabled || !window || !TVPWindowLayer::_mouseCursor ||
++       TVPWindowLayer::_windowMgrOverlay)
++        return;
++    const Vec2 point = GameNode->convertToWorldSpace(
++        TVPWindowLayer::_mouseCursor->getPosition());
++    window->onVirtualMouseButton(point, left ? mbLeft : mbRight, down);
++}
++
++bool TVPMainScene::handleVirtualMouseButton(int code, bool down) {
++    if(!_rocgalgameInput)
++        return false;
++    if(code == cocos2d::Controller::BUTTON_START) {
++        _padStartDown = down;
++        return false;
++    }
++    if(code == cocos2d::Controller::BUTTON_SELECT) {
++        _padSelectDown = down;
++        return false;
++    }
++    if(!_virtualMouseEnabled)
++        return false;
++
++    if(down) {
++        const float step = std::max(1.0f, _virtualMouseSpeed / 15.0f);
++        switch(code) {
++            case cocos2d::Controller::BUTTON_DPAD_UP:
++                moveVirtualMouse(0, step); return true;
++            case cocos2d::Controller::BUTTON_DPAD_DOWN:
++                moveVirtualMouse(0, -step); return true;
++            case cocos2d::Controller::BUTTON_DPAD_LEFT:
++                moveVirtualMouse(-step, 0); return true;
++            case cocos2d::Controller::BUTTON_DPAD_RIGHT:
++                moveVirtualMouse(step, 0); return true;
++            default:
++                break;
++        }
++    } else if(code == cocos2d::Controller::BUTTON_DPAD_UP ||
++              code == cocos2d::Controller::BUTTON_DPAD_DOWN ||
++              code == cocos2d::Controller::BUTTON_DPAD_LEFT ||
++              code == cocos2d::Controller::BUTTON_DPAD_RIGHT) {
++        return true;
++    }
++
++    const int leftButton = _swapFaceButtons ?
++        cocos2d::Controller::BUTTON_B : cocos2d::Controller::BUTTON_A;
++    const int rightButton = _swapFaceButtons ?
++        cocos2d::Controller::BUTTON_A : cocos2d::Controller::BUTTON_B;
++    if(code == leftButton || code == rightButton) {
++        postVirtualMouseButton(code == leftButton, down);
++        return true;
++    }
++    return false;
++}
++
+ void TVPMainScene::onAxisEvent(cocos2d::Controller *ctrl, int keyCode,
+                                cocos2d::Event *e) {
+     if(!TVPWindowLayer::_currentWindowLayer ||
+@@ -1224,8 +1329,8 @@ void TVPMainScene::onAxisEvent(cocos2d::Controller *ctrl, int keyCode,
+         return;
+     if(!TVPWindowLayer::_virutalMouseMode || TVPWindowLayer::_windowMgrOverlay)
+         return;
+-    const float threashold = 0.1f;
++    const float threashold = _rocgalgameInput ? 6000.0f / 32768.0f : 0.1f;
+     const cocos2d::Controller::KeyStatus &keyStatus =
+         ctrl->getKeyStatus(keyCode);
+     //	CCLOG("Axis KeyCode:%d Axis Value:%f", keyCode,
+@@ -1237,6 +1342,22 @@ void TVPMainScene::onAxisEvent(cocos2d::Controller *ctrl, int keyCode,
+     else
+         offv = (offv + threashold) / (1 - threashold);
++
++    if(_rocgalgameInput) {
++        const float magnitude = std::pow(std::abs(offv), _virtualMouseAccel);
++        const float delta = std::max(1.0f,
++            (_virtualMouseSpeed / 60.0f) * magnitude);
++        switch(keyCode) {
++            case cocos2d::Controller::JOYSTICK_LEFT_X:
++                moveVirtualMouse(offv < 0 ? -delta : delta, 0);
++                break;
++            case cocos2d::Controller::JOYSTICK_LEFT_Y:
++                moveVirtualMouse(0, offv < 0 ? delta : -delta);
++                break;
++            default:
++                break;
++        }
++        return;
++    }
++
+     Vec2 pt = Vec2(TVPWindowLayer::_currentWindowLayer->_LastMouseX,
+                    TVPWindowLayer::_currentWindowLayer->_LastMouseY);
+     float *pValue = nullptr;
+@@ -1274,2 +1395,4 @@ void TVPMainScene::onPadKeyDown(cocos2d::Controller *ctrl, int keyCode,
++    if(handleVirtualMouseButton(keyCode, true))
++        return;
+-    if(!UINode->getChildren().empty())
++    if(!UINode->getChildren().empty())
+         return;
+@@ -1287,3 +1410,5 @@
+ void TVPMainScene::onPadKeyUp(cocos2d::Controller *ctrl, int keyCode,
+-                              cocos2d::Event *e) {
++                              cocos2d::Event *e) {
++    if(handleVirtualMouseButton(keyCode, false))
++        return;
+     unsigned int code = TVPConvertPadKeyCodeToVKCode(keyCode);
+diff --git a/cpp/core/environ/impl/TVPWindow.h b/cpp/core/environ/impl/TVPWindow.h
+--- a/cpp/core/environ/impl/TVPWindow.h
++++ b/cpp/core/environ/impl/TVPWindow.h
+@@ -313,6 +313,9 @@ public:
+     void onMouseUp(const cocos2d::Vec2 &pt);
+ 
+     void onMouseMove(const cocos2d::Vec2 &pt);
++
++    void onVirtualMouseButton(const cocos2d::Vec2 &pt,
++                              tTVPMouseButton button, bool down);
+ 
+     void onMouseClick(const cocos2d::Vec2 &pt);
+diff --git a/cpp/core/environ/impl/TVPWindow.cpp b/cpp/core/environ/impl/TVPWindow.cpp
+--- a/cpp/core/environ/impl/TVPWindow.cpp
++++ b/cpp/core/environ/impl/TVPWindow.cpp
+@@ -67,6 +67,10 @@ bool TVPWindowLayer::init() {
+ void TVPWindowLayer::onMouseDownEvent(cocos2d::Event *_e) {
+     auto *e = dynamic_cast<cocos2d::EventMouse *>(_e);
+     switch(e->getMouseButton()) {
++        case cocos2d::EventMouse::MouseButton::BUTTON_LEFT:
++            _mouseBtn = mbLeft;
++            onMouseDown(e->getLocation());
++            break;
+         case cocos2d::EventMouse::MouseButton::BUTTON_RIGHT:
+             _mouseBtn = mbRight;
+             onMouseDown(e->getLocation());
+@@ -83,6 +87,10 @@ void TVPWindowLayer::onMouseDownEvent(cocos2d::Event *_e) {
+ void TVPWindowLayer::onMouseUpEvent(cocos2d::Event *_e) {
+     auto *e = dynamic_cast<cocos2d::EventMouse *>(_e);
+     switch(e->getMouseButton()) {
++        case cocos2d::EventMouse::MouseButton::BUTTON_LEFT:
++            _mouseBtn = mbLeft;
++            onMouseUp(e->getLocation());
++            break;
+         case cocos2d::EventMouse::MouseButton::BUTTON_RIGHT:
+             _mouseBtn = mbRight;
+             onMouseUp(e->getLocation());
+@@ -280,6 +288,27 @@ void TVPWindowLayer::onMouseUp(const cocos2d::Vec2 &pt) {
+                                     _mouseBtn, TVPGetCurrentShiftKeyState()));
+ }
+ 
++void TVPWindowLayer::onVirtualMouseButton(const cocos2d::Vec2 &pt,
++                                          tTVPMouseButton button, bool down) {
++    _mouseBtn = button;
++    if(down) {
++        onMouseDown(pt);
++        return;
++    }
++
++    cocos2d::Vec2 nsp = PrimaryLayerArea->convertToNodeSpace(pt);
++    _LastMouseX = nsp.x;
++    _LastMouseY = PrimaryLayerArea->getContentSize().height - nsp.y;
++    _scancode[TVPConvertMouseBtnToVKCode(_mouseBtn)] &= 0x10;
++    TVPPostInputEvent(
++        new tTVPOnClickInputEvent(tjsNativeInstance, _LastMouseX, _LastMouseY));
++    TVPPostInputEvent(
++        new tTVPOnMouseUpInputEvent(tjsNativeInstance, _LastMouseX, _LastMouseY,
++                                    _mouseBtn, TVPGetCurrentShiftKeyState()));
++}
++
+ void TVPWindowLayer::onMouseMove(const cocos2d::Vec2 &pt) {
+     cocos2d::Vec2 nsp = PrimaryLayerArea->convertToNodeSpace(pt);
+     _LastMouseX = nsp.x,

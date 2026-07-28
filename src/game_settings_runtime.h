@@ -29,8 +29,8 @@ struct GameSettingsState {
   GameAspectMode aspect = GameAspectMode::Contain;
   GameFilterMode filter = GameFilterMode::Reflection;
   bool virtual_mouse = true;
-  int mouse_speed = 720;
-  float mouse_acceleration = 1.6f;
+  int mouse_speed = 1080;
+  float mouse_acceleration = 1.0f;
 };
 
 struct GameSettingsCallbacks {

@@ -181,7 +181,7 @@ sweep invoked `krkr2` directly with `data.bin`; the real library entry had no
 the game directory instead. Both real launches created zero-byte core logs and
 returned exit code 1.
 
-The device game now has explicit launch metadata:
+An explicit `game.ini` was installed temporarily to prove the diagnosis:
 
 ```ini
 title=向妈妈撒娇吧！
@@ -190,6 +190,16 @@ runtime=krkr2
 entry=data.bin
 virtual_mouse=true
 ```
+
+This per-game file is not the shipping fix. Version 0.22 detects project
+archives by the 11-byte XP3 signature, regardless of whether the archive uses
+an `.xp3`, `.bin`, `.dat`, or another extension. A conventional `data.xp3` or
+`startup.tjs` keeps the established SDL2 default. When no conventional entry
+exists, a unique non-patch XP3 archive, or an unambiguous `data.*` XP3 archive,
+is selected with the KRKR2 runtime. Explicit `game.ini` settings still take
+priority, `patch*.xp3` is never selected as the main project, and ambiguous
+multi-archive layouts are left unchanged instead of guessed. The temporary
+device metadata must be removed before the final 0.22 frontend test.
 
 An isolated end-to-end device test used the installed `rocgalgame_sdl`
 frontend, a one-game temporary library, and `ROCGALGAME_AUTOLAUNCH_FIRST=1`.

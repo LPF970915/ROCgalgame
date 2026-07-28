@@ -1,0 +1,17 @@
+diff --git a/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp b/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp
+--- a/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp
++++ b/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp
+@@ -174,8 +174,12 @@ struct RocgalgameInputTransport::Impl {
+                     parseLine(line);
+                 }
+             }
+-            if(fd >= 0 && (descriptor.revents & (POLLHUP | POLLERR)))
++            if(fd >= 0 && (descriptor.revents & (POLLHUP | POLLERR))) {
++                close(fd);
++                fd = -1;
+                 publishDisconnect();
++                std::this_thread::sleep_for(std::chrono::milliseconds(50));
++            }
+         }
+         if(fd >= 0)
+             close(fd);

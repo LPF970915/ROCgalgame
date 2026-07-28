@@ -1,0 +1,16 @@
+global.krkr2TestWindow = new Window();
+global.krkr2TestWindow.caption = "KRKR2 GPU smoke test";
+global.krkr2TestWindow.width = 960;
+global.krkr2TestWindow.height = 640;
+
+global.krkr2TestLayer = new Layer(global.krkr2TestWindow, null);
+global.krkr2TestLayer.width = 960;
+global.krkr2TestLayer.height = 640;
+global.krkr2TestLayer.type = ltOpaque;
+global.krkr2TestLayer.fillRect(0, 0, 960, 640, 0xff20252b);
+global.krkr2TestLayer.font.height = 36;
+global.krkr2TestLayer.drawText(72, 260, "KRKR2 Mali-G52", 0x00f3f5f7);
+global.krkr2TestLayer.visible = true;
+global.krkr2TestWindow.visible = true;
+
+System.inform("KRKR2_MINIMAL_TJS_OK", "KRKR2");
