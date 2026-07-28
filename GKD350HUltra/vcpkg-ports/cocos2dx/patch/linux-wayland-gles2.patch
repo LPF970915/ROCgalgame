@@ -45,7 +45,10 @@ index 212f11acec..d19358b070 100644
  
 +#include <chrono>
  #include <cmath>
++#include <cstdint>
 +#include <cstdlib>
++#include <cstring>
+ #include <unordered_map>
  #include <unordered_map>
  
  #include "platform/CCApplication.h"
@@ -127,7 +130,97 @@ index 212f11acec..d19358b070 100644
 +    {
 +#if defined(ROCGALGAME_LINUX_GLES2)
 +        const auto started = std::chrono::steady_clock::now();
++        static unsigned int swapProbeCall = 0;
++        const char* swapProbe = std::getenv("ROCGALGAME_KRKR_SWAP_PROBE");
++        if (swapProbe && swapProbe[0] && std::strcmp(swapProbe, "0") != 0 &&
++            ++swapProbeCall <= 256 &&
++            (swapProbeCall & (swapProbeCall - 1)) == 0)
++        {
++            const GLenum pendingError = glGetError();
++            GLint framebuffer = 0;
++            GLint viewport[4] = {0, 0, 0, 0};
++            GLint program = 0;
++            GLint texture = 0;
++            glGetIntegerv(GL_FRAMEBUFFER_BINDING, &framebuffer);
++            glGetIntegerv(GL_VIEWPORT, viewport);
++            glGetIntegerv(GL_CURRENT_PROGRAM, &program);
++            glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
++            const GLenum framebufferStatus =
++                glCheckFramebufferStatus(GL_FRAMEBUFFER);
++            const int xs[] = {viewport[0], viewport[0] + viewport[2] / 4,
++                              viewport[0] + viewport[2] / 2,
++                              viewport[0] + viewport[2] * 3 / 4,
++                              viewport[0] + viewport[2] - 1};
++            const int ys[] = {viewport[1], viewport[1] + viewport[3] / 4,
++                              viewport[1] + viewport[3] / 2,
++                              viewport[1] + viewport[3] * 3 / 4,
++                              viewport[1] + viewport[3] - 1};
++            std::uint32_t sampleOr = 0;
++            if (viewport[2] > 0 && viewport[3] > 0)
++            {
++                glPixelStorei(GL_PACK_ALIGNMENT, 4);
++                for (unsigned int i = 0; i < sizeof(xs) / sizeof(xs[0]); ++i)
++                {
++                    std::uint32_t pixel = 0;
++                    glReadPixels(xs[i], ys[i], 1, 1, GL_RGBA,
++                                 GL_UNSIGNED_BYTE, &pixel);
++                    sampleOr |= pixel;
++                }
++            }
++            const GLenum readError = glGetError();
++            log("[rocgalgame] swap_probe call=%u fbo=%d status=0x%04X "
++                "viewport=%d,%d,%d,%d program=%d texture=%d "
++                "pending=0x%04X read=0x%04X sample_or=0x%08X",
++                swapProbeCall, framebuffer, framebufferStatus, viewport[0],
++                viewport[1], viewport[2], viewport[3], program, texture,
++                pendingError, readError, sampleOr);
++            const char* eglProbe = std::getenv("ROCGALGAME_KRKR_EGL_PROBE");
++            if (eglProbe && eglProbe[0] && std::strcmp(eglProbe, "0") != 0)
++            {
++                EGLDisplay display = eglGetCurrentDisplay();
++                EGLContext context = eglGetCurrentContext();
++                EGLint configId = -1;
++                eglQueryContext(display, context, EGL_CONFIG_ID, &configId);
++                EGLConfig configs[256];
++                EGLint configCount = 0;
++                EGLConfig config = nullptr;
++                if (eglGetConfigs(display, configs, 256, &configCount))
++                {
++                    for (EGLint i = 0; i < configCount; ++i)
++                    {
++                        EGLint id = -1;
++                        eglGetConfigAttrib(display, configs[i], EGL_CONFIG_ID, &id);
++                        if (id == configId)
++                        {
++                            config = configs[i];
++                            break;
++                        }
++                    }
++                }
++                auto eglAttr = [display, config](EGLint attr) {
++                    EGLint value = -1;
++                    if (config) eglGetConfigAttrib(display, config, attr, &value);
++                    return value;
++                };
++                EGLSurface surface = eglGetCurrentSurface(EGL_DRAW);
++                EGLint width = -1;
++                EGLint height = -1;
++                eglQuerySurface(display, surface, EGL_WIDTH, &width);
++                eglQuerySurface(display, surface, EGL_HEIGHT, &height);
++                log("[rocgalgame] egl_probe call=%u config=%d rgba=%d/%d/%d/%d "
++                    "buffer=%d depth=%d stencil=%d native_visual=0x%X "
++                    "surface_type=0x%X renderable=0x%X surface=%dx%d",
++                    swapProbeCall, configId,
++                    eglAttr(EGL_RED_SIZE), eglAttr(EGL_GREEN_SIZE),
++                    eglAttr(EGL_BLUE_SIZE), eglAttr(EGL_ALPHA_SIZE),
++                    eglAttr(EGL_BUFFER_SIZE), eglAttr(EGL_DEPTH_SIZE),
++                    eglAttr(EGL_STENCIL_SIZE), eglAttr(EGL_NATIVE_VISUAL_ID),
++                    eglAttr(EGL_SURFACE_TYPE), eglAttr(EGL_RENDERABLE_TYPE),
++                    width, height);
++            }
++        }
 +#endif
+         glfwSwapBuffers(_mainWindow);
          glfwSwapBuffers(_mainWindow);
 +#if defined(ROCGALGAME_LINUX_GLES2)
 +        const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(

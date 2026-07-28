@@ -1,0 +1,32 @@
+diff --git a/cpp/core/visual/ogl/RenderManager_ogl.cpp b/cpp/core/visual/ogl/RenderManager_ogl.cpp
+--- a/cpp/core/visual/ogl/RenderManager_ogl.cpp
++++ b/cpp/core/visual/ogl/RenderManager_ogl.cpp
+@@ -1035,10 +1035,20 @@ protected:
+             _owner->Release();
+         }
+ 
+-        void update(GLuint name) { _name = name; }
++        void update(iTVPTexture2D *owner, GLuint name) {
++            if(_owner != owner) {
++                owner->AddRef();
++                _owner->Release();
++                _owner = owner;
++            }
++            _name = name;
++        }
+     };
+ 
+     cocos2d::Texture2D *GetAdapterTexture(cocos2d::Texture2D *orig) override {
++        // Kirikiri renders layers into an offscreen FBO. Hand control back to
++        // Cocos with the screen framebuffer and viewport restored so the
++        // adapter sprite is presented instead of being drawn into its source.
++        SyncPixel();
++        _RestoreGLStatues();
+         if(orig) {
+             if(orig->getPixelsWide() == internalW &&
+                orig->getPixelsHigh() == internalH) {
+-                static_cast<AdapterTexture2D *>(orig)->update(texture);
++                static_cast<AdapterTexture2D *>(orig)->update(this, texture);
+                 return orig;
+             }
+         }

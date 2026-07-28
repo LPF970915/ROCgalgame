@@ -1,0 +1,12 @@
+diff --git a/cpp/core/environ/cocos2d/AppDelegate.cpp b/cpp/core/environ/cocos2d/AppDelegate.cpp
+--- a/cpp/core/environ/cocos2d/AppDelegate.cpp
++++ b/cpp/core/environ/cocos2d/AppDelegate.cpp
+@@ -137,4 +137,8 @@ void TVPAppDelegate::initGLContextAttrs() {
+ void TVPAppDelegate::initGLContextAttrs() {
++#if defined(ROCGALGAME_LINUX_GLES2)
++    GLContextAttrs glContextAttrs = { 8, 8, 8, 0, 24, 0 };
++#else
+     GLContextAttrs glContextAttrs = { 8, 8, 8, 8, 24, 8 };
++#endif
+     cocos2d::GLView::setGLContextAttrs(glContextAttrs);
+ }

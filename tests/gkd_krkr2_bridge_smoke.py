@@ -46,6 +46,11 @@ BTN_START = 315
 BTN_DPAD_UP = 544
 BTN_DPAD_RIGHT = 547
 
+SETTLE_SECONDS = float(os.environ.get("ROCGALGAME_SMOKE_SETTLE_SECONDS", "10.0"))
+AXIS_HOLD_SECONDS = float(os.environ.get("ROCGALGAME_SMOKE_AXIS_HOLD_SECONDS", "2.0"))
+POST_BUTTON_SECONDS = float(os.environ.get("ROCGALGAME_SMOKE_POST_BUTTON_SECONDS", "5.5"))
+EXIT_HOLD_SECONDS = float(os.environ.get("ROCGALGAME_SMOKE_EXIT_HOLD_SECONDS", "0.8"))
+
 
 def emit(fd, event_type, code, value):
     os.write(fd, struct.pack("llHHi", 0, 0, event_type, code, value))
@@ -95,21 +100,26 @@ try:
     os.write(fd, descriptor)
     fcntl.ioctl(fd, UI_DEV_CREATE)
     print("bridge-smoke-ready", flush=True)
-    time.sleep(10.0)
+    time.sleep(SETTLE_SECONDS)
 
+    print("bridge-smoke-axis-start", flush=True)
     emit(fd, EV_ABS, ABS_X, 900)
     sync(fd)
-    time.sleep(0.45)
+    time.sleep(AXIS_HOLD_SECONDS)
     emit(fd, EV_ABS, ABS_X, 0)
     sync(fd)
+    print("bridge-smoke-axis-stop", flush=True)
     for code in (BTN_EAST, BTN_SOUTH, BTN_NORTH, BTN_WEST,
                  BTN_DPAD_UP, BTN_DPAD_RIGHT):
         tap(fd, code)
+    print("bridge-smoke-buttons-sent", flush=True)
+    time.sleep(POST_BUTTON_SECONDS)
 
+    print("bridge-smoke-exit-start", flush=True)
     emit(fd, EV_KEY, BTN_START, 1)
     emit(fd, EV_KEY, BTN_SELECT, 1)
     sync(fd)
-    time.sleep(0.8)
+    time.sleep(EXIT_HOLD_SECONDS)
     emit(fd, EV_KEY, BTN_START, 0)
     emit(fd, EV_KEY, BTN_SELECT, 0)
     sync(fd)

@@ -4,6 +4,8 @@ vcpkg_from_github(
     REF ${VERSION}
     SHA512 39ad7a4521267fbebc35d2ff0c389a56236ead5fa4bdff33db113bd302f70f5f2869ff4e6db1979512e1542813292dff5a482e94dfce231750f0746c301ae9ed
     HEAD_REF master
+    PATCHES
+        wayland-explicit-buffer-state.patch
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS

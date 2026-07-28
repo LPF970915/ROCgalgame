@@ -19,11 +19,19 @@ git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\p
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-console-throttle.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-performance-pointer-incremental.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-refactor.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-pointer-engine-delta.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-hup-backoff.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-reconnect-sequence.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-gles2.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-messagebox.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-empty-string.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-bytecode-bounds.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-psb-load-safety.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-fstat-delete-missing.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gpu-presentation.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-shared-post-update-fbo-restore.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-mali-safe-render.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-opengl-default.patch
 & D:\Works\ROCgalgame\GKD350HUltra\apply_krkr2_layerex_compat.ps1
 ```
 
@@ -66,6 +74,46 @@ The TJS empty-string patch keeps the engine's legacy null-string ABI valid under
 GCC `-O3`, makes empty string property access safe, and prevents error handling
 and asynchronous script operations from crashing in `GetLength`, string
 conversion, or `Release`.
+
+The TJS bytecode-bounds patch validates interpreter entry and instruction
+pointers. Incompatible exception targets now produce a controlled
+`ByteCodeBroken` script error with diagnostics instead of reading an invalid
+instruction address and raising `SIGSEGV`.
+
+The PSB load-safety patch removes the uninitialized file-local media pointer,
+stops immediately after a failed parse, and registers successfully decoded
+resources through the existing process-owned `PSBMediaRegistry`.
+
+The fstat delete patch treats a missing first-save temporary file as a normal
+delete miss. It normalizes the requested target directly instead of passing an
+empty `TVPGetPlacedPath` result to the storage-media dispatcher.
+
+The GPU presentation patch restores Cocos' screen framebuffer and viewport
+before the Kirikiri layer texture is attached to the final sprite. It also
+updates the adapter texture owner when same-sized draw buffers are exchanged,
+preventing a stale or prematurely released OpenGL texture from being shown.
+
+The shared post-update patch replaces the translation-unit-local render
+callback with one function-local static slot shared by every inline caller.
+Both the normal Cocos frame and nested dialog redraw loop now restore the
+screen framebuffer before drawing, preventing save/load layers from flickering
+between valid content and an offscreen render target.
+
+The Mali safe-render patch defaults Mali GPUs to the regular FBO and shader
+paths instead of framebuffer-fetch and clear-texture extension shortcuts. Set
+`ROCGALGAME_KRKR_MALI_FAST_PATHS=1` for an A/B run of the old shortcuts. Set
+`ROCGALGAME_KRKR_PRESENTATION_PROBE=1` to log sampled final-layer pixels and GL
+status without enabling per-frame readback.
+
+The ROCgalgame renderer-default patch selects KRKR2's `opengl` RenderManager
+when the ROCgalgame runtime environment is present. Set
+`ROCGALGAME_KRKR_RENDERER=software` to force the legacy software path.
+
+`krkr2-linux-mali-xr24-surface.patch` requests an opaque RGB EGL surface on
+Linux GLES. The GKD Mali driver exports `XR24` Wayland buffers; requesting the
+desktop Cocos alpha/stencil defaults produces an incompatible surface that the
+compositor displays as black. Other platforms retain the original RGBA8 and
+stencil configuration.
 
 The layerEx compatibility bundle adds native, game-independent implementations
 of `layerExImage.dll`, `layerExRaster.dll`, and `layerExBTOA.dll`. The apply

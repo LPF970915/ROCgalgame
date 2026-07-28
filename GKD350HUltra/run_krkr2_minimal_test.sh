@@ -62,7 +62,7 @@ case "$DISPLAY_BACKEND" in
       echo "[krkr2_test] Wayland socket is unavailable: $wayland_socket"
       exit 5
     }
-    window_selector='[app_id="krkr2"]'
+    window_selector='[title="krkr2"]'
     ;;
   xwayland)
     export DISPLAY="${DISPLAY:-:2}"

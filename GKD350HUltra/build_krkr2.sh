@@ -230,8 +230,14 @@ prepare_sysroot_x11_pkgconfig_shims() {
 prepare_sysroot_x11_pkgconfig_shims
 
 verify_rocgalgame_source_patches() {
+  local app_delegate="$KRKR2_ROOT/cpp/core/environ/cocos2d/AppDelegate.cpp"
+  grep -Fq 'GLContextAttrs glContextAttrs = { 8, 8, 8, 0, 24, 0 };' "$app_delegate" || {
+    echo "[krkr2_build] ERROR: KRKR2 Mali XR24 surface patch is missing"
+    exit 1
+  }
   local scene="$KRKR2_ROOT/cpp/core/environ/cocos2d/MainScene.cpp"
   local transport="$KRKR2_ROOT/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp"
+  local render_utils="$KRKR2_ROOT/cpp/core/environ/RenderUtils.h"
   grep -q "type == 'A'" "$transport" || {
     echo "[krkr2_build] ERROR: latest-axis frontend bridge patch is missing"
     exit 1
@@ -244,8 +250,16 @@ verify_rocgalgame_source_patches() {
     echo "[krkr2_build] ERROR: FIFO reconnect sequence reset patch is missing"
     exit 1
   }
-  grep -q 'std::chrono::steady_clock::now' "$scene" || {
-    echo "[krkr2_build] ERROR: steady-clock pointer integration patch is missing"
+  grep -Fq 'std::min(delta, 0.1f)' "$scene" || {
+    echo "[krkr2_build] ERROR: engine-delta pointer integration patch is missing"
+    exit 1
+  }
+  grep -Fq 'TVPGetPostUpdateEvent()' "$render_utils" || {
+    echo "[krkr2_build] ERROR: shared post-update FBO restore patch is missing"
+    exit 1
+  }
+  grep -Fq 'TVPRunPostUpdateEvent();' "$scene" || {
+    echo "[krkr2_build] ERROR: per-frame FBO restore callback is missing"
     exit 1
   }
   grep -Fq 'logger->info("[rocgalgame] perf fps=' "$scene" || {
@@ -258,6 +272,43 @@ verify_rocgalgame_source_patches() {
   }
   grep -q 'if(!rocgalgameRuntime)' "$scene" || {
     echo "[krkr2_build] ERROR: console redraw suppression patch is missing"
+    exit 1
+  }
+  local ogl_renderer="$KRKR2_ROOT/cpp/core/visual/ogl/RenderManager_ogl.cpp"
+  grep -Fq '_RestoreGLStatues();' "$ogl_renderer" || {
+    echo "[krkr2_build] ERROR: KRKR2 GPU presentation restore patch is missing"
+    exit 1
+  }
+  grep -Fq 'update(this, texture)' "$ogl_renderer" || {
+    echo "[krkr2_build] ERROR: KRKR2 adapter texture ownership patch is missing"
+    exit 1
+  }
+  grep -Fq 'ROCGALGAME_KRKR_MALI_FAST_PATHS' "$ogl_renderer" || {
+    echo "[krkr2_build] ERROR: KRKR2 Mali safe-render patch is missing"
+    exit 1
+  }
+  grep -Fq 'ROCGALGAME_KRKR_PRESENTATION_PROBE' "$ogl_renderer" || {
+    echo "[krkr2_build] ERROR: KRKR2 presentation probe patch is missing"
+    exit 1
+  }
+  local render_manager="$KRKR2_ROOT/cpp/core/visual/RenderManager.cpp"
+  grep -Fq 'ROCGALGAME_KRKR_RENDERER' "$render_manager" || {
+    echo "[krkr2_build] ERROR: ROCgalgame OpenGL renderer default patch is missing"
+    exit 1
+  }
+  local psb_plugin="$KRKR2_ROOT/cpp/plugins/psbfile/main.cpp"
+  grep -Fq 'registerRootResources(path, *self);' "$psb_plugin" || {
+    echo "[krkr2_build] ERROR: KRKR2 PSB load-safety patch is missing"
+    exit 1
+  }
+  local fstat_plugin="$KRKR2_ROOT/cpp/plugins/fstat/main.cpp"
+  grep -Fq 'TVPGetLocallyAccessibleName(normalized)' "$fstat_plugin" || {
+    echo "[krkr2_build] ERROR: KRKR2 fstat missing-file delete patch is missing"
+    exit 1
+  }
+  local tjs_executor="$KRKR2_ROOT/cpp/core/tjs2/tjsInterCodeExec.cpp"
+  grep -Fq 'invalid TJS VM instruction pointer:' "$tjs_executor" || {
+    echo "[krkr2_build] ERROR: KRKR2 TJS bytecode-bounds patch is missing"
     exit 1
   }
 }
@@ -304,6 +355,7 @@ prepare_fmod_stub() {
       -e "s#:$fmod_root/prebuilt/64-bit##g" \
       -e "s#:$BUILD_DIR/vcpkg_installed/$TRIPLET/lib/pkgconfig/../../lib##g" \
       -e "s# $stub_archive##g" \
+      -e 's# -lSDL2##g' \
       -e 's# -lmali##g' \
       -e "s# -fuse-ld=gold##g" \
       -e '/^[[:space:]]*$/d' \
@@ -311,7 +363,7 @@ prepare_fmod_stub() {
     # The device libGLESv2 shim has no GL exports of its own. With
     # --no-copy-dt-needed-entries the real Mali implementation must be linked
     # explicitly, after every static Cocos archive that references gl*.
-    sed -i "\$ s#\$# -lmali $stub_archive#" "$patched_link_file"
+    sed -i "\$ s#\$# -lSDL2 -lmali $stub_archive#" "$patched_link_file"
     if cmp -s "$link_file" "$patched_link_file"; then
       rm -f "$patched_link_file"
       echo "[krkr2_build] AArch64 FMOD link patch is already current"

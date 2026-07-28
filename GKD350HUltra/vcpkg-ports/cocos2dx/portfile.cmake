@@ -37,6 +37,7 @@ vcpkg_extract_source_archive(
         patch/fix-bullet-spell.patch
         patch/fix-chipmunk.patch
         patch/linux-wayland-gles2.patch
+        patch/linux-wayland-swap-damage.patch
 )
 
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/cocos2dx-config.cmake.in" DESTINATION "${SOURCE_PATH}")
