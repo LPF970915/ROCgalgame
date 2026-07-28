@@ -172,6 +172,43 @@ GKD350HUltra/probes/run_krkr2_button_sequence.sh
 
 ## Full KRKR2 Library Compatibility Sweep
 
+### Frontend launch correction: `向妈妈撒娇吧！`
+
+The July 28 sweep proved that the KRKR2 core can run this game, but it did not
+prove that the frontend could select the same runtime and entry point. The
+sweep invoked `krkr2` directly with `data.bin`; the real library entry had no
+`game.ini`, so a user launch selected the default `krkrsdl2` runtime and passed
+the game directory instead. Both real launches created zero-byte core logs and
+returned exit code 1.
+
+The device game now has explicit launch metadata:
+
+```ini
+title=向妈妈撒娇吧！
+core=krkr
+runtime=krkr2
+entry=data.bin
+virtual_mouse=true
+```
+
+An isolated end-to-end device test used the installed `rocgalgame_sdl`
+frontend, a one-game temporary library, and `ROCGALGAME_AUTOLAUNCH_FIRST=1`.
+The frontend resolved `krkr2` plus `data.bin`, mounted all 644 files in the main
+archive, initialized the Mali-G52 renderer at 1600x1440, reached `Startup script
+ended`, entered `title_logo.ks`, and remained alive after 15 seconds. The test
+processes were then terminated and no probe process remained.
+
+Future compatibility results must distinguish two gates:
+
+1. **Core compatibility:** direct core invocation reaches the expected startup
+   marker without a native crash.
+2. **Frontend playability:** `rocgalgame_sdl` scans the real metadata, selects
+   the intended runtime and entry point, creates a non-empty per-game log, and
+   remains alive at the same checkpoint.
+
+Passing only the first gate must not be reported as a fully playable library
+result.
+
 The device library was tested twice on July 28, 2026: once to collect all
 failures before making compatibility changes, and once with the final core.
 Every run used a private `/tmp` mirror and private `savedata`; no real game save
