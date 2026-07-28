@@ -11,6 +11,28 @@ git -C D:\Works\Tyranor\krkrsdl2 apply --recount D:\Works\ROCgalgame\GKD350HUltr
 git -C D:\Works\Tyranor\krkrsdl2\external\krkrz apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkrz-default-font-file.patch
 git -C D:\Works\Tyranor\krkrsdl2\external\krkrz apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkrz-xp3-project-automount.patch
 git -C D:\Works\Tyranor\krkrsdl2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkrsdl2-xp3-project-automount.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-input.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-display-input.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-input-continuous.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-resolution.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-frontend-input-bridge.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-console-throttle.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-performance-pointer-incremental.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-refactor.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-pointer-engine-delta.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-hup-backoff.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-reconnect-sequence.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-gles2.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-messagebox.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-empty-string.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-bytecode-bounds.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-psb-load-safety.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-fstat-delete-missing.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gpu-presentation.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-shared-post-update-fbo-restore.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-mali-safe-render.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-opengl-default.patch
+& D:\Works\ROCgalgame\GKD350HUltra\apply_krkr2_layerex_compat.ps1
 ```
 
 The first patch adds system SDL2 selection, MSVC flag compatibility and GNU
@@ -19,3 +41,83 @@ and uses its internal face name, which is required for `ui_font_02.ttf`.
 The XP3 patches mount every archive and its internal directories before
 `startup.tjs`, keep numbered patch archives last, and expose a directory-based
 project as `System.exePath` for Kirikiroid-compatible games.
+
+The KRKR2 input patch consumes ROCgalgame's existing virtual mouse, speed,
+acceleration, A/B swap, and exit-chord environment contract. Standalone KRKR2
+launches keep their original preference-based key mapping.
+
+The GKD display/input follow-ups normalize the raw `gkd_atom_joypad` button and
+axis numbers selected by the existing `gkd350h-ultra` input profile. Joystick
+axis events update retained state, and the shared mouse speed/acceleration
+settings then move KRKR2's own cursor continuously once per rendered frame.
+
+The frontend bridge sends the unified `InputManager` output as latest-axis
+state (`A x y sequence`) rather than queued pixel deltas. The performance
+follow-up consumes only the newest state per Cocos frame, disables duplicate
+native controller handling while the bridge is configured, removes forced
+console redraws, and logs GL/frame-time diagnostics every five seconds.
+
+The input transport follow-up moves FIFO reads and protocol parsing to a
+dedicated reader thread. The thread only publishes an atomic-style snapshot
+and a bounded ordered button/key queue; Cocos and TJS calls remain on the main
+thread. Pointer integration uses a steady clock, so a 700 ms render frame does
+not turn valid movement into zero, while explicit disconnect/background reset
+still prevents a recovery jump. Queue overflow triggers button/key state
+reconciliation instead of silently leaving a key stuck.
+
+The transport reliability follow-ups close and back off a FIFO that reports
+`POLLHUP`/`POLLERR`, preventing a disconnected reader thread from busy-looping.
+They also reset the latest-axis sequence on an explicit disconnect so a
+recreated frontend writer can restart its sequence and resume pointer input.
+
+The TJS empty-string patch keeps the engine's legacy null-string ABI valid under
+GCC `-O3`, makes empty string property access safe, and prevents error handling
+and asynchronous script operations from crashing in `GetLength`, string
+conversion, or `Release`.
+
+The TJS bytecode-bounds patch validates interpreter entry and instruction
+pointers. Incompatible exception targets now produce a controlled
+`ByteCodeBroken` script error with diagnostics instead of reading an invalid
+instruction address and raising `SIGSEGV`.
+
+The PSB load-safety patch removes the uninitialized file-local media pointer,
+stops immediately after a failed parse, and registers successfully decoded
+resources through the existing process-owned `PSBMediaRegistry`.
+
+The fstat delete patch treats a missing first-save temporary file as a normal
+delete miss. It normalizes the requested target directly instead of passing an
+empty `TVPGetPlacedPath` result to the storage-media dispatcher.
+
+The GPU presentation patch restores Cocos' screen framebuffer and viewport
+before the Kirikiri layer texture is attached to the final sprite. It also
+updates the adapter texture owner when same-sized draw buffers are exchanged,
+preventing a stale or prematurely released OpenGL texture from being shown.
+
+The shared post-update patch replaces the translation-unit-local render
+callback with one function-local static slot shared by every inline caller.
+Both the normal Cocos frame and nested dialog redraw loop now restore the
+screen framebuffer before drawing, preventing save/load layers from flickering
+between valid content and an offscreen render target.
+
+The Mali safe-render patch defaults Mali GPUs to the regular FBO and shader
+paths instead of framebuffer-fetch and clear-texture extension shortcuts. Set
+`ROCGALGAME_KRKR_MALI_FAST_PATHS=1` for an A/B run of the old shortcuts. Set
+`ROCGALGAME_KRKR_PRESENTATION_PROBE=1` to log sampled final-layer pixels and GL
+status without enabling per-frame readback.
+
+The ROCgalgame renderer-default patch selects KRKR2's `opengl` RenderManager
+when the ROCgalgame runtime environment is present. Set
+`ROCGALGAME_KRKR_RENDERER=software` to force the legacy software path.
+
+`krkr2-linux-mali-xr24-surface.patch` requests an opaque RGB EGL surface on
+Linux GLES. The GKD Mali driver exports `XR24` Wayland buffers; requesting the
+desktop Cocos alpha/stencil defaults produces an incompatible surface that the
+compositor displays as black. Other platforms retain the original RGBA8 and
+stencil configuration.
+
+The layerEx compatibility bundle adds native, game-independent implementations
+of `layerExImage.dll`, `layerExRaster.dll`, and `layerExBTOA.dll`. The apply
+script is idempotent and only copies the four bundled compatibility sources and
+registers the three translation units in KRKR2's plugin target. Games must link
+these modules before constructing their Layer instances so KRKR2's native class
+registration is visible to those instances.

@@ -1,0 +1,18 @@
+diff --git a/cpp/plugins/fstat/main.cpp b/cpp/plugins/fstat/main.cpp
+index d2a761c..9bab914 100644
+--- a/cpp/plugins/fstat/main.cpp
++++ b/cpp/plugins/fstat/main.cpp
+@@ -381,8 +381,11 @@ public:
+      */
+     static bool deleteFile(const tjs_char *file) {
+         bool r = false;
+-        if(ttstr filename(TVPGetLocallyAccessibleName(TVPGetPlacedPath(file)));
+-           filename.length()) {
++        // Deleting a missing temporary file is a normal first-save case.
++        // TVPGetPlacedPath returns an empty string for missing files, which
++        // must not be passed to the storage-media dispatcher.
++        const ttstr normalized = TVPNormalizeStorageName(file);
++        if(ttstr filename(TVPGetLocallyAccessibleName(normalized)); filename.length()) {
+             r = TVPDeleteFile(filename.AsNarrowStdString());
+             if(!r) {
+                 TVPAddLog(ttstr(TJS_W("deleteFile : ")) + filename +

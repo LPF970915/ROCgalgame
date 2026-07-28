@@ -1,0 +1,22 @@
+diff --git a/src/wl_window.c b/src/wl_window.c
+--- a/src/wl_window.c
++++ b/src/wl_window.c
+@@ -1040,6 +1040,7 @@ static GLFWbool createNativeSurface(_GLFWwindow* window,
+     window->wl.bufferScale = 1;
+     window->wl.scalingNumerator = 120;
+     window->wl.scaleFramebuffer = wndconfig->scaleFramebuffer;
++    wl_surface_set_buffer_scale(window->wl.surface, 1);
+ 
+     window->wl.maximized = wndconfig->maximized;
+ 
+@@ -1057,6 +1058,10 @@ static GLFWbool createNativeSurface(_GLFWwindow* window,
+             window->wl.scalingViewport =
+                 wp_viewporter_get_viewport(_glfw.wl.viewporter, window->wl.surface);
+ 
++            wp_viewport_set_source(window->wl.scalingViewport,
++                                   wl_fixed_from_int(-1), wl_fixed_from_int(-1),
++                                   wl_fixed_from_int(-1), wl_fixed_from_int(-1));
++
+             wp_viewport_set_destination(window->wl.scalingViewport,
+                                         window->wl.width,
+                                         window->wl.height);

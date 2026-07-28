@@ -1,0 +1,69 @@
+diff --git a/cpp/core/tjs2/tjsInterCodeExec.cpp b/cpp/core/tjs2/tjsInterCodeExec.cpp
+index a53efc5..16a7689 100644
+--- a/cpp/core/tjs2/tjsInterCodeExec.cpp
++++ b/cpp/core/tjs2/tjsInterCodeExec.cpp
+@@ -20,6 +20,7 @@
+ #include "tjsOctPack.h"
+ #include "tjsGlobalStringMap.h"
+ #include <csignal>
++#include <cstdint>
+ #include <set>
+ #include <mutex>
+ 
+@@ -854,11 +855,39 @@ namespace TJS {
+                                       tTJSVariant **args, tjs_int numargs,
+                                       tTJSVariant *result, bool tryCatch) {
+         // execute VM codes
+-        tjs_int32 *codesave;
++        tjs_int32 *codesave = CodeArea;
++        const auto codeBegin = reinterpret_cast<std::uintptr_t>(CodeArea);
++        const auto codeEnd =
++            codeBegin + static_cast<std::uintptr_t>(CodeAreaSize) *
++                            sizeof(*CodeArea);
++        const auto isValidCodePointer = [codeBegin, codeEnd](const auto *ptr) {
++            const auto address = reinterpret_cast<std::uintptr_t>(ptr);
++            return address >= codeBegin && address < codeEnd &&
++                   (address - codeBegin) % sizeof(tjs_int32) == 0;
++        };
+         try {
++            if(CodeArea == nullptr || CodeAreaSize <= 0 || startip < 0 ||
++               startip >= CodeAreaSize) {
++                if(const auto logger = spdlog::get("tjs2")) {
++                    logger->error(
++                        "invalid TJS bytecode entry: start_ip={} code_size={}",
++                        startip, CodeAreaSize);
++                }
++                TJS_eTJSScriptError(TJSByteCodeBroken, Block, 0);
++            }
+             tjs_int32 *code = codesave = CodeArea + startip;
+ 
+             if(TJSStackTracerEnabled())
+                 TJSStackTracerSetCodePointer(CodeArea, &codesave);
+@@ -867,6 +896,16 @@ namespace TJS {
+             bool flag = false;
+ 
+             while(true) {
++                if(!isValidCodePointer(code)) {
++                    const auto address = reinterpret_cast<std::uintptr_t>(code);
++                    if(const auto logger = spdlog::get("tjs2")) {
++                        logger->error(
++                            "invalid TJS VM instruction pointer: address={} code_begin={} code_size={}",
++                            address, codeBegin, CodeAreaSize);
++                    }
++                    codesave = CodeArea;
++                    TJS_eTJSScriptError(TJSByteCodeBroken, Block, 0);
++                }
+                 codesave = code;
+                 switch(*code) {
+                     case VM_NOP:
+@@ -1304,7 +1343,9 @@ namespace TJS {
+         } catch(eTJSSilent &) {
+             throw;
+         } catch(eTJSScriptError &e) {
+-            e.AddTrace(this, codesave - CodeArea);
++            const tjs_int tracePosition =
++                isValidCodePointer(codesave) ? codesave - CodeArea : 0;
++            e.AddTrace(this, tracePosition);
+             throw;
+         } catch(eTJS &e) {
+             if(tryCatch) {

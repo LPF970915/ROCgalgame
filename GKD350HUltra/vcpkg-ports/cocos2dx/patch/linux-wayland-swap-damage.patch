@@ -1,0 +1,39 @@
+diff --git a/cocos/platform/desktop/CCGLViewImpl-desktop.cpp b/cocos/platform/desktop/CCGLViewImpl-desktop.cpp
+--- a/cocos/platform/desktop/CCGLViewImpl-desktop.cpp
++++ b/cocos/platform/desktop/CCGLViewImpl-desktop.cpp
+@@ -1,3 +1,35 @@
+ #endif
+-        glfwSwapBuffers(_mainWindow);
++#if defined(ROCGALGAME_LINUX_GLES2)
++        bool swappedWithDamage = false;
++        const char* swapDamage = std::getenv("ROCGALGAME_KRKR_SWAP_DAMAGE");
++        if (swapDamage && swapDamage[0] && std::strcmp(swapDamage, "0") != 0)
++        {
++            using SwapWithDamageProc = EGLBoolean (*)(
++                EGLDisplay, EGLSurface, EGLint*, EGLint);
++            static auto swapWithDamageProc =
++                reinterpret_cast<SwapWithDamageProc>(
++                    eglGetProcAddress("eglSwapBuffersWithDamageKHR"));
++            EGLDisplay display = eglGetCurrentDisplay();
++            EGLSurface surface = eglGetCurrentSurface(EGL_DRAW);
++            EGLint width = 0;
++            EGLint height = 0;
++            eglQuerySurface(display, surface, EGL_WIDTH, &width);
++            eglQuerySurface(display, surface, EGL_HEIGHT, &height);
++            EGLint damage[] = {0, 0, width, height};
++            swappedWithDamage = swapWithDamageProc &&
++                swapWithDamageProc(display, surface, damage, 1) == EGL_TRUE;
++            static bool reportedSwapDamage = false;
++            if (!reportedSwapDamage)
++            {
++                log("[rocgalgame] swap_damage available=%d result=%d "
++                    "surface=%dx%d egl_error=0x%04X",
++                    swapWithDamageProc ? 1 : 0, swappedWithDamage ? 1 : 0,
++                    width, height, eglGetError());
++                reportedSwapDamage = true;
++            }
++        }
++        if (!swappedWithDamage)
++#endif
++            glfwSwapBuffers(_mainWindow);
+ #if defined(ROCGALGAME_LINUX_GLES2)
