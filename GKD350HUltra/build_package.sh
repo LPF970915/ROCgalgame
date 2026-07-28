@@ -14,10 +14,15 @@ BUILD_FRONTEND="${PACKAGE_BUILD_FRONTEND:-1}"
 BUILD_ONS="${PACKAGE_BUILD_ONS:-1}"
 BUILD_KRKR="${PACKAGE_BUILD_KRKR:-1}"
 PACKAGE_OUTPUT="${PACKAGE_OUTPUT:-Stage}"
+PACKAGE_FORCE="${PACKAGE_FORCE:-0}"
 
 case "$PACKAGE_OUTPUT" in
   Stage|Zip|Tar|Both) ;;
   *) echo "[package] ERROR: PACKAGE_OUTPUT must be Stage, Zip, Tar, or Both"; exit 2 ;;
+esac
+case "$PACKAGE_FORCE" in
+  0|1) ;;
+  *) echo "[package] ERROR: PACKAGE_FORCE must be 0 or 1"; exit 2 ;;
 esac
 
 check_file() {
@@ -73,6 +78,19 @@ check_executable "$DIST_ROOT/ROCgalgame.sh"
 check_executable "$RUNTIME_DIR/rocgalgame_sdl"
 check_executable "$RUNTIME_DIR/cores/ons/onsyuri"
 check_executable "$RUNTIME_DIR/cores/krkr/krkrsdl2"
+check_executable "$RUNTIME_DIR/cores/krkr/krkr2"
+check_file "$RUNTIME_DIR/cores/krkr/Resources"
+check_file "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1"
+readelf -h "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1" |
+  grep -Eq 'Machine:[[:space:]]+AArch64' || {
+    echo "[package] ERROR: KRKR2 private GLVND library is not AArch64"
+    exit 1
+  }
+readelf -d "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1" |
+  grep -Eq 'SONAME.*libGL\.so\.1' || {
+    echo "[package] ERROR: KRKR2 private GLVND library has the wrong SONAME"
+    exit 1
+  }
 check_file "$RUNTIME_DIR/native_config.ini"
 check_file "$RUNTIME_DIR/native_keymap.ini"
 check_file "$RUNTIME_DIR/ui.pack"
@@ -89,6 +107,7 @@ check_file "$RUNTIME_DIR/saves"
 show_elf_info "$RUNTIME_DIR/rocgalgame_sdl"
 show_elf_info "$RUNTIME_DIR/cores/ons/onsyuri"
 show_elf_info "$RUNTIME_DIR/cores/krkr/krkrsdl2"
+show_elf_info "$RUNTIME_DIR/cores/krkr/krkr2"
 "$SELF_DIR/validate_runtime_deps.sh"
 
 if [ "$PACKAGE_OUTPUT" = "Stage" ]; then
@@ -97,29 +116,58 @@ if [ "$PACKAGE_OUTPUT" = "Stage" ]; then
 fi
 
 mkdir -p "$DOWNLOADS_DIR"
-rm -rf "$STAGING_DIR"
+DOWNLOADS_ABS="$(readlink -m "$DOWNLOADS_DIR")"
+STAGING_ABS="$(readlink -m "$STAGING_DIR")"
+EXPECTED_STAGE="$DOWNLOADS_ABS/.$PACKAGE_NAME.stage"
+if [ "$STAGING_ABS" != "$EXPECTED_STAGE" ]; then
+  echo "[package] ERROR: refusing unsafe staging cleanup: $STAGING_ABS"
+  exit 1
+fi
+if { [ "$PACKAGE_OUTPUT" = "Zip" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; } &&
+   [ -e "$ZIP_FILE" ] && [ "$PACKAGE_FORCE" != "1" ]; then
+  echo "[package] ERROR: target archive already exists: $ZIP_FILE"
+  exit 1
+fi
+if { [ "$PACKAGE_OUTPUT" = "Tar" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; } &&
+   [ -e "$TAR_FILE" ] && [ "$PACKAGE_FORCE" != "1" ]; then
+  echo "[package] ERROR: target archive already exists: $TAR_FILE"
+  exit 1
+fi
+rm -rf -- "$STAGING_ABS"
 PORTS_DIR="$STAGING_DIR/roms/ports"
 PACKAGE_RUNTIME_DIR="$PORTS_DIR/ROCgalgame"
 mkdir -p "$PACKAGE_RUNTIME_DIR"
 cp "$DIST_ROOT/ROCgalgame.sh" "$PORTS_DIR/ROCgalgame.sh"
 rsync -a --delete \
-  --exclude='/games/***' --exclude='/covers/***' --exclude='/saves/***' --exclude='/cache/***' \
+  --exclude='/games/***' --exclude='/covers/***' --exclude='/game_covers/***' \
+  --exclude='/saves/***' --exclude='/cache/***' --exclude='/logs/***' \
+  --exclude='/cores/krkr/*debug*' \
   "$RUNTIME_DIR/" "$PACKAGE_RUNTIME_DIR/"
 mkdir -p "$PACKAGE_RUNTIME_DIR/games" "$PACKAGE_RUNTIME_DIR/covers" \
   "$PACKAGE_RUNTIME_DIR/saves" "$PACKAGE_RUNTIME_DIR/cache"
 chmod +x "$PORTS_DIR/ROCgalgame.sh" "$PACKAGE_RUNTIME_DIR/rocgalgame_sdl" \
-  "$PACKAGE_RUNTIME_DIR/cores/ons/onsyuri" "$PACKAGE_RUNTIME_DIR/cores/krkr/krkrsdl2" 2>/dev/null || true
+  "$PACKAGE_RUNTIME_DIR/cores/ons/onsyuri" "$PACKAGE_RUNTIME_DIR/cores/krkr/krkrsdl2" \
+  "$PACKAGE_RUNTIME_DIR/cores/krkr/krkr2" 2>/dev/null || true
 
-if find "$STAGING_DIR" -type d -name ui -print -quit | grep -q .; then
+if [ -e "$PACKAGE_RUNTIME_DIR/ui" ]; then
   echo "[package] ERROR: plaintext UI directory leaked into release staging"
   exit 1
 fi
 
 if [ "$PACKAGE_OUTPUT" = "Zip" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
   command -v python3 >/dev/null 2>&1 || { echo "[package] ERROR: python3 is required for UTF-8 zip output"; exit 1; }
-  rm -f "$ZIP_FILE"
-  nice -n 10 python3 "$SELF_DIR/create_release_zip.py" "$STAGING_DIR" "$ZIP_FILE" roms
-  python3 "$SELF_DIR/verify_release_zip.py" "$ZIP_FILE"
+  ZIP_TEMP="$STAGING_DIR/$PACKAGE_NAME.zip"
+  nice -n 10 python3 "$SELF_DIR/create_release_zip.py" "$STAGING_DIR" "$ZIP_TEMP" roms
+  python3 "$SELF_DIR/verify_release_zip.py" "$ZIP_TEMP"
+  if [ "$PACKAGE_FORCE" = "1" ]; then
+    mv -f -- "$ZIP_TEMP" "$ZIP_FILE"
+  else
+    mv -n -- "$ZIP_TEMP" "$ZIP_FILE"
+    if [ -e "$ZIP_TEMP" ]; then
+      echo "[package] ERROR: target archive appeared during packaging: $ZIP_FILE"
+      exit 1
+    fi
+  fi
   echo "[package] wrote $ZIP_FILE"
 fi
 if [ "$PACKAGE_OUTPUT" = "Tar" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
