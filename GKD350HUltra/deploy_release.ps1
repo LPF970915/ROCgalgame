@@ -159,5 +159,6 @@ for d in games covers game_covers saves cache logs; do
 done
 "@
 
+$remoteCommand = $remoteCommand -replace "`r`n", "`n"
 & ssh $DeviceHost $remoteCommand
 if ($LASTEXITCODE -ne 0) { throw "Remote release deployment failed" }
