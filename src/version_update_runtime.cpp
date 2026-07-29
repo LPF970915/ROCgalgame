@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <regex>
@@ -43,26 +44,52 @@ std::string ShellQuote(const std::string &value) {
 #endif
 }
 
-bool DownloadToFile(const std::string &url, const std::filesystem::path &path) {
+bool DownloadToFile(const std::string &url, const std::filesystem::path &path,
+                    bool github_contents_api = false) {
   if (url.empty() || path.empty()) return false;
   std::error_code ec;
   std::filesystem::create_directories(path.parent_path(), ec);
+  const std::string curl_raw_header = github_contents_api
+                                          ? " -H " + ShellQuote("Accept: application/vnd.github.raw")
+                                          : "";
+  const std::string wget_raw_header = github_contents_api
+                                          ? " --header=" + ShellQuote("Accept: application/vnd.github.raw")
+                                          : "";
 #ifdef _WIN32
   const std::string command =
-      "curl.exe -L --fail --silent --show-error --connect-timeout 15 --max-time 300 "
-      "-A ROCgalgame-Updater -o " + ShellQuote(path.string()) + " " + ShellQuote(url);
+      "curl.exe -L --fail --silent --show-error --http1.1 --connect-timeout 15 "
+      "--max-time 300 --speed-limit 1024 --speed-time 20 -A ROCgalgame-Updater" +
+      curl_raw_header + " -o " + ShellQuote(path.string()) + " " + ShellQuote(url);
   return std::system(command.c_str()) == 0;
 #else
   const std::string clean_env = "env -u LD_LIBRARY_PATH ";
   const std::string curl = clean_env +
-      "curl -L --fail --silent --show-error --connect-timeout 15 --max-time 300 "
-      "-A ROCgalgame-Updater -o " + ShellQuote(path.string()) + " " + ShellQuote(url);
+      "curl -L --fail --silent --show-error --http1.1 --connect-timeout 15 "
+      "--max-time 300 --speed-limit 1024 --speed-time 20 -A ROCgalgame-Updater" +
+      curl_raw_header + " -o " + ShellQuote(path.string()) + " " + ShellQuote(url);
   if (std::system(curl.c_str()) == 0) return true;
   const std::string wget = clean_env +
-      "wget -q --timeout=300 --user-agent=ROCgalgame-Updater -O " +
-      ShellQuote(path.string()) + " " + ShellQuote(url);
+      "wget -q --timeout=30 --tries=1 --user-agent=ROCgalgame-Updater" +
+      wget_raw_header + " -O " + ShellQuote(path.string()) + " " + ShellQuote(url);
   return std::system(wget.c_str()) == 0;
 #endif
+}
+
+bool LooksLikeZipFile(const std::filesystem::path &path) {
+  std::ifstream in(path, std::ios::binary);
+  char magic[4] = {};
+  in.read(magic, sizeof(magic));
+  return in.gcount() == static_cast<std::streamsize>(sizeof(magic)) &&
+         magic[0] == 'P' && magic[1] == 'K' &&
+         ((magic[2] == '\003' && magic[3] == '\004') ||
+          (magic[2] == '\005' && magic[3] == '\006') ||
+          (magic[2] == '\007' && magic[3] == '\010'));
+}
+
+uint64_t SteadyNowMs() {
+  return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   std::chrono::steady_clock::now().time_since_epoch())
+                                   .count());
 }
 
 int VersionNumber(const std::string &version) {
@@ -79,6 +106,7 @@ struct PackageCandidate {
   std::string filename;
   std::string version;
   std::string download_url;
+  std::string api_url;
   uint64_t size = 0;
 };
 
@@ -91,6 +119,12 @@ std::vector<PackageCandidate> ParsePackageCandidates(const std::string &json) {
     candidate.filename = (*it)[1].str();
     candidate.version = (*it)[2].str();
     candidate.download_url = (*it)[4].str();
+    std::smatch api_match;
+    const std::string object_text = (*it)[0].str();
+    if (std::regex_search(object_text, api_match,
+                          std::regex(R"REGEX("url"\s*:\s*"([^"]+)")REGEX"))) {
+      candidate.api_url = api_match[1].str();
+    }
     try { candidate.size = std::stoull((*it)[3].str()); } catch (...) {}
     out.push_back(std::move(candidate));
   }
@@ -135,7 +169,12 @@ VersionUpdateThreadResult RunUpdate(const std::filesystem::path &runtime_root,
   const std::filesystem::path temp_path = downloads_root / kDownloadTemp;
   const std::filesystem::path package_path = downloads_root / latest->filename;
   std::filesystem::remove(temp_path, ec);
-  if (!DownloadToFile(latest->download_url, temp_path)) {
+  bool downloaded = DownloadToFile(latest->download_url, temp_path);
+  if ((!downloaded || !LooksLikeZipFile(temp_path)) && !latest->api_url.empty()) {
+    std::filesystem::remove(temp_path, ec);
+    downloaded = DownloadToFile(latest->api_url, temp_path, true);
+  }
+  if (!downloaded || !LooksLikeZipFile(temp_path)) {
     std::filesystem::remove(temp_path, ec);
     return result;
   }
@@ -192,6 +231,9 @@ bool BeginVersionUpdateDownload(VersionUpdateState &state) {
   if (state.worker.joinable() || state.status == VersionUpdateStatus::Downloaded) return false;
   state.status = VersionUpdateStatus::Downloading;
   state.download_progress_pct = 0;
+  state.last_observed_download_bytes = 0;
+  state.last_progress_sample_ms = 0;
+  state.download_speed_bytes_per_sec = 0.0;
   state.latest_version.clear();
   state.expected_download_bytes = 0;
   state.worker_state = std::make_shared<VersionUpdateThreadState>();
@@ -223,6 +265,27 @@ bool TickVersionUpdateState(VersionUpdateState &state) {
       state.download_progress_pct = progress;
       changed = true;
     }
+    const uint64_t now_ms = SteadyNowMs();
+    if (state.last_progress_sample_ms == 0) {
+      state.last_progress_sample_ms = now_ms;
+      state.last_observed_download_bytes = bytes;
+    } else if (now_ms >= state.last_progress_sample_ms + 250) {
+      const uint64_t elapsed_ms = now_ms - state.last_progress_sample_ms;
+      const uint64_t delta_bytes = bytes >= state.last_observed_download_bytes
+                                       ? bytes - state.last_observed_download_bytes
+                                       : 0;
+      const double instant_speed = elapsed_ms > 0
+                                       ? static_cast<double>(delta_bytes) * 1000.0 /
+                                             static_cast<double>(elapsed_ms)
+                                       : 0.0;
+      state.download_speed_bytes_per_sec = state.download_speed_bytes_per_sec <= 0.0
+                                                ? instant_speed
+                                                : state.download_speed_bytes_per_sec * 0.72 +
+                                                      instant_speed * 0.28;
+      state.last_progress_sample_ms = now_ms;
+      state.last_observed_download_bytes = bytes;
+      changed = true;
+    }
   }
   if (!state.worker_state || !state.worker_state->done.load(std::memory_order_acquire)) return changed;
   if (state.worker.joinable()) state.worker.join();
@@ -240,9 +303,11 @@ bool TickVersionUpdateState(VersionUpdateState &state) {
     case VersionUpdateThreadResult::Outcome::Downloaded:
       state.status = VersionUpdateStatus::Downloaded;
       state.download_progress_pct = 100;
+      state.download_speed_bytes_per_sec = 0.0;
       break;
     default:
       state.status = VersionUpdateStatus::DownloadFailed;
+      state.download_speed_bytes_per_sec = 0.0;
       break;
   }
   return true;

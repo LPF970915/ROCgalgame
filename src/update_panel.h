@@ -14,6 +14,7 @@ struct UpdatePanelModel {
   std::string current_version;
   std::string latest_version;
   int download_progress_pct = 0;
+  double download_speed_bytes_per_sec = 0.0;
 };
 
 void DrawUpdatePanel(const SDL_Rect &preview, int first_row_y,

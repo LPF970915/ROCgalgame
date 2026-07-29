@@ -43,7 +43,10 @@ struct VersionUpdateState {
   std::filesystem::path downloads_root;
   std::filesystem::path temp_package_path;
   uint64_t expected_download_bytes = 0;
+  uint64_t last_observed_download_bytes = 0;
+  uint64_t last_progress_sample_ms = 0;
   int download_progress_pct = 0;
+  double download_speed_bytes_per_sec = 0.0;
   std::thread worker;
   std::shared_ptr<VersionUpdateThreadState> worker_state;
 };

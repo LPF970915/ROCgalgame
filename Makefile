@@ -193,7 +193,7 @@ test:
 	./$(CORE_INPUT_PROTOCOL_TEST_TARGET)
 	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/system_runtime_test.cpp src/app_runtime.cpp src/app_stores.cpp src/config.cpp src/system_controls.cpp src/system_settings_runtime.cpp src/power_lifecycle.cpp src/lid_power_control.cpp -o $(SYSTEM_RUNTIME_TEST_TARGET) $(SDL_LIBS)
 	./$(SYSTEM_RUNTIME_TEST_TARGET)
-	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/menu_runtime_test.cpp src/animation.cpp src/input_manager.cpp src/menu_scene.cpp src/settings_runtime.cpp src/settings_panel_router.cpp src/system_controls_panel.cpp src/game_settings_runtime.cpp src/game_settings_panel.cpp src/app_stores.cpp src/config.cpp src/app_language.cpp -o $(MENU_RUNTIME_TEST_TARGET) $(SDL_LIBS)
+	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/menu_runtime_test.cpp src/animation.cpp src/input_manager.cpp src/menu_scene.cpp src/settings_runtime.cpp src/settings_panel_router.cpp src/system_controls_panel.cpp src/game_settings_runtime.cpp src/game_settings_panel.cpp src/update_panel.cpp src/app_stores.cpp src/config.cpp src/app_language.cpp -o $(MENU_RUNTIME_TEST_TARGET) $(SDL_LIBS)
 	./$(MENU_RUNTIME_TEST_TARGET)
 	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/game_domain_runtime_test.cpp src/config.cpp src/app_stores.cpp src/game_settings_runtime.cpp src/input_manager.cpp src/game_library.cpp src/game_scanner.cpp src/cover_resolver.cpp src/game_library_service.cpp src/shelf_runtime.cpp src/game_core_adapter.cpp src/game_core_registry.cpp src/game_launch_service.cpp -o $(GAME_DOMAIN_TEST_TARGET) $(SDL_LIBS)
 	./$(GAME_DOMAIN_TEST_TARGET)

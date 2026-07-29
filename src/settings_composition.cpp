@@ -133,7 +133,8 @@ SettingsPanelDrawHandlers MakeSettingsPanelDrawHandlers(
                                                              int first_y) {
     DrawUpdatePanel(preview, first_y,
                     UpdatePanelModel{language, update->status, active, update->current_version,
-                                     update->latest_version, update->download_progress_pct}, services);
+                                     update->latest_version, update->download_progress_pct,
+                                     update->download_speed_bytes_per_sec}, services);
   };
   panels.exit_app = [language, services = composition.services](const SDL_Rect &preview,
                                                                 int first_y) {

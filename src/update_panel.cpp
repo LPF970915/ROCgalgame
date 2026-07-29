@@ -26,7 +26,7 @@ void DrawUpdatePanel(const SDL_Rect &preview, int first_row_y,
     status = LocalizedAppText(model.language_index, AppTextId::VersionNoNetwork);
   } else if (model.status == VersionUpdateStatus::Downloading) {
     status = LocalizedAppText(model.language_index, AppTextId::VersionDownloading);
-    if (model.download_progress_pct > 0) status += " " + std::to_string(model.download_progress_pct) + "%";
+    status += " " + std::to_string(std::clamp(model.download_progress_pct, 0, 100)) + "%";
   } else if (model.status == VersionUpdateStatus::Downloaded) {
     status = std::string(LocalizedAppText(model.language_index, AppTextId::VersionDownloadedPackage)) +
              " " + LocalizedAppText(model.language_index, AppTextId::VersionRestartToInstall);
@@ -48,13 +48,21 @@ void DrawUpdatePanel(const SDL_Rect &preview, int first_row_y,
                                 SDL_Rect{preview.x, line3_y - 46, preview.w, 92},
                                 SDL_Color{155, 168, 182, 255}, MenuPanelTextStyle::Menu);
   }
-  if (model.status == VersionUpdateStatus::Downloading && model.download_progress_pct > 0) {
+  if (model.status == VersionUpdateStatus::Downloading) {
     const SDL_Rect track{preview.x + (preview.w - 520) / 2, line3_y + 44, 520, 18};
     services.draw_rect(track, SDL_Color{29, 42, 57, 255}, true, 1);
     const int fill_w = std::clamp(model.download_progress_pct, 0, 100) * track.w / 100;
     if (fill_w > 0) {
       services.draw_rect(SDL_Rect{track.x, track.y, fill_w, track.h},
                          SDL_Color{122, 201, 255, 255}, true, 1);
+    }
+    services.draw_rect(track, SDL_Color{122, 201, 255, 255}, false, 2);
+    if (services.draw_text_centered) {
+      services.draw_text_centered(
+          LocalizedDownloadSpeedText(model.language_index,
+                                     model.download_speed_bytes_per_sec),
+          SDL_Rect{preview.x, track.y + 24, preview.w, 52},
+          SDL_Color{155, 168, 182, 255}, MenuPanelTextStyle::Small);
     }
   }
 }

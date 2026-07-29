@@ -1,13 +1,17 @@
 #include "game_settings_panel.h"
 #include "menu_scene.h"
 #include "system_controls_panel.h"
+#include "update_panel.h"
 
 #include <SDL.h>
 
+#include <algorithm>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
+#include <vector>
 
 namespace {
 SDL_Event ControllerButtonEvent(Uint32 type, Uint8 button) {
@@ -101,6 +105,30 @@ int main() {
   tween.Update(0.1f);
   assert(tween.Value() == 1.0f);
   assert(!tween.IsAnimating());
+
+  std::vector<SDL_Rect> update_rects;
+  std::vector<std::string> update_texts;
+  MenuPanelDrawServices update_services;
+  update_services.draw_rect = [&](const SDL_Rect &rect, SDL_Color, bool, int) {
+    update_rects.push_back(rect);
+  };
+  update_services.draw_text_centered =
+      [&](const std::string &text, const SDL_Rect &, SDL_Color, MenuPanelTextStyle) {
+        update_texts.push_back(text);
+      };
+  DrawUpdatePanel(SDL_Rect{0, 0, 1000, 700}, 0,
+                  UpdatePanelModel{0, VersionUpdateStatus::Downloading, true,
+                                   "0.22", "0.23", 0, 0.0},
+                  update_services);
+  assert(std::any_of(update_rects.begin(), update_rects.end(), [](const SDL_Rect &rect) {
+    return rect.w == 520 && rect.h == 18;
+  }));
+  assert(std::any_of(update_texts.begin(), update_texts.end(), [](const std::string &text) {
+    return text.find("0%") != std::string::npos;
+  }));
+  assert(std::any_of(update_texts.begin(), update_texts.end(), [](const std::string &text) {
+    return text.find("KB/s") != std::string::npos;
+  }));
 
   std::cout << "menu runtime tests passed\n";
   return 0;
