@@ -7,10 +7,12 @@ import zipfile
 
 
 EXPECTED_PACK = "roms/ports/ROCgalgame/ui.pack"
+EXPECTED_KRKRSDL2 = "roms/ports/ROCgalgame/cores/krkr/krkrsdl2"
 EXPECTED_KRKR2 = "roms/ports/ROCgalgame/cores/krkr/krkr2"
 EXPECTED_KRKR2_RESOURCES = "roms/ports/ROCgalgame/cores/krkr/Resources/"
 EXPECTED_KRKR2_GL = "roms/ports/ROCgalgame/cores/krkr/lib_krkr2/libGL.so.1"
-EXPECTED_KRKR2_SHA256 = "df1a9980777dc1f8b295c989220e7daf8a3aede4739cb4e746414fe1b4889ccc"
+EXPECTED_KRKRSDL2_SHA256 = "6aee1f22494ec653b322cbde9ea0ac88d3ab949650ef706b9ebbdcd4146535e7"
+EXPECTED_KRKR2_SHA256 = "f8a78d7a554816d45227f78070d4b588d8e2ec4d38387900989e497879894e94"
 EXPECTED_KRKR2_GL_SHA256 = "0e1d74952d5edcfd023c214a19f280a5248a256cbc179fbee2285b50bc3ec918"
 EMPTY_RUNTIME_DIRS = ("games", "covers", "saves", "cache")
 
@@ -33,6 +35,9 @@ def main() -> int:
         if EXPECTED_PACK not in names:
             print(f"[package] ERROR: missing encrypted UI pack: {EXPECTED_PACK}", file=sys.stderr)
             return 1
+        if EXPECTED_KRKRSDL2 not in names:
+            print(f"[package] ERROR: missing KRKRSDL2 core: {EXPECTED_KRKRSDL2}", file=sys.stderr)
+            return 1
         if EXPECTED_KRKR2 not in names:
             print(f"[package] ERROR: missing KRKR2 core: {EXPECTED_KRKR2}", file=sys.stderr)
             return 1
@@ -44,6 +49,9 @@ def main() -> int:
             return 1
         if EXPECTED_KRKR2_GL not in names:
             print(f"[package] ERROR: missing KRKR2 private GLVND library: {EXPECTED_KRKR2_GL}", file=sys.stderr)
+            return 1
+        if hashlib.sha256(archive.read(EXPECTED_KRKRSDL2)).hexdigest() != EXPECTED_KRKRSDL2_SHA256:
+            print("[package] ERROR: KRKRSDL2 core hash mismatch", file=sys.stderr)
             return 1
         if hashlib.sha256(archive.read(EXPECTED_KRKR2)).hexdigest() != EXPECTED_KRKR2_SHA256:
             print("[package] ERROR: KRKR2 core hash mismatch", file=sys.stderr)
@@ -59,6 +67,19 @@ def main() -> int:
         ]
         if debug_cores:
             print(f"[package] ERROR: debug core leaked into archive: {debug_cores[0]}", file=sys.stderr)
+            return 1
+        unexpected_krkr2_variants = [
+            name
+            for name in names
+            if pathlib.PurePosixPath(name).parent
+            == pathlib.PurePosixPath("roms/ports/ROCgalgame/cores/krkr")
+            and pathlib.PurePosixPath(name).name.startswith(("krkr2.", "krkr2-"))
+        ]
+        if unexpected_krkr2_variants:
+            print(
+                f"[package] ERROR: KRKR2 candidate/backup leaked into archive: {unexpected_krkr2_variants[0]}",
+                file=sys.stderr,
+            )
             return 1
         plaintext_ui = [
             name

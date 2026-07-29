@@ -1,0 +1,14 @@
+// 環境情報用変数
+with (typeof global.ENV_context == "Object" ? global.ENV_context : global) {
+	.ENV_Maker     = "みるくふぁくとりー";
+	.ENV_MakerURL  = "http://www.milkfactory.jp/";
+	.ENV_GameName  = "もっと！孕ませ！炎のおっぱい異世界エロ魔法学園！";
+	.ENV_GameURL   = "http://www.milkfactory.jp/hmaho/index.html";
+	.ENV_GameId    = "{431B92FA-1F48-4D09-8B5A-08E95C91CCCC}";
+	.ENV_ReadmeFile= "readme.txt";
+	.ENV_ReadmeName= "お読みください";
+	.ENV_IconFile  = "setup/game.ico";
+	.ENV_PKeyName  = "";
+}
+// ※このファイルは直接編集しないでください
+// （元となる MakeConfig.txt を編集して MakeMenuから直makeの「gameconfig」で更新）

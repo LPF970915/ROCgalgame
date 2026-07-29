@@ -10,6 +10,8 @@ TEST_ROOT="${TEST_ROOT:-/tmp/rocgalgame-krkr2-library-sweep-$STAMP}"
 LOG_DIR="${LOG_DIR:-$APP_DIR/logs/krkr2-library-sweep-$STAMP}"
 SUMMARY="$LOG_DIR/summary.tsv"
 CURRENT_PID=""
+DISCOVERED=0
+DISCOVER_ONLY="${DISCOVER_ONLY:-0}"
 
 cleanup() {
   if [ -n "$CURRENT_PID" ] && kill -0 "$CURRENT_PID" 2>/dev/null; then
@@ -20,9 +22,11 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-test -x "$CORE" || { echo "[sweep] missing core: $CORE"; exit 2; }
+if [ "$DISCOVER_ONLY" != "1" ]; then
+  test -x "$CORE" || { echo "[sweep] missing core: $CORE"; exit 2; }
+fi
 mkdir -p "$TEST_ROOT" "$LOG_DIR"
-printf 'id\ttitle\tentry\tstatus\talive\twindow\tstartup\trenderer\texceptions\tplugin_errors\tsave_files\texit_code\tlog\n' >"$SUMMARY"
+printf 'id\ttitle\tsource\tentry\tstatus\talive\twindow\tstartup\trenderer\texceptions\tplugin_errors\tsave_files\texit_code\tlog\n' >"$SUMMARY"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/0-runtime-dir}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
@@ -65,36 +69,150 @@ copy_or_link_item() {
   fi
 }
 
+ini_value() {
+  ini_file="$1"
+  wanted="$2"
+  [ -f "$ini_file" ] || return 0
+  awk -F= -v wanted="$wanted" '
+    {
+      sub(/\r$/, "")
+      key=$1
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+      key=tolower(key)
+      if(key == wanted) {
+        value=substr($0, index($0, "=") + 1)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        print value
+        exit
+      }
+    }
+  ' "$ini_file"
+}
+
+is_xp3_archive() {
+  candidate="$1"
+  [ -f "$candidate" ] || return 1
+  header="$(head -c 11 "$candidate" 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+  [ "$header" = "5850330d0a200a1a8b6701" ]
+}
+
+is_krkr_game() {
+  candidate_dir="$1"
+  ini_file="$candidate_dir/game.ini"
+  configured_core="$(ini_value "$ini_file" core | tr '[:upper:]' '[:lower:]')"
+  configured_runtime="$(ini_value "$ini_file" runtime | tr '[:upper:]' '[:lower:]')"
+  [ -n "$configured_runtime" ] ||
+    configured_runtime="$(ini_value "$ini_file" krkr_runtime | tr '[:upper:]' '[:lower:]')"
+  case "$configured_core" in
+    krkr|kirikiri)
+      return 0
+      ;;
+  esac
+  case "$configured_runtime" in
+    krkrsdl2|krkr2|kirikiroid2)
+      return 0
+      ;;
+  esac
+  for marker in startup.tjs Config.tjs config.tjs; do
+    [ -f "$candidate_dir/$marker" ] && return 0
+  done
+  for candidate in "$candidate_dir"/*; do
+    [ -f "$candidate" ] || continue
+    is_xp3_archive "$candidate" && return 0
+  done
+  return 1
+}
+
+detect_entry() {
+  candidate_dir="$1"
+  configured_entry="$(ini_value "$candidate_dir/game.ini" entry)"
+  if [ -n "$configured_entry" ]; then
+    printf '%s\n' "$configured_entry"
+    return
+  fi
+  if is_xp3_archive "$candidate_dir/data.xp3"; then
+    printf '%s\n' 'data.xp3'
+    return
+  fi
+  if [ -f "$candidate_dir/startup.tjs" ]; then
+    printf '%s\n' '.'
+    return
+  fi
+
+  archive_count=0
+  only_archive=""
+  preferred_count=0
+  preferred_archive=""
+  for candidate in "$candidate_dir"/*; do
+    [ -f "$candidate" ] || continue
+    is_xp3_archive "$candidate" || continue
+    filename="$(basename "$candidate")"
+    lower_filename="$(printf '%s' "$filename" | tr '[:upper:]' '[:lower:]')"
+    case "$lower_filename" in patch*) continue ;; esac
+    archive_count=$((archive_count + 1))
+    only_archive="$filename"
+    case "$lower_filename" in
+      data.*)
+        preferred_count=$((preferred_count + 1))
+        preferred_archive="$filename"
+        ;;
+    esac
+  done
+  if [ "$preferred_count" -eq 1 ]; then
+    printf '%s\n' "$preferred_archive"
+  elif [ "$archive_count" -eq 1 ]; then
+    printf '%s\n' "$only_archive"
+  fi
+}
+
+stable_case_id() {
+  relative_dir="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    digest="$(printf '%s' "$relative_dir" | sha256sum | awk '{print substr($1, 1, 12)}')"
+  elif command -v md5sum >/dev/null 2>&1; then
+    digest="$(printf '%s' "$relative_dir" | md5sum | awk '{print substr($1, 1, 12)}')"
+  else
+    digest="fallback-$DISCOVERED"
+  fi
+  printf 'game-%s\n' "$digest"
+}
+
 run_case() {
   id="$1"
   title="$2"
-  entry="$3"
+  source_dir="$3"
+  entry="$4"
   case ",${CASE_FILTER:-}," in
     ',,') ;;
     *",$id,"*) ;;
     *) echo "[sweep] SKIP id=$id"; return ;;
   esac
-  source_dir="$GAMES_DIR/$title"
   case_dir="$TEST_ROOT/$id"
+  save_dir="$TEST_ROOT/save-roots/$id"
   log_file="$LOG_DIR/$id.log"
   tree_file="$LOG_DIR/$id.sway-tree.json"
 
-  echo "[sweep] START id=$id title=$title entry=$entry"
+  echo "[sweep] START id=$id title=$title source=$source_dir entry=$entry"
   if [ ! -d "$source_dir" ] || [ ! -e "$source_dir/$entry" ]; then
-    printf '%s\t%s\t%s\tmissing_entry\t0\t0\t0\tmissing\t0\t0\t0\t127\t%s\n' \
-      "$id" "$title" "$entry" "$log_file" >>"$SUMMARY"
+    printf '%s\t%s\t%s\t%s\tmissing_entry\t0\t0\t0\tmissing\t0\t0\t0\t127\t%s\n' \
+      "$id" "$title" "$source_dir" "$entry" "$log_file" >>"$SUMMARY"
     echo "[sweep] DONE id=$id status=missing_entry"
     return
   fi
 
-  mkdir -p "$case_dir/savedata"
+  mkdir -p "$case_dir" "$save_dir"
   for source_item in "$source_dir"/*; do
     [ -e "$source_item" ] || continue
     copy_or_link_item "$source_item" "$case_dir"
   done
 
   cd "$case_dir" || return
-  "$CORE" "$case_dir/$entry" >"$log_file" 2>&1 &
+  if [ "${USE_SAVE_ENV:-1}" = "1" ]; then
+    ROCGALGAME_KRKR_SAVE_PATH="$save_dir" \
+      "$CORE" "$case_dir/$entry" >"$log_file" 2>&1 &
+  else
+    "$CORE" "$case_dir/$entry" >"$log_file" 2>&1 &
+  fi
   CURRENT_PID=$!
   sleep "$RUN_SECONDS"
 
@@ -124,7 +242,7 @@ run_case() {
   [ -n "$renderer" ] || renderer=missing
   exceptions="$(grep -Eic 'An exception occurred|Unhandled exception|Segmentation fault|SIGSEGV|std::terminate' "$log_file" 2>/dev/null || true)"
   plugin_errors="$(grep -Eic 'Loading Plugin:.*Failed' "$log_file" 2>/dev/null || true)"
-  save_files="$(find "$case_dir/savedata" -type f -print 2>/dev/null | wc -l | tr -d ' ')"
+  save_files="$(find "$save_dir" -type f -print 2>/dev/null | wc -l | tr -d ' ')"
 
   status=pass
   if [ "$alive" -ne 1 ]; then
@@ -139,23 +257,52 @@ run_case() {
     status=non_mali_renderer
   fi
 
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$id" "$title" "$entry" "$status" "$alive" "$window" "$startup" \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$id" "$title" "$source_dir" "$entry" "$status" "$alive" "$window" "$startup" \
     "$renderer" "$exceptions" "$plugin_errors" "$save_files" \
     "$exit_code" "$log_file" >>"$SUMMARY"
   echo "[sweep] DONE id=$id status=$status alive=$alive window=$window startup=$startup renderer=$renderer exceptions=$exceptions plugin_errors=$plugin_errors save_files=$save_files exit_code=$exit_code"
 }
 
-run_case neko0 'NEKOPARA Vol.0' 'data.xp3'
-run_case neko2 'NEKOPARA Vol.2' 'data.xp3'
-run_case haramase_isekai 'もっと！孕ませ！炎のおっぱい異世界エロ魔法学園！' 'data.xp3'
-run_case mofuku '丧服萝莉紧缚奇谭 美少女性奴隶调教' 'data.xp3'
-run_case senren '千恋万花' 'data.xp3'
-run_case amae_mama '向妈妈撒娇吧！' 'data.bin'
-run_case hmaho '吹弹！丰盈！波涛汹涌！异世界魔法学园！' 'data.xp3'
-run_case kisaragi '如月真绫的指导' '运行游戏.xp3'
-run_case momoiro '桃色恋恋 ～与姐妹相系的H关系～' 'data.xp3'
-run_case app_gakuen '超工口APP学园／全部！怀孕！超色情爆乳▼APP学园！' 'data.xp3'
+discover_bucket() {
+  bucket="$1"
+  [ -d "$bucket" ] || return 0
+  for source_dir in "$bucket"/*; do
+    [ -d "$source_dir" ] || continue
+    is_krkr_game "$source_dir" || continue
 
+    DISCOVERED=$((DISCOVERED + 1))
+    title="$(basename "$source_dir" | tr '\t\r' '  ')"
+    relative_dir="${source_dir#"$GAMES_DIR"/}"
+    id="$(stable_case_id "$relative_dir")"
+    entry="$(detect_entry "$source_dir")"
+
+    if [ -z "$entry" ]; then
+      log_file="$LOG_DIR/$id.log"
+      printf '%s\t%s\t%s\t\tambiguous_entry\t0\t0\t0\tmissing\t0\t0\t0\t127\t%s\n' \
+        "$id" "$title" "$source_dir" "$log_file" >>"$SUMMARY"
+      echo "[sweep] DISCOVER id=$id title=$title source=$source_dir status=ambiguous_entry"
+      continue
+    fi
+
+    echo "[sweep] DISCOVER id=$id title=$title source=$source_dir entry=$entry"
+    if [ "$DISCOVER_ONLY" = "1" ]; then
+      printf '%s\t%s\t%s\t%s\tdiscovered\t0\t0\t0\tmissing\t0\t0\t0\t0\t\n' \
+        "$id" "$title" "$source_dir" "$entry" >>"$SUMMARY"
+    else
+      run_case "$id" "$title" "$source_dir" "$entry"
+    fi
+  done
+}
+
+discover_bucket "$GAMES_DIR"
+discover_bucket "$GAMES_DIR/krkr"
+
+if [ "$DISCOVERED" -eq 0 ]; then
+  echo "[sweep] no KRKR games discovered under $GAMES_DIR" >&2
+  exit 3
+fi
+
+echo "[sweep] DISCOVERED=$DISCOVERED"
 echo "[sweep] SUMMARY=$SUMMARY"
 cat "$SUMMARY"

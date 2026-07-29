@@ -311,6 +311,21 @@ verify_rocgalgame_source_patches() {
     echo "[krkr2_build] ERROR: KRKR2 TJS bytecode-bounds patch is missing"
     exit 1
   }
+  local text_stream="$KRKR2_ROOT/cpp/core/base/TextStream.cpp"
+  grep -Fq 'constexpr size_t cipherHeaderSize = 5;' "$text_stream" || {
+    echo "[krkr2_build] ERROR: KRKR2 encrypted-text header patch is missing"
+    exit 1
+  }
+  local sys_init="$KRKR2_ROOT/cpp/core/base/impl/SysInitImpl.cpp"
+  grep -Fq 'std::getenv("ROCGALGAME_KRKR_SAVE_PATH")' "$sys_init" || {
+    echo "[krkr2_build] ERROR: KRKR2 isolated-save-path patch is missing"
+    exit 1
+  }
+  local linux_main="$KRKR2_ROOT/platforms/linux/main.cpp"
+  grep -Fq 'for(int i = 2; i < argc; ++i)' "$linux_main" || {
+    echo "[krkr2_build] ERROR: KRKR2 Linux command-line patch is missing"
+    exit 1
+  }
 }
 
 prepare_fmod_stub() {

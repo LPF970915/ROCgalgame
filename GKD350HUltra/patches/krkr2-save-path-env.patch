@@ -1,0 +1,27 @@
+diff --git a/cpp/core/base/impl/SysInitImpl.cpp b/cpp/core/base/impl/SysInitImpl.cpp
+--- a/cpp/core/base/impl/SysInitImpl.cpp
++++ b/cpp/core/base/impl/SysInitImpl.cpp
+@@ -39,5 +39,6 @@
+ #define uint32_t unsigned int
+ 
++#include <cstdlib>
+ #include <thread>
+ 
+ #undef uint32_t
+@@ -523,8 +524,14 @@ static void TVPInitProgramArgumentsAndDataPath(bool stop_after_datapath_got) {
+             // 			if(TVPGetCommandLine(TJS_W("-datapath"),
+             // &val)) 				config_datapath =
+             // ((ttstr)val).AsStdString();
+-            TVPNativeDataPath = ApplicationSpecialPath::GetDataPathDirectory(
+-                config_datapath, ExePath());
++            const char *savePath = std::getenv("ROCGALGAME_KRKR_SAVE_PATH");
++            if(savePath && *savePath) {
++                TVPNativeDataPath =
++                    IncludeTrailingBackslash(ttstr(savePath));
++            } else {
++                TVPNativeDataPath = ApplicationSpecialPath::GetDataPathDirectory(
++                    config_datapath, ExePath());
++            }
+ 
+             if(stop_after_datapath_got)
+                 return;

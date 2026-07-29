@@ -1,0 +1,36 @@
+Plugins.link("PackinOne.dll");
+
+if(typeof CompoundStorageMedia == "undefined")
+    throw new Exception("CompoundStorageMedia missing");
+var media = new CompoundStorageMedia();
+if(!media.addArchive() || !media.addStorage() || !media.addAutoToolsPath())
+    throw new Exception("CompoundStorageMedia path methods invalid");
+if(!media.setCurrentDirectory() || !media.register() || !media.unregister())
+    throw new Exception("CompoundStorageMedia lifecycle methods invalid");
+if(media.parseArchiveIndex() != 0 || media.archiveUniqueKey == "")
+    throw new Exception("CompoundStorageMedia bounded archive contract invalid");
+
+if(typeof Storages.fstat == "undefined" ||
+   typeof Storages.isExistentDirectory == "undefined" ||
+   typeof Storages.getMD5HashString == "undefined" ||
+   typeof getDirList == "undefined")
+    throw new Exception("PackinOne storage modules missing");
+if(typeof System.addFont == "undefined" ||
+   typeof Array.save2 == "undefined" ||
+   typeof Array.saveStruct2 == "undefined" ||
+   typeof Dictionary.saveStruct2 == "undefined" ||
+   typeof TextRenderBase == "undefined" ||
+   typeof Layer.openMovie == "undefined")
+    throw new Exception("PackinOne bundled modules missing");
+
+var source = System.dataPath + "packinone_source.txt";
+var copied = System.dataPath + "packinone_copied.txt";
+Storages.deleteFile(source);
+Storages.deleteFile(copied);
+["PACKINONE_COMPAT_OK"].save2(source);
+if(!Storages.copyFile(source, copied) || Storages.getPlacedPath(copied) == "")
+    throw new Exception("PackinOne storage write/copy failed");
+Storages.deleteFile(copied);
+
+Debug.message("PACKINONE_COMPAT_OK");
+System.exit(0);

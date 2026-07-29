@@ -1,0 +1,39 @@
+diff --git a/cpp/core/base/TextStream.cpp b/cpp/core/base/TextStream.cpp
+--- a/cpp/core/base/TextStream.cpp
++++ b/cpp/core/base/TextStream.cpp
+@@ -82,20 +82,30 @@ public:
+         // ---------- 检查是否加密/压缩 ----------
+         if(size >= 3 && raw[0] == 0xFE && raw[1] == 0xFE) {
+             std::uint8_t m = raw[2];
+             if(m == 0 || m == 1) {
+-                // 解密 UTF-16 数据
+-                const auto *src =
+-                    reinterpret_cast<const char16_t *>(raw.data() + 4);
+-                size_t len = (size - 4) / 2;
++                // The cipher signature is three bytes and is followed by the
++                // two-byte UTF-16LE BOM. Reading at +4 shifts every code unit
++                // by one byte and turns valid encrypted scripts into garbage.
++                constexpr size_t cipherHeaderSize = 5;
++                if(size < cipherHeaderSize || raw[3] != 0xFF ||
++                   raw[4] != 0xFE || (size - cipherHeaderSize) % 2 != 0) {
++                    TVPThrowExceptionMessage(TVPUnsupportedCipherMode, name);
++                }
++                size_t len = (size - cipherHeaderSize) / 2;
+                 _buffer.resize(len);
+                 for(size_t i = 0; i < len; i++) {
+-                    char16_t ch = src[i];
++                    const size_t byteOffset = cipherHeaderSize + i * 2;
++                    char16_t ch = static_cast<char16_t>(
++                        raw[byteOffset] |
++                        (static_cast<std::uint16_t>(raw[byteOffset + 1]) << 8));
+                     if(m == 0) {
+                         if(ch >= 0x20)
+                             ch ^= (((ch & 0xfe) << 8) ^ 1);
+                     } else if(m == 1) {
+-                        ch =
+-                            ((ch & 0xaaaaaaaa) >> 1) | ((ch & 0x55555555) << 1);
++                        ch = static_cast<char16_t>(((ch & 0xaaaa) >> 1) |
++                                                   ((ch & 0x5555) << 1));
+                     }
+                     _buffer[i] = ch;
+                 }

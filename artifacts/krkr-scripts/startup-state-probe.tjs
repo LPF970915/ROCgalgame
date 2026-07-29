@@ -1,0 +1,325 @@
+Debug.message("STATE_PROBE wrapper_begin");
+Scripts.execStorage("startup.tjs");
+Debug.message("STATE_PROBE wrapper_after_startup");
+kag.mainConductor.debugLevel = 2;
+Debug.message("STATE_PROBE conductor_debug=verbose");
+
+try {
+    global.stateProbePsb = new PSBFile();
+    Debug.message("STATE_PROBE psb_stage=constructed");
+    var psbLoaded = stateProbePsb.load("uipsd/title.pimg");
+    Debug.message("STATE_PROBE psb_stage=loaded result=" + psbLoaded);
+    var psbRoot = stateProbePsb.root;
+    Debug.message("STATE_PROBE psb_stage=root type=" + typeof psbRoot);
+    var psbKeys = Scripts.getObjectKeys(psbRoot);
+    Debug.message("STATE_PROBE psb_stage=keys count=" + psbKeys.count);
+    for(var psbKeyIndex = 0; psbKeyIndex < psbKeys.count; psbKeyIndex++) {
+        var psbKey = psbKeys[psbKeyIndex];
+        Debug.message("STATE_PROBE psb_key index=" + psbKeyIndex +
+                      " name=" + psbKey +
+                      " type=" + typeof psbRoot[psbKey]);
+    }
+    Debug.message("STATE_PROBE psb loaded=" + psbLoaded +
+                  " keys=" + psbKeys.count +
+                  " layers_type=" + typeof psbRoot.layers +
+                  " layers_count=" + psbRoot.layers.count);
+    var psbLimit = psbRoot.layers.count;
+    for(var psbIndex = 0; psbIndex < psbLimit; psbIndex++) {
+        var psbLayer = psbRoot.layers[psbIndex];
+        Debug.message("STATE_PROBE psb_layer index=" + psbIndex +
+                      " id=" + psbLayer.layer_id +
+                      " name=" + psbLayer.name +
+                      " left=" + psbLayer.left +
+                      " top=" + psbLayer.top +
+                      " width=" + psbLayer.width +
+                      " height=" + psbLayer.height +
+                      " visible=" + psbLayer.visible);
+    }
+
+    global.stateProbeImageWindow = new Window();
+    global.stateProbeImageLayer = new Layer(stateProbeImageWindow, null);
+    var psbProbePaths = [
+        "psb://uipsd/title.pimg/750.tlg",
+        "psb://./uipsd/title.pimg/750.tlg",
+        "psb://title.pimg/750.tlg",
+        "psb://./title.pimg/750.tlg",
+        "uipsd/title.pimg/750.tlg"
+    ];
+    for(var psbPathIndex = 0;
+        psbPathIndex < psbProbePaths.count;
+        psbPathIndex++) {
+        var psbProbePath = psbProbePaths[psbPathIndex];
+        try {
+            var psbExists = Storages.isExistentStorage(psbProbePath);
+            Debug.message("STATE_PROBE psb_path path=" + psbProbePath +
+                          " exists=" + psbExists);
+            if(psbExists) {
+                stateProbeImageLayer.loadImages(psbProbePath);
+                Debug.message("STATE_PROBE psb_image path=" + psbProbePath +
+                              " width=" + stateProbeImageLayer.imageWidth +
+                              " height=" + stateProbeImageLayer.imageHeight);
+            }
+        } catch(psbPathError) {
+            Debug.message("STATE_PROBE psb_path_error path=" + psbProbePath +
+                          " error=" + psbPathError.message);
+        }
+    }
+} catch(psbError) {
+    Debug.message("STATE_PROBE psb_error=" + psbError.message);
+}
+
+global.stateProbeTick = 0;
+global.stateProbeLayerCount = 0;
+function stateProbeDumpLayerTree(layer, path, depth) {
+    if(depth < 0 || stateProbeLayerCount >= 80) return;
+    var children;
+    try {
+        children = layer.children;
+    } catch(childrenError) {
+        Debug.message("STATE_PROBE layer_children_error path=" + path +
+                      " error=" + childrenError.message);
+        return;
+    }
+    Debug.message("STATE_PROBE layer_children path=" + path +
+                  " count=" + children.count);
+    for(var childIndex = 0;
+        childIndex < children.count && stateProbeLayerCount < 80;
+        childIndex++) {
+        stateProbeLayerCount++;
+        var child = children[childIndex];
+        var childPath = path + "/" + childIndex;
+        try {
+            var childLine = "STATE_PROBE layer path=" + childPath;
+            childLine += " visible=" + child.visible;
+            childLine += " opacity=" + child.opacity;
+            childLine += " pos=" + child.left + "," + child.top;
+            childLine += " size=" + child.width + "x" + child.height;
+            Debug.message(childLine);
+        } catch(childStateError) {
+            Debug.message("STATE_PROBE layer_state_error path=" + childPath +
+                          " error=" + childStateError.message);
+        }
+        try {
+            Debug.message("STATE_PROBE layer_image path=" + childPath +
+                          " size=" + child.imageWidth + "x" +
+                          child.imageHeight +
+                          " pixel=" + child.getMainPixel(0, 0));
+        } catch(childImageError) {
+            Debug.message("STATE_PROBE layer_image_error path=" + childPath +
+                          " error=" + childImageError.message);
+        }
+        stateProbeDumpLayerTree(child, childPath, depth - 1);
+    }
+}
+global.stateProbeTimer = new Timer(this);
+stateProbeTimer.interval = 1000;
+stateProbeTimer.onTimer = function() {
+    stateProbeTick++;
+    var line = "STATE_PROBE tick=" + stateProbeTick;
+    line += " kag=" + typeof global.kag;
+    line += " Current=" + typeof global.Current;
+    line += " SystemConfig=" + typeof global.SystemConfig;
+    Debug.message(line);
+
+    line = "STATE_PROBE kag_state";
+    line += " storage=" + kag.currentStorage;
+    line += " label=" + kag.currentLabel;
+    line += " stable=" + kag.inStable;
+    line += " sleep=" + kag.inSleep;
+    line += " click=" + kag.clickWaiting;
+    line += " dialog=" + kag.currentDialog;
+    Debug.message(line);
+
+    line = "STATE_PROBE conductor";
+    line += " storage=" + kag.mainConductor.curStorage;
+    line += " line=" + kag.mainConductor.curLine;
+    line += " target=" + kag.mainConductor.targetLabel;
+    line += " timer=" + kag.mainConductor.timerEnabled;
+    Debug.message(line);
+
+    line = "STATE_PROBE hooks";
+    line += " table=" + typeof global.SystemHook;
+    line += " first.logo=" + typeof SystemHook["first.logo"];
+    line += " title.loop=" + typeof SystemHook["title.loop"];
+    line += " title.start=" + typeof SystemHook["title.start"];
+    Debug.message(line);
+
+    line = "STATE_PROBE storage";
+    line += " Storages=" + typeof global.Storages;
+    line += " title_pimg=" + Storages.isExistentStorage("uipsd/title.pimg");
+    line += " title_func=" + Storages.isExistentStorage("uipsd/title.func");
+    Debug.message(line);
+
+    line = "STATE_PROBE custom";
+    line += " factory=" + createCallConfigFile("custom.ks");
+    line += " custom=" + Storages.getPlacedPath("custom.ks");
+    line += " main_custom=" + Storages.getPlacedPath("main/custom.ks");
+    Debug.message(line);
+
+    line = "STATE_PROBE macros";
+    line += " table=" + typeof kag.mainConductor.macros;
+    line += " title_show=" + typeof kag.mainConductor.macros["title_show"];
+    line += " title_bgm=" + typeof kag.mainConductor.macros["title_bgm"];
+    line += " sysvoice=" + typeof kag.mainConductor.macros["sysvoice"];
+    line += " dialog=" + typeof kag.mainConductor.macros["dialog"];
+    line += " syspage=" + typeof kag.mainConductor.macros["syspage"];
+    Debug.message(line);
+
+    if(stateProbeTick == 6) {
+        var currentKeys = Scripts.getObjectKeys(Current);
+        Debug.message("STATE_PROBE current_keys count=" + currentKeys.count);
+        for(var currentKeyIndex = 0;
+            currentKeyIndex < currentKeys.count;
+            currentKeyIndex++) {
+            var currentKey = currentKeys[currentKeyIndex];
+            try {
+                Debug.message("STATE_PROBE current_key name=" + currentKey +
+                              " type=" + typeof Current[currentKey]);
+            } catch(currentKeyError) {
+                Debug.message("STATE_PROBE current_key_error name=" + currentKey +
+                              " error=" + currentKeyError.message);
+            }
+        }
+
+        line = "STATE_PROBE current_state";
+        line += " now=" + Current._now;
+        line += " storage=" + Current.storage;
+        line += " layerName=" + Current.layerName;
+        line += " defaultLayerName=" + Current.defaultLayerName;
+        Debug.message(line);
+
+        var entryKeys = Scripts.getObjectKeys(Current._entries);
+        Debug.message("STATE_PROBE entry_keys count=" + entryKeys.count);
+        for(var entryKeyIndex = 0;
+            entryKeyIndex < entryKeys.count;
+            entryKeyIndex++) {
+            var entryKey = entryKeys[entryKeyIndex];
+            Debug.message("STATE_PROBE entry_key name=" + entryKey +
+                          " type=" + typeof Current._entries[entryKey]);
+        }
+
+        line = "STATE_PROBE kag_pages";
+        line += " visible=" + kag.visible;
+        line += " size=" + kag.width + "x" + kag.height;
+        line += " currentPage=" + kag._currentPageName;
+        line += " fore=" + typeof kag.fore;
+        line += " back=" + typeof kag.back;
+        line += " primary=" + typeof kag._primaryLayer;
+        line += " uibase=" + typeof kag.uibase;
+        line += " sysbase=" + typeof kag.sysbase;
+        line += " transShowing=" + kag.transShowing;
+        Debug.message(line);
+
+        try {
+            line = "STATE_PROBE primary_layer";
+            line += " visible=" + kag._primaryLayer.visible;
+            line += " opacity=" + kag._primaryLayer.opacity;
+            line += " size=" + kag._primaryLayer.width + "x" +
+                kag._primaryLayer.height;
+            line += " image=" + kag._primaryLayer.imageWidth + "x" +
+                kag._primaryLayer.imageHeight;
+            Debug.message(line);
+        } catch(primaryError) {
+            Debug.message("STATE_PROBE primary_error=" + primaryError.message);
+        }
+
+        try {
+            line = "STATE_PROBE fore_base";
+            line += " visible=" + kag.fore.base.visible;
+            line += " opacity=" + kag.fore.base.opacity;
+            line += " size=" + kag.fore.base.width + "x" +
+                kag.fore.base.height;
+            line += " image=" + kag.fore.base.imageWidth + "x" +
+                kag.fore.base.imageHeight;
+            line += " layers=" + kag.fore.layers.count;
+            Debug.message(line);
+        } catch(foreError) {
+            Debug.message("STATE_PROBE fore_error=" + foreError.message);
+        }
+
+        try {
+            line = "STATE_PROBE back_base";
+            line += " visible=" + kag.back.base.visible;
+            line += " opacity=" + kag.back.base.opacity;
+            line += " size=" + kag.back.base.width + "x" +
+                kag.back.base.height;
+            line += " image=" + kag.back.base.imageWidth + "x" +
+                kag.back.base.imageHeight;
+            line += " layers=" + kag.back.layers.count;
+            Debug.message(line);
+        } catch(backError) {
+            Debug.message("STATE_PROBE back_error=" + backError.message);
+        }
+
+        try {
+            line = "STATE_PROBE uibase";
+            line += " visible=" + kag.uibase.visible;
+            line += " opacity=" + kag.uibase.opacity;
+            line += " size=" + kag.uibase.width + "x" + kag.uibase.height;
+            line += " image=" + kag.uibase.imageWidth + "x" +
+                kag.uibase.imageHeight;
+            Debug.message(line);
+        } catch(uibaseError) {
+            Debug.message("STATE_PROBE uibase_error=" + uibaseError.message);
+        }
+
+        try {
+            line = "STATE_PROBE sysbase";
+            line += " visible=" + kag.sysbase.visible;
+            line += " opacity=" + kag.sysbase.opacity;
+            line += " size=" + kag.sysbase.width + "x" + kag.sysbase.height;
+            line += " image=" + kag.sysbase.imageWidth + "x" +
+                kag.sysbase.imageHeight;
+            Debug.message(line);
+            Debug.message("STATE_PROBE sysbase_pixels p00=" +
+                          kag.sysbase.getMainPixel(0, 0) +
+                          " p100=" + kag.sysbase.getMainPixel(100, 100) +
+                          " pcenter=" + kag.sysbase.getMainPixel(640, 360) +
+                          " pbutton1=" + kag.sysbase.getMainPixel(300, 600) +
+                          " pbutton2=" + kag.sysbase.getMainPixel(1000, 600));
+        } catch(sysbaseError) {
+            Debug.message("STATE_PROBE sysbase_error=" + sysbaseError.message);
+        }
+
+        try {
+            Debug.message("STATE_PROBE decoded_pixels p00=" +
+                          stateProbeImageLayer.getMainPixel(0, 0) +
+                          " p100=" +
+                          stateProbeImageLayer.getMainPixel(100, 100) +
+                          " pcenter=" +
+                          stateProbeImageLayer.getMainPixel(640, 360) +
+                          " pbutton1=" +
+                          stateProbeImageLayer.getMainPixel(300, 600) +
+                          " pbutton2=" +
+                          stateProbeImageLayer.getMainPixel(1000, 600));
+        } catch(decodedPixelError) {
+            Debug.message("STATE_PROBE decoded_pixel_error=" +
+                          decodedPixelError.message);
+        }
+
+        stateProbeLayerCount = 0;
+        stateProbeDumpLayerTree(kag._primaryLayer, "primary", 5);
+
+        try {
+            for(var forcedUpdateIndex = 0;
+                forcedUpdateIndex < 80;
+                forcedUpdateIndex++) {
+                kag.update();
+            }
+            Debug.message("STATE_PROBE forced_updates=80");
+        } catch(forcedUpdateError) {
+            Debug.message("STATE_PROBE forced_update_error=" +
+                          forcedUpdateError.message);
+        }
+
+        line = "STATE_PROBE ui_globals";
+        line += " psdInfo=" + typeof global.psdInfo;
+        line += " psdContext=" + typeof global.psdContext;
+        line += " uiloadSystem=" + typeof global.uiloadSystem;
+        line += " uiloadEntry=" + typeof global.uiloadEntry;
+        line += " UIListParser=" + typeof global.UIListParser;
+        Debug.message(line);
+    }
+
+};
+stateProbeTimer.enabled = true;

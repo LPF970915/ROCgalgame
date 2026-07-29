@@ -1,0 +1,34 @@
+psd,title
+ui,#領域/START,		@start:rect/toggle
+ui,#領域/LOAD,		@load:rect
+ui,#領域/CONTINUE,	@continue:rect
+ui,#領域/CONFIG,	@config:rect
+ui,#領域/EXTRA,		@extra:rect
+ui,#領域/EXIT,		@exit:rect
+ui,#領域/HOMEPAGE,	@homepage:rect
+ui,#領域/TWITTER,	@twitter:rect
+ui,UI/上段/ds,		@allup:disable
+ui,UI/上段/ov,		@allup:over
+ui,UI/上段/nm,		@allup:off/cref
+ui,UI/下段/ov,		@alldw:over
+ui,UI/下段/nm,		@alldw:off/cref
+ui,base,		@base
+#
+cref,allup,start,load,continue,homepage
+cref,alldw,config,extra,exit,twitter
+#
+func,start,	storage,custom.ks,	target,*name_input
+func,load,	storage,title.ks,	target,*load
+eval,-load,exp,this.enabled=global.SystemConfig.hasAnySaveData;
+func,continue,	storage,custom.ks,	target,*continue
+eval,-continue,exp,this.enabled=global.SystemAction.canContinue
+func,continue,	onenter,Current.cmd("contPopup/1/continue"),	onleave,Current.cmd("contPopup/0/continue")
+func,config,	storage,title.ks,	target,*option
+#eval,extra,call,global.Current.uiEval,updateOmakeState,false
+func,extra,	storage,custom.ks,	target,*extra
+func,exit,	exp,kag.close()
+func,homepage,	exp,System.shellExecute('http://milkfactory.jp/')
+func,twitter,	exp,System.shellExecute('https://twitter.com/milkfactory_')
+#
+eval,names,call,uiloadSysSE,title
+

@@ -26,6 +26,9 @@ git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\p
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-messagebox.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-empty-string.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-bytecode-bounds.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-text-stream-cipher-header.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-command-line.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-kag-emb-escape.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-psb-load-safety.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-fstat-delete-missing.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gpu-presentation.patch
@@ -79,6 +82,16 @@ The TJS bytecode-bounds patch validates interpreter entry and instruction
 pointers. Incompatible exception targets now produce a controlled
 `ByteCodeBroken` script error with diagnostics instead of reading an invalid
 instruction address and raising `SIGSEGV`.
+
+The encrypted-text header patch consumes the complete three-byte cipher
+signature and two-byte UTF-16LE BOM before decoding mode-0 and mode-1 TJS text.
+It also validates the BOM and code-unit length and reads little-endian units
+without unaligned pointer access. This fixes standard encrypted scripts that
+were previously shifted by one byte and misreported as broken bytecode.
+
+The KAG emb escape patch implements the standard `escape` attribute for
+`[emb]`. Escaping remains enabled by default, while `escape=false` permits an
+expression to generate executable KAG tags such as `[call storage=...]`.
 
 The PSB load-safety patch removes the uninitialized file-local media pointer,
 stops immediately after a failed parse, and registers successfully decoded

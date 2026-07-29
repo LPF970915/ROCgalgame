@@ -213,8 +213,10 @@ void ScanCoreBucket(std::vector<GameEntry> &out, const fs::path &bucket, CoreKin
       } else {
         game.entry_point = DetectKrkrEntryPoint(dir);
       }
+      const fs::path standard_data_archive = dir / "data.xp3";
       if (game.overrides.krkr_runtime == KrkrRuntime::Auto &&
-          game.entry_point != dir && HasXp3Signature(game.entry_point)) {
+          ((game.entry_point != dir && HasXp3Signature(game.entry_point)) ||
+           HasXp3Signature(standard_data_archive))) {
         game.overrides.krkr_runtime = KrkrRuntime::Krkr2;
       }
     }

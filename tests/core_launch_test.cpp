@@ -35,6 +35,7 @@ int main() {
   fs::create_directories(root / "games/krkr/directory_game");
   fs::create_directories(root / "games/krkr/archive_game");
   fs::create_directories(root / "games/krkr/native_game");
+  fs::create_directories(root / "games/krkr/standard_data_game");
   fs::create_directories(root / "games/renamed_archive_game");
   fs::create_directories(root / "games/custom_archive_game");
   fs::create_directories(root / "games/ambiguous_archive_game");
@@ -51,6 +52,7 @@ int main() {
   std::ofstream(root / "games/krkr/native_game/startup.tjs") << "Debug.message('test');";
   std::ofstream(root / "games/krkr/native_game/data.xp3") << "test";
   std::ofstream(root / "games/krkr/native_game/game.ini") << "runtime=krkr2\n";
+  WriteXp3Archive(root / "games/krkr/standard_data_game/data.xp3");
   WriteXp3Archive(root / "games/renamed_archive_game/data.bin");
   WriteXp3Archive(root / "games/renamed_archive_game/patch.xp3");
   WriteXp3Archive(root / "games/custom_archive_game/project.dat");
@@ -59,7 +61,7 @@ int main() {
   std::ofstream(root / "games/krkr/fake_archive_game/data.bin") << "not an XP3 archive";
 
   const auto games = ScanGameLibrary(root, "games", "covers", "saves");
-  assert(games.size() == 9);
+  assert(games.size() == 10);
   AppConfig config; config.root = root;
   OnsCoreAdapter ons_adapter;
   KrkrCoreAdapter krkr_adapter;
@@ -73,6 +75,7 @@ int main() {
   bool saw_flat_krkr = false;
   bool saw_flat_ons = false;
   bool saw_native = false;
+  bool saw_standard_data = false;
   bool saw_renamed_archive = false;
   bool saw_custom_archive = false;
   bool saw_ambiguous_archive = false;
@@ -165,6 +168,13 @@ int main() {
       assert(migrated.spec.environment.at("ROCGALGAME_MOUSE_SPEED") == "1080");
       assert(migrated.spec.environment.at("ROCGALGAME_MOUSE_ACCEL") ==
              "1.000000");
+    } else if (game.path.filename() == "standard_data_game") {
+      saw_standard_data = true;
+      assert(game.entry_point == game.path);
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Krkr2);
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.arguments.size() == 2);
+      assert(fs::u8path(spec.arguments[1]).filename() == "data.xp3");
     } else if (game.path.filename() == "renamed_archive_game") {
       saw_renamed_archive = true;
       assert(game.entry_point.filename() == "data.bin");
@@ -216,6 +226,7 @@ int main() {
     }
   }
   assert(saw_directory && saw_archive && saw_flat_krkr && saw_flat_ons && saw_native &&
+         saw_standard_data &&
          saw_renamed_archive && saw_custom_archive && saw_ambiguous_archive &&
          saw_fake_archive);
 #if defined(__linux__)

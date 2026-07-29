@@ -1,0 +1,91 @@
+diff --git a/platforms/linux/main.cpp b/platforms/linux/main.cpp
+--- a/platforms/linux/main.cpp
++++ b/platforms/linux/main.cpp
+@@ -1,6 +1,9 @@
+ #include <cstdlib>
+ #include <cstring>
+ #include <memory>
++#include <string>
++
++#include <boost/locale/encoding_utf.hpp>
+ #include <gtk/gtk.h>
+ 
+ #include <spdlog/spdlog.h>
+@@ -8,6 +11,8 @@
+ #include "environ/cocos2d/AppDelegate.h"
+ 
+ #include "environ/ui/MainFileSelectorForm.h"
++#include "tjsCommHead.h"
++#include "SysInitIntf.h"
+ 
+ int main(int argc, char **argv) {
+@@ -27,6 +31,22 @@ int main(int argc, char **argv) {
+     if(argc > 1) {
+         TVPMainFileSelectorForm::filePath = argv[1];
+     }
++    for(int i = 2; i < argc; ++i) {
++        std::u16string argument =
++            boost::locale::conv::utf_to_utf<char16_t>(argv[i]);
++        const size_t separator = argument.find(u'=');
++        if(separator == std::u16string::npos) {
++            TVPSetCommandLine(argument.c_str(), ttstr(TJS_W("yes")));
++            continue;
++        }
++
++        const ttstr value(argument.c_str() + separator + 1);
++        argument.resize(separator);
++        if(!argument.empty()) {
++            TVPSetCommandLine(argument.c_str(), value);
++        }
++    }
+     spdlog::set_default_logger(core_logger);
+ 
+     static auto pAppDelegate = std::make_unique<TVPAppDelegate>();
+diff --git a/cpp/core/base/impl/SysInitImpl.cpp b/cpp/core/base/impl/SysInitImpl.cpp
+--- a/cpp/core/base/impl/SysInitImpl.cpp
++++ b/cpp/core/base/impl/SysInitImpl.cpp
+@@ -456,6 +456,7 @@
+ //---------------------------------------------------------------------------
+ std::vector<ttstr> TVPProgramArguments;
++static std::vector<ttstr> TVPInitialCommandLineArguments;
+ static bool TVPProgramArgumentsInit = false;
+ static tjs_int TVPCommandLineArgumentGeneration = 0;
+ static bool TVPDataPathDirectoryEnsured = false;
+@@ -483,7 +484,11 @@ void TVPEnsureDataPathDirectory() {
+ }
+ 
+ //---------------------------------------------------------------------------
+-static void PushAllCommandlineArguments() {}
++static void PushAllCommandlineArguments() {
++    TVPProgramArguments.insert(TVPProgramArguments.end(),
++                               TVPInitialCommandLineArguments.begin(),
++                               TVPInitialCommandLineArguments.end());
++}
+ 
+ //---------------------------------------------------------------------------
+ static void PushConfigFileOptions(const std::vector<std::string> *options) {
+@@ -615,10 +620,14 @@ bool TVPGetCommandLine(const tjs_char *name, tTJSVariant *value) {
+ void TVPSetCommandLine(const tjs_char *name, const ttstr &value) {
+     //	TVPInitProgramArgumentsAndDataPath(false);
+ 
++    auto &arguments = TVPProgramArgumentsInit
++        ? TVPProgramArguments
++        : TVPInitialCommandLineArguments;
++
+     tjs_int namelen = (tjs_int)TJS_strlen(name);
+     std::vector<ttstr>::iterator i;
+-    for(i = TVPProgramArguments.begin(); i != TVPProgramArguments.end(); i++) {
++    for(i = arguments.begin(); i != arguments.end(); i++) {
+         if(!TJS_strncmp(i->c_str(), name, namelen)) {
+             if(i->c_str()[namelen] == TJS_W('=') || i->c_str()[namelen] == 0) {
+                 // value found
+@@ -632,8 +641,7 @@ void TVPSetCommandLine(const tjs_char *name, const ttstr &value) {
+     }
+ 
+     // value not found; insert argument into front
+-    TVPProgramArguments.insert(TVPProgramArguments.begin(),
+-                               ttstr(name) + TJS_W("=") + value);
++    arguments.insert(arguments.begin(), ttstr(name) + TJS_W("=") + value);
+     TVPCommandLineArgumentGeneration++;
+     if(TVPCommandLineArgumentGeneration == 0)
+         TVPCommandLineArgumentGeneration = 1;

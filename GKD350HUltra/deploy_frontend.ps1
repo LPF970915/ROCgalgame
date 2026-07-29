@@ -41,5 +41,6 @@ echo "deployed=`$expected"
 echo "backup=`$backup"
 "@
 
+$remoteCommand = $remoteCommand -replace "`r`n", "`n"
 & ssh $DeviceHost $remoteCommand
 if ($LASTEXITCODE -ne 0) { throw "Remote atomic frontend deployment failed" }

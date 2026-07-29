@@ -2,7 +2,7 @@
 set -u
 
 APP_DIR="${APP_DIR:-/storage/roms/ports/ROCgalgame}"
-CORE="$APP_DIR/cores/krkr/krkr2"
+CORE="${CORE:-$APP_DIR/cores/krkr/krkr2}"
 PROJECT="${PROJECT:-$APP_DIR/cache/krkr2-minimal-test}"
 if [ -f "$PROJECT" ]; then
   PROJECT_WORKDIR="${PROJECT_WORKDIR:-$(dirname "$PROJECT")}"

@@ -141,7 +141,8 @@ cp "$DIST_ROOT/ROCgalgame.sh" "$PORTS_DIR/ROCgalgame.sh"
 rsync -a --delete \
   --exclude='/games/***' --exclude='/covers/***' --exclude='/game_covers/***' \
   --exclude='/saves/***' --exclude='/cache/***' --exclude='/logs/***' \
-  --exclude='/cores/krkr/*debug*' \
+  --exclude='/cores/krkr/*debug*' --exclude='/cores/krkr/krkr2.*' \
+  --exclude='/cores/krkr/krkr2-*' \
   "$RUNTIME_DIR/" "$PACKAGE_RUNTIME_DIR/"
 mkdir -p "$PACKAGE_RUNTIME_DIR/games" "$PACKAGE_RUNTIME_DIR/covers" \
   "$PACKAGE_RUNTIME_DIR/saves" "$PACKAGE_RUNTIME_DIR/cache"
