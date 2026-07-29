@@ -38,6 +38,10 @@
 *.zip
 *.tar.gz
 
+# Published GKD350H Ultra packages are served by the in-app updater.
+!/GKD350HUltra/Downloads/ROCgalgame ver* for GKD350H Ultra.zip
+!/GKD350HUltra/Downloads/ROCgalgame ver* for GKD350H Ultra.zip.sha256
+
 # Local diagnostics captured during device testing
 /*.png
 /*.bmp
