@@ -1,6 +1,6 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
-  [string]$AppDir = "/storage/roms/ports/ROCgalgame",
+  [string]$AppDir = "/storage/games-external/app/ROCgalgame",
   [string]$DistRoot = "$PSScriptRoot\dist_lowglibc\ROCgalgame"
 )
 
@@ -36,7 +36,7 @@ if pidof krkrsdl2 >/dev/null 2>&1 || pidof rocgalgame_sdl >/dev/null 2>&1; then
   exit 20
 fi
 stamp=`$(date +%Y%m%d-%H%M%S)
-backup="`$app/../ROCgalgame-backups/full-`$stamp"
+backup="/storage/games-external/.rocgalgame-backups/full-`$stamp"
 mkdir -p "`$backup/cores/krkr"
 cp -p "`$app/rocgalgame_sdl" "`$backup/rocgalgame_sdl"
 cp -p "`$app/cores/krkr/krkrsdl2" "`$backup/cores/krkr/krkrsdl2"

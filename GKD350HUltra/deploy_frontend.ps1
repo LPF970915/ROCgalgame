@@ -1,6 +1,6 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
-  [string]$AppDir = "/storage/roms/ports/ROCgalgame",
+  [string]$AppDir = "/storage/games-external/app/ROCgalgame",
   [string]$FrontendPath = "$PSScriptRoot\dist_lowglibc\ROCgalgame\rocgalgame_sdl"
 )
 
@@ -27,7 +27,8 @@ if pidof rocgalgame_sdl >/dev/null 2>&1; then
   exit 20
 fi
 stamp=`$(date +%Y%m%d-%H%M%S)
-backup="`$app/rocgalgame_sdl.pre-update-`$stamp"
+backup="/storage/games-external/.rocgalgame-backups/rocgalgame_sdl.pre-update-`$stamp"
+mkdir -p "`$(dirname "`$backup")"
 cp -p "`$app/rocgalgame_sdl" "`$backup"
 cp "`$incoming" "`$app/.rocgalgame_sdl.new"
 chmod 755 "`$app/.rocgalgame_sdl.new"

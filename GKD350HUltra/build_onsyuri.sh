@@ -55,8 +55,7 @@ NEEDS_REBUILD=0
 if [ "$FORCE_REBUILD" = "1" ] || [ "$CLEAN_BUILD" = "1" ] || [ ! -x "$TARGET" ]; then
   FULL_RECOMPILE=1
   NEEDS_REBUILD=1
-elif [ "$SELF_DIR/build_onsyuri.sh" -nt "$TARGET" ] || \
-     [ "$SYSROOT/target_info.txt" -nt "$TARGET" ] || \
+elif [ "$SYSROOT/target_info.txt" -nt "$TARGET" ] || \
      [ -n "$(find "$FILTER_OVERLAY" -type f -newer "$TARGET" -print -quit 2>/dev/null)" ]; then
   FULL_RECOMPILE=1
   NEEDS_REBUILD=1

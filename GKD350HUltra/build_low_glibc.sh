@@ -61,6 +61,22 @@ cd "$REPO_ROOT"
 if [ "$CLEAN_BUILD" = "1" ]; then
   make TARGET=build/gkd350h/rocgalgame_sdl OBJDIR=build/gkd350h/obj clean >/dev/null 2>&1 || true
 fi
+
+# Docker and WSL share this object cache but mount the repository at different
+# absolute paths. Normalize generated dependency paths so switching builders
+# does not invalidate otherwise current objects.
+for dep_file in build/gkd350h/obj/*.d; do
+  [ -f "$dep_file" ] || continue
+  if grep -Fq '/workspace/' "$dep_file" || {
+       [ "$REPO_ROOT" != "/mnt/d/Works/ROCgalgame" ] &&
+       grep -Fq '/mnt/d/Works/ROCgalgame/' "$dep_file"
+     }; then
+    sed -i \
+      -e "s#/workspace/#$REPO_ROOT/#g" \
+      -e "s#/mnt/d/Works/ROCgalgame/#$REPO_ROOT/#g" \
+      "$dep_file"
+  fi
+done
 {
   echo "[gkd_build] repo=$REPO_ROOT"
   echo "[gkd_build] sysroot=$SYSROOT"

@@ -47,7 +47,7 @@ $forceValue = if ($Mode -eq "Full") { "1" } else { "0" }
 $confirmValue = if ($ConfirmHeavyBuild) { "1" } else { "0" }
 $krkrMode = if ($Mode -eq "Full") { "Full" } else { "Fast" }
 $cmd = "cd '$wslDir' && chmod +x ./build_package.sh ./build_low_glibc.sh ./build_onsyuri.sh ./build_krkr.sh ./sync_runtime_assets.sh ./validate_runtime_deps.sh && ONS_ROOT='$wslOnsRoot' KRKR_ROOT='$wslKrkrRoot' PACKAGE_BUILD_FRONTEND='$buildValueFrontend' PACKAGE_BUILD_ONS='$buildValueOns' PACKAGE_BUILD_KRKR='$buildValueKrkr' PACKAGE_OUTPUT='$Output' ROC_BUILD_JOBS=1 ROC_CLEAN_BUILD='$cleanValue' ONS_BUILD_JOBS=1 ONS_FORCE_REBUILD='$forceValue' ONS_CLEAN_BUILD='$cleanValue' KRKR_CONFIRM_HEAVY_BUILD='$confirmValue' KRKR_BUILD_JOBS=1 KRKR_BUILD_MODE='$krkrMode' KRKR_USE_CCACHE='$Ccache' ROCGALGAME_VERSION='$Version' ./build_package.sh"
-wsl -d $Distro -- bash -lc $cmd
+wsl -d $Distro -u root -- bash -lc $cmd
 if ($LASTEXITCODE -ne 0) { throw "Package build failed with exit code $LASTEXITCODE" }
 
 & (Join-Path $PSScriptRoot "write_build_checkpoint.ps1") -KrkrRoot $KrkrRoot

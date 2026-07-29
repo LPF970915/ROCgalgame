@@ -156,19 +156,33 @@ Without `-Version`, the PowerShell wrapper scans `Downloads/` and advances the r
 The output name is `ROCgalgame verX.XX for GKD350H Ultra.zip`, with this archive layout:
 
 ```text
+app/
+  ROCgalgame/
+    config.json
+    launch.sh
+    rocgalgame.png
+    rocgalgame_sdl
+    cores/
+    fonts/
+    lib/
+    sounds/
+    ui.pack
 roms/
   ports/
-    ROCgalgame.sh
-    ROCgalgame/
-      rocgalgame_sdl
-      cores/
-      fonts/
-      lib/
-      sounds/
-      ui/
+    ROCgalgame.sh  # ES entry forwarding to app/ROCgalgame
 ```
 
 Mutable `games/`, `covers/`, `saves/`, and `cache/` directories are included empty. Local games, covers, cache files, and saves are never copied into a release.
+
+`rocgalgame.png` comes from `ui/common/icon.png`. Package verification ensures
+that the selected source is the icon shipped in the ZIP. Its app-specific
+filename is required because IUX resolves `icon.png` to the skin's generic
+software icon before checking the external application directory.
+
+Extract the archive at the external card root. IUX discovers the app at
+`/storage/games-external/app/ROCgalgame`; ES discovers the ports launcher and
+forwards to the same runtime. See `IUX_APP_LAYOUT.md` for legacy runtime
+migration and in-app update compatibility.
 
 The first build route should reuse the repository low-glibc flow with a target
 sysroot:

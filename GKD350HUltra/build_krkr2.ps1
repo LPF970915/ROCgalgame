@@ -1,7 +1,7 @@
 param(
   [string]$Distro = "Ubuntu",
   [string]$Krkr2Root = "D:\Works\Tyranor\krkr2",
-  [string]$Sysroot = "D:\Works\ROCreader\GKD350HUltra\sysroot_device",
+  [string]$Sysroot = "$PSScriptRoot\sysroot_device",
   [string]$VcpkgRoot = "$PSScriptRoot\tools\vcpkg",
   [ValidateSet("Probe", "Configure", "Build", "FastBuild", "Full")]
   [string]$Mode = "Probe",
@@ -37,7 +37,7 @@ if ($Mode -ne "Probe") {
 }
 
 $cmd = "cd '$wslDir' && chmod +x ./build_krkr2.sh && $envArgs ./build_krkr2.sh"
-wsl -d $Distro -- bash -lc $cmd
+wsl -d $Distro -u root -- bash -lc $cmd
 if ($LASTEXITCODE -ne 0) {
   throw "KrKr2 AArch64 $Mode failed with exit code $LASTEXITCODE"
 }

@@ -2,6 +2,22 @@
 set -eu
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+LAUNCHER_PATH="$SELF_DIR/$(basename -- "$0")"
+
+# The ES ports entry and the IUX application share one runtime. Keep the full
+# launcher in ports as a fallback for legacy installations without app/.
+case "$SELF_DIR" in
+  */ports)
+    for iux_launcher in \
+      /storage/games-external/app/ROCgalgame/launch.sh \
+      "$SELF_DIR/../../app/ROCgalgame/launch.sh"; do
+      if [ -x "$iux_launcher" ]; then
+        exec "$iux_launcher" "$@"
+      fi
+    done
+    ;;
+esac
+
 APP_DIR="$SELF_DIR/ROCgalgame"
 if [ ! -d "$APP_DIR" ]; then
   APP_DIR="$SELF_DIR"
@@ -93,6 +109,64 @@ replace_runtime_entry() {
   cp -a "$staged" "$APP_DIR/"
 }
 
+find_staged_runtime_dir() {
+  for candidate in \
+    "$UPDATE_STAGE_DIR/app/ROCgalgame" \
+    "$UPDATE_STAGE_DIR/roms/ports/ROCgalgame" \
+    "$UPDATE_STAGE_DIR/Roms/ports/ROCgalgame"; do
+    [ -d "$candidate" ] && { printf '%s' "$candidate"; return 0; }
+  done
+  return 1
+}
+
+find_staged_launcher_file() {
+  staged_runtime="$1"
+  if [ -n "$staged_runtime" ] && [ -f "$staged_runtime/launch.sh" ]; then
+    printf '%s' "$staged_runtime/launch.sh"
+    return 0
+  fi
+  for candidate in \
+    "$UPDATE_STAGE_DIR/roms/ports/ROCgalgame.sh" \
+    "$UPDATE_STAGE_DIR/Roms/ports/ROCgalgame.sh"; do
+    [ -f "$candidate" ] && { printf '%s' "$candidate"; return 0; }
+  done
+  return 1
+}
+
+install_es_launcher_if_present() {
+  staged_es_launcher="$UPDATE_STAGE_DIR/roms/ports/ROCgalgame.sh"
+  [ -f "$staged_es_launcher" ] || return 0
+  for ports_dir in /storage/roms/ports "$APP_DIR/../../roms/ports"; do
+    [ -d "$ports_dir" ] || continue
+    cp "$staged_es_launcher" "$ports_dir/ROCgalgame.sh.new"
+    chmod +x "$ports_dir/ROCgalgame.sh.new" 2>/dev/null || true
+    mv "$ports_dir/ROCgalgame.sh.new" "$ports_dir/ROCgalgame.sh"
+    return 0
+  done
+}
+
+migrate_legacy_path_list() {
+  path_list="$1"
+  [ -f "$path_list" ] || return 0
+  normalized_root="$(printf '%s' "$APP_DIR" | tr '[:upper:]' '[:lower:]')"
+  migrated="$path_list.migrate.$$"
+  awk -v root="$normalized_root" '
+    {
+      legacy = "/storage/roms/ports/rocgalgame"
+      if (index($0, legacy) == 1) $0 = root substr($0, length(legacy) + 1)
+      legacy = "/storage/games-external/roms/ports/rocgalgame"
+      if (index($0, legacy) == 1) $0 = root substr($0, length(legacy) + 1)
+      print
+    }
+  ' "$path_list" >"$migrated"
+  if cmp -s "$path_list" "$migrated"; then
+    rm -f "$migrated"
+  else
+    mv "$migrated" "$path_list"
+    log_line "[launcher] migrated persistent paths in $path_list"
+  fi
+}
+
 perform_pending_update_if_any() {
   [ -f "$UPDATE_MARKER" ] || return 0
   package_name="$(marker_value filename)"
@@ -108,8 +182,8 @@ perform_pending_update_if_any() {
     return 0
   fi
 
-  staged_runtime="$UPDATE_STAGE_DIR/roms/ports/ROCgalgame"
-  staged_launcher="$UPDATE_STAGE_DIR/roms/ports/ROCgalgame.sh"
+  staged_runtime="$(find_staged_runtime_dir || true)"
+  staged_launcher="$(find_staged_launcher_file "$staged_runtime" || true)"
   if [ ! -x "$staged_runtime/rocgalgame_sdl" ] || [ ! -f "$staged_runtime/ui.pack" ]; then
     log_line "[update] staged runtime validation failed"
     rm -rf "$UPDATE_STAGE_DIR"
@@ -125,12 +199,16 @@ perform_pending_update_if_any() {
   replace_runtime_entry "lib" "$staged_runtime"
   replace_runtime_entry "lib_system_sdl" "$staged_runtime"
   replace_runtime_entry "version.txt" "$staged_runtime"
+  replace_runtime_entry "config.json" "$staged_runtime"
+  replace_runtime_entry "rocgalgame.png" "$staged_runtime"
+  replace_runtime_entry "icon.png" "$staged_runtime"
 
-  if [ -f "$staged_launcher" ]; then
-    cp "$staged_launcher" "$SELF_DIR/ROCgalgame.sh.new"
-    mv "$SELF_DIR/ROCgalgame.sh.new" "$SELF_DIR/ROCgalgame.sh"
+  if [ -n "$staged_launcher" ] && [ -f "$staged_launcher" ]; then
+    cp "$staged_launcher" "$LAUNCHER_PATH.new"
+    mv "$LAUNCHER_PATH.new" "$LAUNCHER_PATH"
   fi
-  chmod +x "$APP_DIR/rocgalgame_sdl" "$SELF_DIR/ROCgalgame.sh" 2>/dev/null || true
+  install_es_launcher_if_present
+  chmod +x "$APP_DIR/rocgalgame_sdl" "$LAUNCHER_PATH" 2>/dev/null || true
   rm -f "$UPDATE_MARKER" "$package_path"
   rm -rf "$UPDATE_STAGE_DIR"
   log_line "[update] installed version=${package_version:-unknown}"
@@ -160,6 +238,8 @@ if [ "${1:-}" = "--install-pending-update" ]; then
 fi
 
 perform_pending_update_if_any
+migrate_legacy_path_list "$APP_DIR/cache/favorites.txt"
+migrate_legacy_path_list "$APP_DIR/cache/history.txt"
 
 if [ ! -x "$BIN" ]; then
   log_line "[launcher] missing frontend binary: $BIN"

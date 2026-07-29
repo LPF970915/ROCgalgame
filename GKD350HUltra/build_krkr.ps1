@@ -26,7 +26,7 @@ $krkrRootPath = (Convert-Path $KrkrRoot) -replace '\\', '/'
 $wslDir = (wsl -d $Distro -- wslpath -a "$scriptRoot").Trim()
 $wslKrkrRoot = (wsl -d $Distro -- wslpath -a "$krkrRootPath").Trim()
 $cmd = "cd '$wslDir' && chmod +x ./build_krkr.sh && KRKR_ROOT='$wslKrkrRoot' KRKR_BUILD_JOBS='$Jobs' KRKR_BUILD_MODE='$Mode' KRKR_USE_CCACHE='$Ccache' KRKR_CONFIRM_HEAVY_BUILD=1 ./build_krkr.sh"
-wsl -d $Distro -- bash -lc $cmd
+wsl -d $Distro -u root -- bash -lc $cmd
 if ($LASTEXITCODE -ne 0) { throw "KRKR cross-build failed with exit code $LASTEXITCODE" }
 
 & (Join-Path $PSScriptRoot "write_build_checkpoint.ps1") -KrkrRoot $KrkrRoot

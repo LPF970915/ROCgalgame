@@ -134,19 +134,43 @@ if { [ "$PACKAGE_OUTPUT" = "Tar" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; } &&
   exit 1
 fi
 rm -rf -- "$STAGING_ABS"
+APP_ROOT="$STAGING_DIR/app"
 PORTS_DIR="$STAGING_DIR/roms/ports"
-PACKAGE_RUNTIME_DIR="$PORTS_DIR/ROCgalgame"
-mkdir -p "$PACKAGE_RUNTIME_DIR"
-cp "$DIST_ROOT/ROCgalgame.sh" "$PORTS_DIR/ROCgalgame.sh"
+PACKAGE_RUNTIME_DIR="$APP_ROOT/ROCgalgame"
+mkdir -p "$PACKAGE_RUNTIME_DIR" "$PORTS_DIR"
 rsync -a --delete \
   --exclude='/games/***' --exclude='/covers/***' --exclude='/game_covers/***' \
   --exclude='/saves/***' --exclude='/cache/***' --exclude='/logs/***' \
   --exclude='/cores/krkr/*debug*' --exclude='/cores/krkr/krkr2.*' \
   --exclude='/cores/krkr/krkr2-*' \
   "$RUNTIME_DIR/" "$PACKAGE_RUNTIME_DIR/"
+cp "$DIST_ROOT/ROCgalgame.sh" "$PACKAGE_RUNTIME_DIR/launch.sh"
+cp "$DIST_ROOT/ROCgalgame.sh" "$PORTS_DIR/ROCgalgame.sh"
+IUX_ICON="$SELF_DIR/../ui/common/icon.png"
+[ -f "$IUX_ICON" ] || { echo "[package] ERROR: missing IUX icon: $IUX_ICON"; exit 1; }
+cp "$IUX_ICON" "$PACKAGE_RUNTIME_DIR/rocgalgame.png"
 mkdir -p "$PACKAGE_RUNTIME_DIR/games" "$PACKAGE_RUNTIME_DIR/covers" \
   "$PACKAGE_RUNTIME_DIR/saves" "$PACKAGE_RUNTIME_DIR/cache"
-chmod +x "$PORTS_DIR/ROCgalgame.sh" "$PACKAGE_RUNTIME_DIR/rocgalgame_sdl" \
+python3 - "$PACKAGE_RUNTIME_DIR/config.json" "$VERSION" <<'PY'
+import json
+import sys
+
+path, version = sys.argv[1:]
+config = {
+    "software_code": "rocgalgame",
+    "title": "ROCgalgame",
+    "description": "ROC Galgame launcher",
+    "version": version,
+    "exec": "launch.sh",
+    "workdir": ".",
+    "icon": "rocgalgame.png",
+}
+with open(path, "w", encoding="utf-8", newline="\n") as stream:
+    json.dump(config, stream, ensure_ascii=False, indent=2)
+    stream.write("\n")
+PY
+chmod +x "$PACKAGE_RUNTIME_DIR/launch.sh" "$PORTS_DIR/ROCgalgame.sh" \
+  "$PACKAGE_RUNTIME_DIR/rocgalgame_sdl" \
   "$PACKAGE_RUNTIME_DIR/cores/ons/onsyuri" "$PACKAGE_RUNTIME_DIR/cores/krkr/krkrsdl2" \
   "$PACKAGE_RUNTIME_DIR/cores/krkr/krkr2" 2>/dev/null || true
 
@@ -158,7 +182,7 @@ fi
 if [ "$PACKAGE_OUTPUT" = "Zip" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
   command -v python3 >/dev/null 2>&1 || { echo "[package] ERROR: python3 is required for UTF-8 zip output"; exit 1; }
   ZIP_TEMP="$STAGING_DIR/$PACKAGE_NAME.zip"
-  nice -n 10 python3 "$SELF_DIR/create_release_zip.py" "$STAGING_DIR" "$ZIP_TEMP" roms
+  nice -n 10 python3 "$SELF_DIR/create_release_zip.py" "$STAGING_DIR" "$ZIP_TEMP" app roms
   python3 "$SELF_DIR/verify_release_zip.py" "$ZIP_TEMP"
   if [ "$PACKAGE_FORCE" = "1" ]; then
     mv -f -- "$ZIP_TEMP" "$ZIP_FILE"
@@ -173,7 +197,7 @@ if [ "$PACKAGE_OUTPUT" = "Zip" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
 fi
 if [ "$PACKAGE_OUTPUT" = "Tar" ] || [ "$PACKAGE_OUTPUT" = "Both" ]; then
   rm -f "$TAR_FILE"
-  (cd "$STAGING_DIR" && nice -n 10 tar -czf "$TAR_FILE" roms)
+  (cd "$STAGING_DIR" && nice -n 10 tar -czf "$TAR_FILE" app roms)
   echo "[package] wrote $TAR_FILE"
 fi
 

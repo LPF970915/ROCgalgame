@@ -39,10 +39,10 @@ if [ "${KRKR_CONFIRM_HEAVY_BUILD:-0}" != "1" ]; then
 fi
 
 if [ -z "$CMAKE_BIN" ]; then
-  if command -v cmake >/dev/null 2>&1; then
-    CMAKE_BIN="$(command -v cmake)"
-  elif [ -x "$SELF_DIR/tools/cmake/bin/cmake" ]; then
+  if [ -x "$SELF_DIR/tools/cmake/bin/cmake" ]; then
     CMAKE_BIN="$SELF_DIR/tools/cmake/bin/cmake"
+  elif command -v cmake >/dev/null 2>&1; then
+    CMAKE_BIN="$(command -v cmake)"
   else
     echo "[krkr_build] ERROR: cmake is required in WSL or at $SELF_DIR/tools/cmake/bin/cmake"
     exit 1
@@ -158,6 +158,19 @@ if [ "$BUILD_MODE" = "Full" ]; then
 fi
 
 mkdir -p "$BUILD_DIR" "$RUNTIME_CORE_DIR" "$LOG_DIR"
+
+# Docker Desktop can expose the same Windows tree through a transient WSL bind
+# path. Never rewrite a CMake tree automatically: regeneration can invalidate
+# its precompiled header and expand a Fast build into a near-full rebuild.
+if [ "$BUILD_MODE" = "Fast" ] && [ -f "$BUILD_DIR/CMakeCache.txt" ]; then
+  CACHED_BUILD_DIR="$(sed -n 's/^CMAKE_CACHEFILE_DIR:INTERNAL=//p' "$BUILD_DIR/CMakeCache.txt" | head -n 1)"
+  if [ -n "$CACHED_BUILD_DIR" ] && [ "$CACHED_BUILD_DIR" != "$BUILD_DIR" ]; then
+    echo "[krkr_build] REFUSED: Fast cache was configured at $CACHED_BUILD_DIR"
+    echo "[krkr_build] Current cache path is $BUILD_DIR"
+    echo "[krkr_build] Use the builder/mount that created the cache; do not auto-rewrite CMake metadata."
+    exit 4
+  fi
+fi
 
 CCACHE_ARGS=()
 if [ "$USE_CCACHE" != "Off" ]; then

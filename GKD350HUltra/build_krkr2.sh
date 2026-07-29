@@ -4,7 +4,7 @@ set -euo pipefail
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SELF_DIR/.." && pwd)"
 KRKR2_ROOT="${KRKR2_ROOT:-/mnt/d/Works/Tyranor/krkr2}"
-SYSROOT="${SYSROOT:-/mnt/d/Works/ROCreader/GKD350HUltra/sysroot_device}"
+SYSROOT="${SYSROOT:-$SELF_DIR/sysroot_device}"
 TOOLCHAIN="$SELF_DIR/toolchain/aarch64-gkd-krkr2.cmake"
 TRIPLET_DIR="$SELF_DIR/vcpkg-triplets"
 OVERLAY_PORTS="$SELF_DIR/vcpkg-ports;$KRKR2_ROOT/vcpkg/ports"

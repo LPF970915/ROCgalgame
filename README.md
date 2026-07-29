@@ -16,8 +16,10 @@ The frontend owns the game library, covers, settings, and device-friendly contro
 ## Runtime Layout
 
 ```text
-Roms/ports/ROCgalgame.sh
-Roms/ports/ROCgalgame/
+app/ROCgalgame/
+  config.json
+  launch.sh
+  rocgalgame.png
   rocgalgame_sdl
   native_config.ini
   native_keymap.ini
@@ -32,6 +34,7 @@ Roms/ports/ROCgalgame/
   covers/
   saves/
   cache/
+roms/ports/ROCgalgame.sh  # ES compatibility entry; forwards to app/
 ```
 
 ## Controls
@@ -121,7 +124,7 @@ Canonical GKD350H Ultra release build (Docker, frontend-only):
 .\GKD350HUltra\build_release_docker.ps1
 ```
 
-The script automatically advances `0.01`, `0.02`, and so on based on existing release archives. It performs a clean frontend cross-build in Docker, verifies the preserved ONS/KRKR binaries against `release_core_hashes.sha256`, encrypts the local `ui/` tree into `ui.pack`, and writes `GKD350HUltra\Downloads\ROCgalgame verX.XX for GKD350H Ultra.zip`. The archive root is `roms/ports`, with `ROCgalgame.sh` and the complete `ROCgalgame/` runtime beneath it. Plaintext UI files are rejected by package validation. Pass `-Version 0.01` to reproduce a specific release number.
+The script automatically advances `0.01`, `0.02`, and so on based on existing release archives. It performs a clean frontend cross-build in Docker, verifies the preserved ONS/KRKR binaries against `release_core_hashes.sha256`, encrypts the local `ui/` tree into `ui.pack`, and writes `GKD350HUltra\Downloads\ROCgalgame verX.XX for GKD350H Ultra.zip`. The archive contains the self-contained IUX runtime at `app/ROCgalgame` plus an ES compatibility entry at `roms/ports/ROCgalgame.sh`; both launch the same runtime. Plaintext UI files are rejected by package validation. Pass `-Version 0.01` to reproduce a specific release number.
 
 For UI/config-only work, synchronize and validate the staged runtime without compiling or creating an archive:
 
@@ -135,7 +138,7 @@ For the next UI/ONS development pass, build only those targets and reuse the sta
 powershell -ExecutionPolicy Bypass -File GKD350HUltra\build_package.ps1 -Mode Incremental -BuildTargets Frontend,ONS -Output Stage
 ```
 
-Create a distributable zip only when needed by adding `-Output Zip`. Both the manual and Docker package paths use the same `roms/ports` release layout and package naming. Building KRKR is always explicit and uses the preserved `build/gkd350h/krkrsdl2` CMake tree. Full rebuilds are reserved for toolchain/ABI changes, incompatible CMake option changes, cache corruption, or major KRKR restructuring.
+Create a distributable zip only when needed by adding `-Output Zip`. Both the manual and Docker package paths use the same dual IUX/ES release layout and package naming. Building KRKR is always explicit and uses the preserved `build/gkd350h/krkrsdl2` CMake tree. Full rebuilds are reserved for toolchain/ABI changes, incompatible CMake option changes, cache corruption, or major KRKR restructuring. See `GKD350HUltra/IUX_APP_LAYOUT.md` for the one-time migration and update-path notes.
 
 The GKD sysroot and helper scripts were copied from `D:\Works\ROCreader\GKD350HUltra` as the initial target toolchain baseline.
 The checked-in `GKD350HUltra/toolchain` folder is currently a placeholder/notes directory. The working compiler used by the build script is the WSL Ubuntu `aarch64-linux-gnu-g++`, unless `CROSS_CXX` or a populated `GKD350HUltra/toolchain/bin/aarch64-linux-gnu-g++` is provided.

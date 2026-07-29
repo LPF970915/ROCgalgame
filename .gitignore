@@ -1,4 +1,5 @@
 # Build outputs and generated dependencies
+/_cleanup_archive_*/
 /build/
 /runtime/
 /Windows/build/
@@ -13,6 +14,11 @@
 
 # Private local game content and user data
 /ui/
+!/ui/
+/ui/*
+!/ui/common/
+/ui/common/*
+!/ui/common/icon.png
 /games/
 /covers/
 /game_covers/

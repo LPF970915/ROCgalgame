@@ -1,7 +1,7 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
   [string]$Version = "0.04",
-  [string]$AppDir = "/storage/roms/ports/ROCgalgame",
+  [string]$AppDir = "/storage/games-external/app/ROCgalgame",
   [string]$PackagePath = ""
 )
 
@@ -9,8 +9,8 @@ $ErrorActionPreference = "Stop"
 if ($Version -notmatch '^[0-9]+\.[0-9]{2}$') {
   throw "Version must look like 0.04"
 }
-if ($AppDir -ne "/storage/roms/ports/ROCgalgame") {
-  throw "This deployment script is intentionally restricted to /storage/roms/ports/ROCgalgame"
+if ($AppDir -ne "/storage/games-external/app/ROCgalgame") {
+  throw "This deployment script is intentionally restricted to /storage/games-external/app/ROCgalgame"
 }
 if ([string]::IsNullOrWhiteSpace($PackagePath)) {
   $PackagePath = Join-Path $PSScriptRoot "Downloads\ROCgalgame ver$Version for GKD350H Ultra.zip"
@@ -40,7 +40,7 @@ if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
 $remoteCommand = @"
 set -eu
 app='$AppDir'
-ports='/storage/roms/ports'
+storage='/storage/games-external'
 incoming='$remotePackage'
 version='$Version'
 package_expected='$packageHash'
@@ -49,10 +49,12 @@ ons_expected='$onsHash'
 krkr_expected='$krkrHash'
 krkr2_expected='$krkr2Hash'
 krkr2_gl_expected='$krkr2GlHash'
-stage="`$ports/.rocgalgame-release-`$version-`$$"
+stage="`$storage/.rocgalgame-release-`$version-`$$"
 archive="`$stage/archive"
-new="`$archive/roms/ports/ROCgalgame"
-new_launcher="`$archive/roms/ports/ROCgalgame.sh"
+new="`$archive/app/ROCgalgame"
+new_launcher="`$new/launch.sh"
+new_es_launcher="`$archive/roms/ports/ROCgalgame.sh"
+es_launcher='/storage/roms/ports/ROCgalgame.sh'
 backup=''
 state=0
 
@@ -75,7 +77,7 @@ rollback() {
       fi
     done
     if [ -d "`$backup/runtime" ]; then mv "`$backup/runtime" "`$app"; fi
-    if [ -f "`$backup/ROCgalgame.sh" ]; then cp -p "`$backup/ROCgalgame.sh" "`$ports/ROCgalgame.sh"; fi
+    if [ -f "`$backup/ROCgalgame.sh" ]; then cp -p "`$backup/ROCgalgame.sh" "`$es_launcher"; fi
   fi
   rm -rf "`$stage"
   rm -f "`$incoming"
@@ -83,7 +85,7 @@ rollback() {
 }
 trap rollback EXIT INT TERM
 
-case "`$stage" in /storage/roms/ports/.rocgalgame-release-*) ;; *) exit 90 ;; esac
+case "`$stage" in /storage/games-external/.rocgalgame-release-*) ;; *) exit 90 ;; esac
 set -- `$(sha256sum "`$incoming")
 test "`$1" = "`$package_expected"
 if pidof rocgalgame_sdl >/dev/null 2>&1 || pidof onsyuri >/dev/null 2>&1 || pidof krkrsdl2 >/dev/null 2>&1 || pidof krkr2 >/dev/null 2>&1; then
@@ -101,6 +103,7 @@ test -x "`$new/cores/krkr/krkr2"
 test -d "`$new/cores/krkr/Resources"
 test -f "`$new/cores/krkr/lib_krkr2/libGL.so.1"
 test -x "`$new_launcher"
+test -x "`$new_es_launcher"
 test -f "`$new/ui.pack"
 test ! -e "`$new/ui"
 test "`$(cat "`$new/version.txt")" = "`$version"
@@ -111,9 +114,9 @@ set -- `$(sha256sum "`$new/cores/krkr/krkr2"); test "`$1" = "`$krkr2_expected"
 set -- `$(sha256sum "`$new/cores/krkr/lib_krkr2/libGL.so.1"); test "`$1" = "`$krkr2_gl_expected"
 
 stamp=`$(date +%Y%m%d-%H%M%S)
-backup="`$ports/ROCgalgame-backups/release-`$version-`$stamp"
+backup="`$storage/.rocgalgame-backups/release-`$version-`$stamp"
 mkdir -p "`$backup"
-if [ -f "`$ports/ROCgalgame.sh" ]; then cp -p "`$ports/ROCgalgame.sh" "`$backup/ROCgalgame.sh"; fi
+if [ -f "`$es_launcher" ]; then cp -p "`$es_launcher" "`$backup/ROCgalgame.sh"; fi
 mv "`$app" "`$backup/runtime"
 state=1
 
@@ -129,11 +132,12 @@ done
 
 mv "`$new" "`$app"
 state=2
-cp "`$new_launcher" "`$ports/.ROCgalgame.sh.new"
-chmod 755 "`$ports/.ROCgalgame.sh.new" "`$app/rocgalgame_sdl" \
+chmod 755 "`$app/launch.sh" "`$app/rocgalgame_sdl" \
   "`$app/cores/ons/onsyuri" "`$app/cores/krkr/krkrsdl2" \
   "`$app/cores/krkr/krkr2"
-mv "`$ports/.ROCgalgame.sh.new" "`$ports/ROCgalgame.sh"
+cp "`$new_es_launcher" "`$es_launcher.new"
+chmod 755 "`$es_launcher.new"
+mv "`$es_launcher.new" "`$es_launcher"
 sync
 
 test "`$(cat "`$app/version.txt")" = "`$version"
