@@ -4,6 +4,13 @@
 
 #include <algorithm>
 
+namespace {
+constexpr int kApplicationVolumeMaxLevel = 20;
+}
+
+VolumeController::VolumeController(SystemControlLevels &levels)
+    : levels_(levels), prefer_system_(false), application_only_(true) {}
+
 VolumeController::VolumeController(SystemControlService &service, SystemControlLevels &levels,
                                    bool prefer_system)
     : service_(&service), levels_(levels), prefer_system_(prefer_system) {}
@@ -15,6 +22,13 @@ VolumeController::VolumeController(SystemControlLevels &levels, AdjustCallback a
 
 bool VolumeController::UsesSystemVolume() const { return prefer_system_; }
 
+void VolumeController::StoreApplicationPercent(int percent) {
+  const int clamped = std::clamp(percent, 0, 100);
+  levels_.volume.available = true;
+  levels_.volume.max_level = kApplicationVolumeMaxLevel;
+  levels_.volume.level = (clamped * kApplicationVolumeMaxLevel + 50) / 100;
+}
+
 int VolumeController::PercentFromLevel() const {
   return std::clamp((levels_.volume.level * 100) /
                         std::max(1, levels_.volume.max_level),
@@ -23,6 +37,11 @@ int VolumeController::PercentFromLevel() const {
 
 bool VolumeController::ApplyConfiguredPercent(int percent, int &out_percent) {
   const int requested = std::clamp(percent, 0, 100);
+  if (application_only_) {
+    StoreApplicationPercent(requested);
+    out_percent = requested;
+    return true;
+  }
   const bool ok = apply_ ? apply_(requested, levels_.volume)
                          : service_ && service_->ApplyVolumePercent(requested, levels_.volume);
   if (ok && levels_.volume.available) {
@@ -34,6 +53,14 @@ bool VolumeController::ApplyConfiguredPercent(int percent, int &out_percent) {
 
 bool VolumeController::AdjustBySteps(int delta_steps, int &out_percent) {
   if (delta_steps == 0) return RefreshPercent(out_percent);
+  if (application_only_) {
+    const int current = levels_.volume.available
+                            ? PercentFromLevel()
+                            : std::clamp(out_percent, 0, 100);
+    out_percent = std::clamp(current + delta_steps * 5, 0, 100);
+    StoreApplicationPercent(out_percent);
+    return true;
+  }
   const bool ok = adjust_ ? adjust_(delta_steps, levels_)
                           : service_ && service_->AdjustVolume(delta_steps, levels_);
   if (!ok || !levels_.volume.available) {
@@ -45,6 +72,11 @@ bool VolumeController::AdjustBySteps(int delta_steps, int &out_percent) {
 }
 
 bool VolumeController::RefreshPercent(int &out_percent) {
+  if (application_only_) {
+    if (!levels_.volume.available) return false;
+    out_percent = PercentFromLevel();
+    return true;
+  }
   const bool ok = refresh_ ? refresh_(levels_.volume)
                            : service_ && service_->RefreshVolumeOnly(levels_.volume);
   if (!ok || !levels_.volume.available) return false;

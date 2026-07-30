@@ -10,11 +10,13 @@
 #include <array>
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <vector>
 
 namespace {
 void WriteXp3Archive(const std::filesystem::path &path) {
@@ -25,6 +27,57 @@ void WriteXp3Archive(const std::filesystem::path &path) {
             static_cast<std::streamsize>(kMagic.size()));
   out << "test";
 }
+
+void AppendLe16(std::vector<unsigned char> &out, std::uint16_t value) {
+  out.push_back(static_cast<unsigned char>(value));
+  out.push_back(static_cast<unsigned char>(value >> 8));
+}
+
+void AppendLe32(std::vector<unsigned char> &out, std::uint32_t value) {
+  for (unsigned shift = 0; shift < 32; shift += 8)
+    out.push_back(static_cast<unsigned char>(value >> shift));
+}
+
+void AppendLe64(std::vector<unsigned char> &out, std::uint64_t value) {
+  for (unsigned shift = 0; shift < 64; shift += 8)
+    out.push_back(static_cast<unsigned char>(value >> shift));
+}
+
+void AppendChunk(std::vector<unsigned char> &out, const char tag[5],
+                 const std::vector<unsigned char> &payload) {
+  out.insert(out.end(), tag, tag + 4);
+  AppendLe64(out, payload.size());
+  out.insert(out.end(), payload.begin(), payload.end());
+}
+
+void WriteIndexedXp3Archive(const std::filesystem::path &path,
+                            const std::string &entry_name) {
+  static constexpr std::array<unsigned char, 11> kMagic = {
+      'X', 'P', '3', '\r', '\n', ' ', '\n', 0x1a, 0x8b, 0x67, 0x01};
+  std::vector<unsigned char> info;
+  AppendLe32(info, 0);
+  AppendLe64(info, 0);
+  AppendLe64(info, 0);
+  AppendLe16(info, static_cast<std::uint16_t>(entry_name.size()));
+  for (unsigned char ch : entry_name) AppendLe16(info, ch);
+  std::vector<unsigned char> file;
+  AppendChunk(file, "info", info);
+  std::vector<unsigned char> index;
+  AppendChunk(index, "File", file);
+
+  std::ofstream out(path, std::ios::binary);
+  out.write(reinterpret_cast<const char *>(kMagic.data()),
+            static_cast<std::streamsize>(kMagic.size()));
+  std::vector<unsigned char> offset;
+  AppendLe64(offset, 19);
+  out.write(reinterpret_cast<const char *>(offset.data()), 8);
+  out.put(0);
+  std::vector<unsigned char> size;
+  AppendLe64(size, index.size());
+  out.write(reinterpret_cast<const char *>(size.data()), 8);
+  out.write(reinterpret_cast<const char *>(index.data()),
+            static_cast<std::streamsize>(index.size()));
+}
 }  // namespace
 
 int main() {
@@ -32,6 +85,10 @@ int main() {
   const fs::path root = fs::temp_directory_path() / "rocgalgame_core_launch_test";
   std::error_code ec;
   fs::remove_all(root, ec);
+#if defined(__linux__)
+  const std::string project_view_root = (root / "project_views").u8string();
+  setenv("ROCGALGAME_KRKR_PROJECT_VIEW_ROOT", project_view_root.c_str(), 1);
+#endif
   fs::create_directories(root / "games/krkr/directory_game");
   fs::create_directories(root / "games/krkr/archive_game");
   fs::create_directories(root / "games/krkr/native_game");
@@ -39,6 +96,7 @@ int main() {
   fs::create_directories(root / "games/renamed_archive_game");
   fs::create_directories(root / "games/custom_archive_game");
   fs::create_directories(root / "games/ambiguous_archive_game");
+  fs::create_directories(root / "games/indexed_archive_game");
   fs::create_directories(root / "games/krkr/fake_archive_game");
   const fs::path flat_krkr = root / "games" / fs::u8path(u8"千恋万花");
   fs::create_directories(flat_krkr);
@@ -58,10 +116,16 @@ int main() {
   WriteXp3Archive(root / "games/custom_archive_game/project.dat");
   WriteXp3Archive(root / "games/ambiguous_archive_game/first.bin");
   WriteXp3Archive(root / "games/ambiguous_archive_game/second.dat");
+  WriteIndexedXp3Archive(root / "games/indexed_archive_game/vol1.xp3",
+                         "scenario.ks");
+  WriteIndexedXp3Archive(root / "games/indexed_archive_game/launcher.xp3",
+                         "startup.tjs");
   std::ofstream(root / "games/krkr/fake_archive_game/data.bin") << "not an XP3 archive";
+  fs::create_directories(root / "games/krkr/native_game/savedata");
+  std::ofstream(root / "games/krkr/native_game/savedata/seed.ksd") << "seed";
 
   const auto games = ScanGameLibrary(root, "games", "covers", "saves");
-  assert(games.size() == 10);
+  assert(games.size() == 11);
   AppConfig config; config.root = root;
   OnsCoreAdapter ons_adapter;
   KrkrCoreAdapter krkr_adapter;
@@ -79,6 +143,7 @@ int main() {
   bool saw_renamed_archive = false;
   bool saw_custom_archive = false;
   bool saw_ambiguous_archive = false;
+  bool saw_indexed_archive = false;
   bool saw_fake_archive = false;
   for (const auto &game : games) {
     if (game.path.filename() == "flat_ons") {
@@ -113,6 +178,9 @@ int main() {
     }
 
     const CoreSpecResult built = launch_service.BuildSpec(config, game);
+    if (!built.Ok())
+      std::cerr << "BuildSpec failed for " << game.path.u8string() << ": "
+                << built.detail << "\n";
     assert(built.Ok());
     const CoreLaunchSpec &spec = built.spec;
     assert(spec.environment.at("ROCGALGAME_KRKR_VIRTUAL_MOUSE") == "1");
@@ -146,6 +214,15 @@ int main() {
              0);
       assert(spec.environment.at("LD_LIBRARY_PATH").find("lib_krkr2") !=
              std::string::npos);
+#if defined(__linux__)
+      assert(spec.working_directory.parent_path() == root / "project_views");
+      assert(fs::is_symlink(spec.working_directory / "data.xp3"));
+      assert(fs::is_symlink(spec.working_directory / "savedata"));
+      assert(fs::is_directory(game.save_path / "strsave"));
+      assert(fs::is_regular_file(game.save_path / "savedata/seed.ksd"));
+      assert(spec.environment.at("ROCGALGAME_KRKR_PROJECT_VIEW") ==
+             spec.working_directory.u8string());
+#endif
 #if defined(__linux__)
       setenv("ROCGALGAME_KRKR_DISPLAY_BACKEND", "xwayland", 1);
       const CoreSpecResult xwayland = krkr_adapter.BuildSpec(config, game);
@@ -192,6 +269,12 @@ int main() {
       assert(game.entry_point == game.path);
       assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
       assert(spec.executable.filename() == "krkrsdl2");
+    } else if (game.path.filename() == "indexed_archive_game") {
+      saw_indexed_archive = true;
+      assert(game.entry_point.filename() == "launcher.xp3");
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Krkr2);
+      assert(spec.executable.filename() == "krkr2");
+      assert(fs::u8path(spec.arguments[1]).filename() == "launcher.xp3");
     } else if (game.path.filename() == "fake_archive_game") {
       saw_fake_archive = true;
       assert(game.entry_point == game.path);
@@ -228,7 +311,7 @@ int main() {
   assert(saw_directory && saw_archive && saw_flat_krkr && saw_flat_ons && saw_native &&
          saw_standard_data &&
          saw_renamed_archive && saw_custom_archive && saw_ambiguous_archive &&
-         saw_fake_archive);
+         saw_indexed_archive && saw_fake_archive);
 #if defined(__linux__)
   CoreLaunchSpec supervised;
   supervised.executable = "/bin/sh";
@@ -249,5 +332,8 @@ int main() {
   assert(elapsed < std::chrono::seconds(3));
 #endif
   fs::remove_all(root, ec);
+#if defined(__linux__)
+  unsetenv("ROCGALGAME_KRKR_PROJECT_VIEW_ROOT");
+#endif
   std::cout << "core launch tests passed\n";
 }

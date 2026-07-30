@@ -52,6 +52,30 @@ void TestVolumeUsesOneAuthoritativeResultAndSfxOrder() {
   assert((calls == std::vector<std::string>{"apply", "play"}));
 }
 
+void TestApplicationVolumeIsLocalAtZero() {
+  const auto path = std::filesystem::path("build") / "application_volume.ini";
+  ConfigStore config = MakeConfigStore(path);
+  SystemControlLevels levels;
+  VolumeController volume(levels);
+
+  AppUiState ui = InitializeAppUiState(config.Get(), volume);
+  assert(ui.volume_display_percent == 50);
+  assert(levels.volume.available);
+  assert(levels.volume.level == 10);
+  assert(levels.volume.max_level == 20);
+
+  int applied_sfx = -1;
+  const auto result = ApplyVolumeAdjustment(
+      -10, 1000, volume, config, ui,
+      [&](int value) { applied_sfx = value; }, {});
+  assert(result.changed);
+  assert(result.percent == 0);
+  assert(config.Get().system_volume_percent == 0);
+  assert(levels.volume.level == 0);
+  assert(applied_sfx == 0);
+  assert(!volume.UsesSystemVolume());
+}
+
 void TestVolumeFailureRefreshesButDoesNotFakeSuccess() {
   const auto path = std::filesystem::path("build") / "system_runtime_volume_failure.ini";
   ConfigStore config = MakeConfigStore(path);
@@ -136,22 +160,20 @@ void TestSystemSettingsOwnsAudioCallbacks() {
   const auto path = std::filesystem::path("build") / "system_runtime_callbacks.ini";
   ConfigStore config = MakeConfigStore(path);
   SystemControlLevels levels;
-  levels.volume = {true, 10, 20};
-  VolumeController volume(
-      levels,
-      [](int delta, SystemControlLevels &current) {
-        current.volume.level += delta;
-        return true;
-      },
-      [](SystemControlValue &) { return true; });
+  VolumeController volume(levels);
   SystemControlService controls(false);
   AppUiState ui{50, 0};
+  int initial_percent = ui.volume_display_percent;
+  assert(volume.ApplyConfiguredPercent(initial_percent, initial_percent));
   int applied = 0;
   int played = 0;
   SystemSettingsCallbacks callbacks = MakeSystemSettingsCallbacks(
       volume, controls, levels, config, ui,
       [&](int) { ++applied; }, [&]() { ++played; });
   assert(callbacks.adjust_volume(1, 3000));
+  assert(config.Get().system_volume_percent == 55);
+  assert(ui.volume_display_percent == 55);
+  assert(levels.volume.level == 11);
   assert(applied == 1);
   assert(played == 1);
 }
@@ -193,6 +215,7 @@ void TestPowerLifecycleSeparatesAutoAndManualWake() {
 int main() {
   std::filesystem::create_directories("build");
   TestVolumeUsesOneAuthoritativeResultAndSfxOrder();
+  TestApplicationVolumeIsLocalAtZero();
   TestVolumeFailureRefreshesButDoesNotFakeSuccess();
   TestVolumeReconcileIsIdempotentAndSilent();
   TestBrightnessPersistsOnlyAppliedHardwareState();

@@ -428,8 +428,8 @@ bool SystemControlService::TrySetVolumePercentAlsa(int percent) {
       if (snd_mixer_selem_get_playback_volume_range(elem, &minv, &maxv) < 0 || maxv <= minv) continue;
       const long raw = minv + ((maxv - minv) * clamped_percent + 50) / 100;
       if (snd_mixer_selem_set_playback_volume_all(elem, raw) < 0) continue;
-      if (snd_mixer_selem_has_playback_switch(elem)) {
-        snd_mixer_selem_set_playback_switch_all(elem, clamped_percent > 0 ? 1 : 0);
+      if (clamped_percent > 0 && snd_mixer_selem_has_playback_switch(elem)) {
+        snd_mixer_selem_set_playback_switch_all(elem, 1);
       }
       if (!changed_any || score > MixerElementScore(working_mixer_elem_, "")) {
         working_mixer_card_ = card;
@@ -846,7 +846,8 @@ bool SystemControlService::TrySetVolumePercent(const std::string &control, int p
                                  ? "env -u LD_LIBRARY_PATH /usr/bin/amixer"
                                  : "amixer";
   const std::string suffix =
-      std::to_string(std::clamp(percent, 0, 100)) + "%" + (percent <= 0 ? " mute" : " unmute") + " >/dev/null 2>&1";
+      std::to_string(std::clamp(percent, 0, 100)) + "%" +
+      (percent > 0 ? " unmute" : "") + " >/dev/null 2>&1";
   const std::array<std::string, 4> commands = {
       amixer + " -q sset " + escaped_control + " " + suffix,
       amixer + " -q -c 0 sset " + escaped_control + " " + suffix,

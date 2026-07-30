@@ -1,0 +1,67 @@
+diff --git a/cpp/plugins/motionplayer/SourceCache.cpp b/cpp/plugins/motionplayer/SourceCache.cpp
+--- a/cpp/plugins/motionplayer/SourceCache.cpp
++++ b/cpp/plugins/motionplayer/SourceCache.cpp
+@@ -39,6 +39,8 @@ namespace {
+         return ttstr(value);
+     }
+ 
++    constexpr tjs_int64 missingBitmapSentinel = -1;
++
+     bool packedColorsAreDefault(std::uint32_t c0, std::uint32_t c1,
+                                 std::uint32_t c2, std::uint32_t c3) {
+         return c0 == 0xFF808080u && c1 == 0xFF808080u && c2 == 0xFF808080u &&
+@@ -709,6 +711,10 @@ namespace motion {
+             return entry.backingBitmap->GetWidth() > 0 &&
+                 entry.backingBitmap->GetHeight() > 0;
+         }
++        if(entry.sourceObject.Type() == tvtInteger &&
++           entry.sourceObject.AsInteger() == missingBitmapSentinel) {
++            return false;
++        }
+ 
+         std::shared_ptr<tTVPBaseBitmap> baseBitmap;
+         if(_runtime && _runtime->activeMotion) {
+@@ -722,6 +728,7 @@ namespace motion {
+         }
+         if(!baseBitmap || baseBitmap->GetWidth() <= 0 ||
+            baseBitmap->GetHeight() <= 0) {
++            entry.sourceObject = missingBitmapSentinel;
+             return false;
+         }
+ 
+diff --git a/cpp/plugins/motionplayer/PlayerRenderTargets.cpp b/cpp/plugins/motionplayer/PlayerRenderTargets.cpp
+--- a/cpp/plugins/motionplayer/PlayerRenderTargets.cpp
++++ b/cpp/plugins/motionplayer/PlayerRenderTargets.cpp
+@@ -708,6 +708,9 @@ namespace motion {
+                     _runtime->sourceCacheNative->loadRenderSourceTextureByName(
+                         detail::widen(item.sourceKey), item.srcRef,
+                         item.blendMode, item.packedColors);
++                if(!sourceTexture) {
++                    continue;
++                }
+                 PrivateMotionGLLRenderItemInputLike_0x6DE738 queueItem;
+                 queueItem.opacity =
+                     privateMotionGLLOpacityLike_0x6DE738(item, _preview);
+@@ -718,15 +721,13 @@ namespace motion {
+                 queueItem.meshDivX = item.meshDivX;
+                 queueItem.meshDivY = item.meshDivY;
+                 queueItem.packedColors = item.packedColors;
+-                if(sourceTexture) {
+-                    queueItem.sourceRect = {
+-                        0,
+-                        0,
+-                        static_cast<std::int32_t>(sourceTexture->GetWidth()),
+-                        static_cast<std::int32_t>(sourceTexture->GetHeight()),
+-                    };
+-                    queueItem.sourceTexture = sourceTexture;
+-                }
++                queueItem.sourceRect = {
++                    0,
++                    0,
++                    static_cast<std::int32_t>(sourceTexture->GetWidth()),
++                    static_cast<std::int32_t>(sourceTexture->GetHeight()),
++                };
++                queueItem.sourceTexture = sourceTexture;
+                 populatePrivateMotionGLLPointsLike_0x6DE738(item, queueItem);
+                 appendPrivateMotionGLLRenderItemLike_0x6DE738(
+                     renderTargetObject, queueItem);

@@ -1,0 +1,253 @@
+diff --git a/cpp/plugins/motionplayer/ResourceManager.cpp b/cpp/plugins/motionplayer/ResourceManager.cpp
+index 2b22515..bbfd493 100644
+--- a/cpp/plugins/motionplayer/ResourceManager.cpp
++++ b/cpp/plugins/motionplayer/ResourceManager.cpp
+@@ -17,6 +17,10 @@
+ 
+ #define LOGGER spdlog::get("plugin")
+ 
++namespace PSB {
++    void SetMotionPSBDecryptCallback(tTJSVariantClosure callback);
++}
++
+ namespace {
+     std::string lowercase(std::string value) {
+         std::transform(value.begin(), value.end(), value.begin(),
+@@ -135,6 +139,7 @@ tjs_error motion::ResourceManager::setEmotePSBDecryptFunc(tTJSVariant *,
+         return TJS_E_INVALIDPARAM;
+     }
+     _decryptFunc = p[0]->AsObjectClosure();
++    PSB::SetMotionPSBDecryptCallback(_decryptFunc);
+     LOGGER->info("setEmotePSBDecryptFunc: {}",
+                  _decryptFunc.Object ? "closure stored" : "cleared");
+     return TJS_S_OK;
+diff --git a/cpp/plugins/motionplayer/main.cpp b/cpp/plugins/motionplayer/main.cpp
+index 8ef57ed..4e6258d 100644
+--- a/cpp/plugins/motionplayer/main.cpp
++++ b/cpp/plugins/motionplayer/main.cpp
+@@ -4,6 +4,7 @@
+ //
+ #include <spdlog/spdlog.h>
+ #include "tjs.h"
++#include "tjsDictionary.h"
+ #include "ncbind.hpp"
+ #include "psbfile/PSBFile.h"
+ 
+@@ -20,6 +21,46 @@ using namespace motion;
+ #define NCB_MODULE_NAME TJS_W("motionplayer.dll")
+ #define LOGGER spdlog::get("plugin")
+ 
++namespace {
++    tjs_error getEmoteCameraOffsetCompat(tTJSVariant *result, tjs_int,
++                                         tTJSVariant **,
++                                         iTJSDispatch2 *objthis) {
++        auto *self =
++            ncbInstanceAdaptor<EmotePlayer>::GetNativeInstance(objthis, true);
++        if(!self)
++            return TJS_E_INVALIDOBJECT;
++        if(result)
++            *result = self->getPlayer().getCameraOffset();
++        return TJS_S_OK;
++    }
++
++    tjs_error setEmoteCameraOffsetCompat(tTJSVariant *, tjs_int numparams,
++                                         tTJSVariant **param,
++                                         iTJSDispatch2 *objthis) {
++        auto *self =
++            ncbInstanceAdaptor<EmotePlayer>::GetNativeInstance(objthis, true);
++        if(!self)
++            return TJS_E_INVALIDOBJECT;
++        if(numparams < 2 || !param[0] || !param[1])
++            return TJS_E_INVALIDPARAM;
++
++        iTJSDispatch2 *dictionary = TJSCreateDictionaryObject();
++        if(!dictionary)
++            return TJS_E_FAIL;
++        tTJSVariant offset(dictionary);
++        dictionary->Release();
++
++        tTJSVariant x(param[0]->AsReal());
++        tTJSVariant y(param[1]->AsReal());
++        dictionary->PropSet(TJS_MEMBERENSURE, TJS_W("x"), nullptr, &x,
++                            dictionary);
++        dictionary->PropSet(TJS_MEMBERENSURE, TJS_W("y"), nullptr, &y,
++                            dictionary);
++        self->getPlayer().setCameraOffset(offset);
++        return TJS_S_OK;
++    }
++}
++
+ // ============================================================
+ // Subclass registrations (used as Motion.XXX)
+ // ============================================================
+@@ -344,6 +385,8 @@ NCB_REGISTER_SUBCLASS_DELAY(EmotePlayer) {
+     NCB_METHOD_RAW_CALLBACK(setRotate, &EmotePlayer::setRotCompat, 0);
+     NCB_METHOD(getRot);
+     NCB_METHOD_RAW_CALLBACK(setCoord, &EmotePlayer::setCoordCompat, 0);
++    NCB_METHOD_RAW_CALLBACK(getCameraOffset, &getEmoteCameraOffsetCompat, 0);
++    NCB_METHOD_RAW_CALLBACK(setCameraOffset, &setEmoteCameraOffsetCompat, 0);
+     NCB_METHOD_RAW_CALLBACK(setScale, &EmotePlayer::setScaleCompat, 0);
+     NCB_METHOD(getScale);
+     NCB_METHOD(setMirror);
+@@ -486,16 +529,23 @@ static void PostRegistCallback() {
+     if(!global)
+         return;
+ 
+-    auto ensurePlayerClassUseD3DProbe = [](iTJSDispatch2 *playerClass) {
++    // Construct an empty dictionary through the native API. Evaluating
++    // "%[]" during plugin registration can escape before the host has its
++    // normal script-error boundary installed.
++    auto makeEmptyDictionary = []() -> tTJSVariant {
++        iTJSDispatch2 *dictionary = TJSCreateDictionaryObject();
++        if(!dictionary)
++            return tTJSVariant();
++        tTJSVariant result(dictionary);
++        dictionary->Release();
++        return result;
++    };
++
++    auto ensurePlayerClassUseD3DProbe = [&](iTJSDispatch2 *playerClass) {
+         if(!playerClass) {
+             return;
+         }
+-        tTJSVariant marker;
+-        try {
+-            TVPExecuteExpression(TJS_W("%[]"), &marker);
+-        } catch(...) {
+-            return;
+-        }
++        tTJSVariant marker = makeEmptyDictionary();
+         if(marker.Type() != tvtObject) {
+             return;
+         }
+@@ -531,17 +581,23 @@ static void PostRegistCallback() {
+     // dictionaries. These are referenced by encrypted keybinder.tjs but may not
+     // be defined if the gamepad initialization script hasn't run yet.
+     {
+-        tTJSVariant r;
+-        try {
+-            TVPExecuteExpression(
+-                TJS_W("global.ShortCutInitialPadKeyMap === void "
+-                      "? (global.ShortCutInitialPadKeyMap = %[]) : void"),
+-                &r);
+-            TVPExecuteExpression(
+-                TJS_W("global.ShortCutInitialGamePadKeyMap === void "
+-                      "? (global.ShortCutInitialGamePadKeyMap = %[]) : void"),
+-                &r);
+-        } catch(...) {
++        tTJSVariant value;
++        if(TJS_FAILED(global->PropGet(0, TJS_W("ShortCutInitialPadKeyMap"),
++                                      nullptr, &value, global)) ||
++           value.Type() == tvtVoid) {
++            value = makeEmptyDictionary();
++            global->PropSet(TJS_MEMBERENSURE, TJS_W("ShortCutInitialPadKeyMap"),
++                            nullptr, &value, global);
++        }
++        value.Clear();
++        if(TJS_FAILED(global->PropGet(
++               0, TJS_W("ShortCutInitialGamePadKeyMap"), nullptr, &value,
++               global)) ||
++           value.Type() == tvtVoid) {
++            value = makeEmptyDictionary();
++            global->PropSet(
++                TJS_MEMBERENSURE, TJS_W("ShortCutInitialGamePadKeyMap"),
++                nullptr, &value, global);
+         }
+     }
+ 
+diff --git a/cpp/plugins/psbfile/PSBFile.cpp b/cpp/plugins/psbfile/PSBFile.cpp
+index bfb2035..c3d8d59 100644
+--- a/cpp/plugins/psbfile/PSBFile.cpp
++++ b/cpp/plugins/psbfile/PSBFile.cpp
+@@ -13,6 +13,18 @@
+ #define LOGGER spdlog::get("plugin")
+ 
+ namespace PSB {
++    namespace {
++        tTJSVariant motionDecryptCallback;
++    }
++
++    void SetMotionPSBDecryptCallback(tTJSVariantClosure callback) {
++        if(callback.Object != nullptr) {
++            motionDecryptCallback =
++                tTJSVariant(callback.Object, callback.ObjThis);
++        } else {
++            motionDecryptCallback.Clear();
++        }
++    }
+ 
+     PSBFile::PSBFile() = default;
+     PSBFile::~PSBFile() = default;
+@@ -407,7 +419,13 @@ namespace PSB {
+             }
+         }
+ 
+-        if(_decryptClo.Object != NULL) {
++        tTJSVariantClosure decryptCallback =
++            _decryptClo.Object != nullptr
++            ? _decryptClo
++            : (motionDecryptCallback.Type() == tvtObject
++                   ? motionDecryptCallback.AsObjectClosure()
++                   : tTJSVariantClosure(nullptr));
++        if(decryptCallback.Object != nullptr) {
+             auto decrypted = std::make_unique<tTVPMemoryStream>(
+                 nullptr, static_cast<tjs_uint>(stream->GetSize()));
+             stream->SetPosition(0);
+@@ -420,7 +438,7 @@ namespace PSB {
+             cba->Release();
+             tTJSVariant bufferLen(static_cast<tjs_int>(decrypted->GetSize()));
+             tTJSVariant *vars[] = { &buff, &bufferLen };
+-            _decryptClo.FuncCall(0, NULL, NULL, NULL, 2, vars, NULL);
++            decryptCallback.FuncCall(0, NULL, NULL, NULL, 2, vars, NULL);
+             _stream = std::move(decrypted);
+             stream = _stream.get();
+             stream->SetPosition(0);
+@@ -437,10 +455,15 @@ namespace PSB {
+             return false;
+         }
+ 
+-        if(_header.version > 3) {
+-            LOGGER->critical("not support psb file format version > 3");
++        // PSB v4 keeps the v3 table layout and adds the three extra chunk
++        // offsets already parsed by PSBHeader::GetHeaderLength(). Motion PSBs
++        // from newer KAG titles commonly use this form.
++        if(_header.version > 4) {
++            LOGGER->critical("not support psb file format version > 4");
+             return false;
+         }
++        if(_header.version == 4)
++            LOGGER->info("PSB v4 compatibility path");
+ 
+         stream->SetPosition(_header.offsetStrings);
+         stringOffsets = PSB::PSBArray(
+@@ -489,7 +512,20 @@ namespace PSB {
+         resources.clear();
+         resources.reserve(chunkLengths.value.size());
+ 
+-        if(_header.version >= 4) {
++        const bool hasExtraChunks =
++            _header.version >= 4 &&
++            _header.offsetExtraChunkOffsets < stream->GetSize() &&
++            _header.offsetExtraChunkLengths < stream->GetSize() &&
++            _header.offsetExtraChunkData <= stream->GetSize();
++        if(_header.version >= 4 && !hasExtraChunks) {
++            LOGGER->warn(
++                "ignoring invalid PSB v4 extra chunk offsets: {}, {}, {} "
++                "(size={})",
++                _header.offsetExtraChunkOffsets,
++                _header.offsetExtraChunkLengths,
++                _header.offsetExtraChunkData, stream->GetSize());
++        }
++        if(hasExtraChunks) {
+             stream->SetPosition(_header.offsetExtraChunkOffsets);
+             extraChunkOffsets = PSB::PSBArray(
+                 stream->ReadI8LE() -
+@@ -516,7 +552,7 @@ namespace PSB {
+             loadResource(*res, stream);
+         }
+ 
+-        if(_header.version >= 4) {
++        if(hasExtraChunks) {
+             for(auto &res : extraResources) {
+                 loadExtraResource(*res, stream);
+             }

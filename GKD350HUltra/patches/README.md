@@ -26,6 +26,7 @@ git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\p
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-messagebox.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-empty-string.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-bytecode-bounds.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-regexp-legacy-hex.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-text-stream-cipher-header.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-command-line.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-kag-emb-escape.patch
@@ -34,6 +35,13 @@ git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\p
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gpu-presentation.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-shared-post-update-fbo-restore.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-mali-safe-render.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-presentation-capture.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-pointer-request.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-source-metadata.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-texture-cache.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-texture-cpu-release.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-parameter-cycle-guard.patch
+git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-camera-psbv4-compat.patch
 git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-opengl-default.patch
 & D:\Works\ROCgalgame\GKD350HUltra\apply_krkr2_layerex_compat.ps1
 ```
@@ -83,6 +91,11 @@ pointers. Incompatible exception targets now produce a controlled
 `ByteCodeBroken` script error with diagnostics instead of reading an invalid
 instruction address and raising `SIGSEGV`.
 
+The TJS legacy RegExp hex patch translates JavaScript-style two-digit
+`\\xHH` and legacy KiriKiri four-digit `\\xHHHH` escapes to UTF-16-safe
+`\\u00HH` and `\\uHHHH` before invoking Oniguruma. Escaped backslashes and
+the already supported `\\x{...}` form are unchanged.
+
 The encrypted-text header patch consumes the complete three-byte cipher
 signature and two-byte UTF-16LE BOM before decoding mode-0 and mode-1 TJS text.
 It also validates the BOM and code-unit length and reads little-endian units
@@ -117,6 +130,44 @@ paths instead of framebuffer-fetch and clear-texture extension shortcuts. Set
 `ROCGALGAME_KRKR_MALI_FAST_PATHS=1` for an A/B run of the old shortcuts. Set
 `ROCGALGAME_KRKR_PRESENTATION_PROBE=1` to log sampled final-layer pixels and GL
 status without enabling per-frame readback.
+
+The presentation-capture patch adds an opt-in test hook for real-device visual
+verification. Set `ROCGALGAME_KRKR_PRESENTATION_CAPTURE_REQUEST` to a request
+file path, then write a destination PPM path into that file. The core consumes
+one request and captures the current final Kirikiri texture. With the variable
+unset, the hook does no polling or framebuffer readback.
+
+The pointer-request patch adds an opt-in real-device interaction hook. Set
+`ROCGALGAME_KRKR_POINTER_REQUEST` to a request file, then atomically write
+`X Y CLICK` using normalized top-left coordinates. The core consumes the
+request, positions the virtual pointer, and optionally clicks. The hook performs
+no file access when the variable is unset.
+
+The motion source metadata patch prevents geometry refreshes from decoding and
+cropping complete PSB textures when they only need width, height, and anchor
+metadata. Pixel decoding remains enabled for SourceCache bitmap creation, while
+per-frame node updates use the metadata-only path.
+
+The motion texture cache patch keeps render-source textures untinted in the
+cache. Animated packed colors are already applied by the PrivateMotionGLL and
+D3D draw methods, so including those per-frame colors in the cache key created
+unbounded full-bitmap and GPU-texture variants and applied the tint twice.
+
+The Motion camera and PSB v4 compatibility patch exposes the legacy
+`EmotePlayer.setCameraOffset(x, y)` API, retains game-provided PSB decrypt
+closures for their full lifetime, and forwards `ResourceManager` callbacks to
+the PSB loader. PSB v4 files with absent or encrypted optional extra-chunk
+offsets are parsed through their valid base chunk tables instead of seeking
+outside the stream.
+
+The motion missing-source cache patch remembers failed static bitmap lookups
+and omits unresolved placeholder items from the PrivateMotionGLL queue. This
+prevents repeated path/PSB scans and keeps a placeholder from truncating all
+later drawable parts in the same frame.
+
+The motion missing-source fast-hit patch returns directly from cached failed
+lookups before rebuilding storage candidates. It removes the remaining
+per-frame path normalization cost for static placeholder sources.
 
 The ROCgalgame renderer-default patch selects KRKR2's `opengl` RenderManager
 when the ROCgalgame runtime environment is present. Set

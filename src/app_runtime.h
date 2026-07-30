@@ -25,6 +25,7 @@ public:
   using RefreshCallback = std::function<bool(SystemControlValue &)>;
   using ApplyCallback = std::function<bool(int, SystemControlValue &)>;
 
+  explicit VolumeController(SystemControlLevels &levels);
   VolumeController(SystemControlService &service, SystemControlLevels &levels, bool prefer_system);
   VolumeController(SystemControlLevels &levels, AdjustCallback adjust, RefreshCallback refresh,
                    ApplyCallback apply = {});
@@ -36,10 +37,12 @@ public:
 
 private:
   int PercentFromLevel() const;
+  void StoreApplicationPercent(int percent);
 
   SystemControlService *service_ = nullptr;
   SystemControlLevels &levels_;
   bool prefer_system_ = true;
+  bool application_only_ = false;
   AdjustCallback adjust_;
   RefreshCallback refresh_;
   ApplyCallback apply_;

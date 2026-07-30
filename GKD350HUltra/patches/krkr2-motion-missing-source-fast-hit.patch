@@ -1,0 +1,25 @@
+diff --git a/cpp/plugins/motionplayer/SourceCache.cpp b/cpp/plugins/motionplayer/SourceCache.cpp
+--- a/cpp/plugins/motionplayer/SourceCache.cpp
++++ b/cpp/plugins/motionplayer/SourceCache.cpp
+@@ -516,6 +516,10 @@ namespace motion {
+                entry->sourceObject.AsObjectNoAddRef()) {
+                 return entry->sourceObject;
+             }
++            if(entry->sourceObject.Type() == tvtInteger &&
++               entry->sourceObject.AsInteger() == missingBitmapSentinel) {
++                return entry->rawSource;
++            }
+         }
+ 
+         std::string resolvedKey;
+@@ -574,6 +578,10 @@ namespace motion {
+             if(entry->sourceTexture) {
+                 return entry->sourceTexture;
+             }
++            if(entry->sourceObject.Type() == tvtInteger &&
++               entry->sourceObject.AsInteger() == missingBitmapSentinel) {
++                return nullptr;
++            }
+         }
+ 
+         std::string resolvedKey;

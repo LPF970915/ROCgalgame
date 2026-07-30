@@ -68,6 +68,14 @@ def master_volume_percent():
     return values[0]
 
 
+def configured_volume_percent(config_path):
+    with open(config_path, "r", encoding="utf-8") as stream:
+        match = re.search(r"(?m)^system_volume_percent=(\d+)\s*$", stream.read())
+    if not match:
+        raise RuntimeError("application volume percentage unavailable")
+    return int(match.group(1))
+
+
 def brightness_values():
     values = {}
     for path in glob.glob("/sys/class/backlight/*/brightness"):
@@ -140,8 +148,10 @@ def main():
         volume_initial = master_volume_percent()
         press(fd, KEY_VOLUMEUP, 5.0)
         volume_physical_up = master_volume_percent()
+        app_volume_physical_up = configured_volume_percent(config_path)
         press(fd, KEY_VOLUMEDOWN, 5.0)
         volume_physical_restored = master_volume_percent()
+        app_volume_physical_restored = configured_volume_percent(config_path)
 
         press(fd, BTN_MODE, 1.0)
         press(fd, BTN_DPAD_DOWN, 1.0)
@@ -149,8 +159,10 @@ def main():
         press(fd, BTN_EAST, 1.0)
         press(fd, BTN_DPAD_RIGHT, 5.0)
         volume_menu_up = master_volume_percent()
+        app_volume_menu_up = configured_volume_percent(config_path)
         press(fd, BTN_DPAD_LEFT, 5.0)
         volume_menu_restored = master_volume_percent()
+        app_volume_menu_restored = configured_volume_percent(config_path)
 
         press(fd, BTN_DPAD_DOWN, 1.0)
         brightness_initial = brightness_values()
@@ -170,16 +182,22 @@ def main():
         print("volume_physical_restored={}".format(volume_physical_restored), flush=True)
         print("volume_menu_up={}".format(volume_menu_up), flush=True)
         print("volume_menu_restored={}".format(volume_menu_restored), flush=True)
+        print("app_volume_physical_up={}".format(app_volume_physical_up), flush=True)
+        print("app_volume_physical_restored={}".format(app_volume_physical_restored), flush=True)
+        print("app_volume_menu_up={}".format(app_volume_menu_up), flush=True)
+        print("app_volume_menu_restored={}".format(app_volume_menu_restored), flush=True)
         print("brightness_initial={}".format(brightness_initial), flush=True)
         print("brightness_down={}".format(brightness_down), flush=True)
         print("brightness_restored={}".format(brightness_restored), flush=True)
 
-        if volume_physical_up <= volume_initial:
-            raise RuntimeError("physical Volume+ did not increase Master")
-        if volume_physical_restored >= volume_physical_up:
-            raise RuntimeError("physical Volume- did not reverse Volume+")
-        if volume_menu_up <= volume_menu_restored:
-            raise RuntimeError("System Settings volume controls did not form one sequence")
+        if volume_physical_up != volume_initial or volume_physical_restored != volume_initial:
+            raise RuntimeError("physical volume keys changed the GKD system Master volume")
+        if volume_menu_up != volume_initial or volume_menu_restored != volume_initial:
+            raise RuntimeError("in-app key-sound controls changed the GKD system Master volume")
+        if (app_volume_physical_up, app_volume_physical_restored) != (55, 50):
+            raise RuntimeError("physical volume keys did not adjust and restore application volume")
+        if (app_volume_menu_up, app_volume_menu_restored) != (55, 50):
+            raise RuntimeError("in-app key-sound controls did not adjust and restore application volume")
         if brightness_initial and brightness_down == brightness_initial:
             raise RuntimeError("System Settings brightness decrement had no hardware effect")
         if brightness_initial and brightness_restored != brightness_initial:

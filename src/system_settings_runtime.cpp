@@ -46,7 +46,11 @@ SystemSettingsCallbacks MakeSystemSettingsCallbacks(
   const auto apply_sfx = apply_sfx_volume;
   const auto play_change = play_change_sfx;
   return SystemSettingsCallbacks{
-      [&system_controls, &levels]() { system_controls.Refresh(levels); },
+      [&volume_controller, &system_controls, &levels, &config]() {
+        system_controls.Refresh(levels);
+        int application_percent = config.Get().system_volume_percent;
+        volume_controller.ApplyConfiguredPercent(application_percent, application_percent);
+      },
       [&volume_controller, &config, &ui_state, apply_sfx, play_change](int delta,
                                                                       uint32_t now) {
         return ApplyVolumeAdjustment(delta, now, volume_controller, config, ui_state,

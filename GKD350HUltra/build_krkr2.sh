@@ -291,6 +291,66 @@ verify_rocgalgame_source_patches() {
     echo "[krkr2_build] ERROR: KRKR2 presentation probe patch is missing"
     exit 1
   }
+  grep -Fq 'ROCGALGAME_KRKR_PRESENTATION_CAPTURE_REQUEST' "$ogl_renderer" || {
+    echo "[krkr2_build] ERROR: KRKR2 presentation capture patch is missing"
+    exit 1
+  }
+  local main_scene="$KRKR2_ROOT/cpp/core/environ/cocos2d/MainScene.cpp"
+  grep -Fq 'TVPProcessPresentationCaptureRequest();' "$main_scene" || {
+    echo "[krkr2_build] ERROR: KRKR2 presentation capture tick is missing"
+    exit 1
+  }
+  grep -Fq 'ROCGALGAME_KRKR_POINTER_REQUEST' "$main_scene" || {
+    echo "[krkr2_build] ERROR: KRKR2 pointer request test hook is missing"
+    exit 1
+  }
+  local motion_internal="$KRKR2_ROOT/cpp/plugins/motionplayer/PlayerInternal.h"
+  local motion_update_internal="$KRKR2_ROOT/cpp/plugins/motionplayer/PlayerUpdateLayersInternal.h"
+  grep -Fq 'bool decodePixels = true' "$motion_internal" || {
+    echo "[krkr2_build] ERROR: KRKR2 motion source metadata-only patch is missing"
+    exit 1
+  }
+  grep -Fq 'ignoredPixels, srcOX, srcOY, nullptr,' "$motion_update_internal" || {
+    echo "[krkr2_build] ERROR: KRKR2 motion geometry metadata-only call is missing"
+    exit 1
+  }
+  local motion_source_cache="$KRKR2_ROOT/cpp/plugins/motionplayer/SourceCache.cpp"
+  grep -Fq 'textureCacheColors' "$motion_source_cache" || {
+    echo "[krkr2_build] ERROR: KRKR2 motion texture cache patch is missing"
+    exit 1
+  }
+  grep -Fq 'entry.backingBitmap.reset();' "$motion_source_cache" || {
+    echo "[krkr2_build] ERROR: KRKR2 motion texture CPU release patch is missing"
+    exit 1
+  }
+  grep -Fq 'missingBitmapSentinel' "$motion_source_cache" || {
+    echo "[krkr2_build] ERROR: KRKR2 motion missing-source cache patch is missing"
+    exit 1
+  }
+  [ "$(grep -Fc 'entry->sourceObject.Type() == tvtInteger' "$motion_source_cache")" -ge 2 ] || {
+    echo "[krkr2_build] ERROR: KRKR2 motion missing-source fast-hit patch is missing"
+    exit 1
+  }
+  local motion_render_targets="$KRKR2_ROOT/cpp/plugins/motionplayer/PlayerRenderTargets.cpp"
+  grep -Fq 'if(!sourceTexture) {' "$motion_render_targets" || {
+    echo "[krkr2_build] ERROR: KRKR2 motion missing-source queue patch is missing"
+    exit 1
+  }
+  local motion_plugin="$KRKR2_ROOT/cpp/plugins/motionplayer/main.cpp"
+  grep -Fq 'setEmoteCameraOffsetCompat' "$motion_plugin" || {
+    echo "[krkr2_build] ERROR: KRKR2 Motion setCameraOffset compatibility patch is missing"
+    exit 1
+  }
+  local motion_variable="$KRKR2_ROOT/cpp/plugins/motionplayer/PlayerVariable.cpp"
+  grep -Fq 'parameterPropagation.visited.insert(this)' "$motion_variable" || {
+    echo "[krkr2_build] ERROR: KRKR2 Motion parameter cycle guard is missing"
+    exit 1
+  }
+  local motion_resource_manager="$KRKR2_ROOT/cpp/plugins/motionplayer/ResourceManager.cpp"
+  grep -Fq 'SetMotionPSBDecryptCallback(_decryptFunc);' "$motion_resource_manager" || {
+    echo "[krkr2_build] ERROR: KRKR2 Motion PSB decrypt callback bridge is missing"
+    exit 1
+  }
   local render_manager="$KRKR2_ROOT/cpp/core/visual/RenderManager.cpp"
   grep -Fq 'ROCGALGAME_KRKR_RENDERER' "$render_manager" || {
     echo "[krkr2_build] ERROR: ROCgalgame OpenGL renderer default patch is missing"
@@ -301,6 +361,15 @@ verify_rocgalgame_source_patches() {
     echo "[krkr2_build] ERROR: KRKR2 PSB load-safety patch is missing"
     exit 1
   }
+  local psb_file="$KRKR2_ROOT/cpp/plugins/psbfile/PSBFile.cpp"
+  grep -Fq 'ignoring invalid PSB v4 extra chunk offsets' "$psb_file" || {
+    echo "[krkr2_build] ERROR: KRKR2 PSB v4 compatibility patch is missing"
+    exit 1
+  }
+  grep -Fq 'tTJSVariant motionDecryptCallback;' "$psb_file" || {
+    echo "[krkr2_build] ERROR: KRKR2 PSB decrypt callback lifetime fix is missing"
+    exit 1
+  }
   local fstat_plugin="$KRKR2_ROOT/cpp/plugins/fstat/main.cpp"
   grep -Fq 'TVPGetLocallyAccessibleName(normalized)' "$fstat_plugin" || {
     echo "[krkr2_build] ERROR: KRKR2 fstat missing-file delete patch is missing"
@@ -309,6 +378,16 @@ verify_rocgalgame_source_patches() {
   local tjs_executor="$KRKR2_ROOT/cpp/core/tjs2/tjsInterCodeExec.cpp"
   grep -Fq 'invalid TJS VM instruction pointer:' "$tjs_executor" || {
     echo "[krkr2_build] ERROR: KRKR2 TJS bytecode-bounds patch is missing"
+    exit 1
+  }
+  local tjs_regexp="$KRKR2_ROOT/cpp/core/tjs2/tjsRegExp.cpp"
+  grep -Fq 'TJSNormalizeLegacyRegExpHexEscapes' "$tjs_regexp" || {
+    echo "[krkr2_build] ERROR: KRKR2 TJS legacy RegExp hex patch is missing"
+    exit 1
+  }
+  local alpha_movie_plugin="$KRKR2_ROOT/cpp/plugins/AlphaMovie.cpp"
+  grep -Fq 'NCB_MODULE_NAME TJS_W("AlphaMovie.dll")' "$alpha_movie_plugin" || {
+    echo "[krkr2_build] ERROR: KRKR2 AlphaMovie compatibility plugin is missing"
     exit 1
   }
   local text_stream="$KRKR2_ROOT/cpp/core/base/TextStream.cpp"
@@ -337,13 +416,11 @@ prepare_fmod_stub() {
   local mali_link_library="$SYSROOT/lib/libmali.so"
   local link_file="$BUILD_DIR/CMakeFiles/krkr2.dir/link.txt"
   local patched_link_file="$link_file.rocgalgame.tmp"
+  local alpha_movie_object="CMakeFiles/krkr2.dir/cpp/plugins/AlphaMovie.cpp.o"
+  local alpha_movie_object_path="$BUILD_DIR/$alpha_movie_object"
 
   test -f "$FMOD_STUB_SOURCE" || {
     echo "[krkr2_build] ERROR: FMOD stub source is missing: $FMOD_STUB_SOURCE"
-    exit 1
-  }
-  test -f "$fmod_include/fmod.hpp" || {
-    echo "[krkr2_build] ERROR: Cocos2d-x FMOD headers are missing: $fmod_include"
     exit 1
   }
   test -e "$mali_link_library" || {
@@ -353,6 +430,10 @@ prepare_fmod_stub() {
 
   mkdir -p "$FMOD_STUB_BUILD_DIR"
   if [ ! -f "$stub_archive" ] || [ "$FMOD_STUB_SOURCE" -nt "$stub_archive" ]; then
+    test -f "$fmod_include/fmod.hpp" || {
+      echo "[krkr2_build] ERROR: rebuilding the FMOD stub requires headers: $fmod_include"
+      exit 1
+    }
     echo "[krkr2_build] building AArch64 Cocos FMOD compatibility stub"
     aarch64-linux-gnu-g++ --sysroot="$SYSROOT" -std=c++11 -O2 -fPIC \
       -I"$fmod_include" -c "$FMOD_STUB_SOURCE" -o "$stub_object"
@@ -375,6 +456,22 @@ prepare_fmod_stub() {
       -e "s# -fuse-ld=gold##g" \
       -e '/^[[:space:]]*$/d' \
       "$link_file" > "$patched_link_file"
+    if ! grep -Fq "$alpha_movie_object" "$patched_link_file"; then
+      test -f "$alpha_movie_object_path" || {
+        echo "[krkr2_build] ERROR: cached AlphaMovie object is missing: $alpha_movie_object_path"
+        rm -f "$patched_link_file"
+        exit 1
+      }
+      sed -i \
+        "s# CMakeFiles/krkr2.dir/cpp/plugins/fstat/main.cpp.o# $alpha_movie_object CMakeFiles/krkr2.dir/cpp/plugins/fstat/main.cpp.o#" \
+        "$patched_link_file"
+      grep -Fq "$alpha_movie_object" "$patched_link_file" || {
+        echo "[krkr2_build] ERROR: failed to add AlphaMovie object to cached link command"
+        rm -f "$patched_link_file"
+        exit 1
+      }
+      echo "[krkr2_build] added cached AlphaMovie compatibility object to link"
+    fi
     # The device libGLESv2 shim has no GL exports of its own. With
     # --no-copy-dt-needed-entries the real Mali implementation must be linked
     # explicitly, after every static Cocos archive that references gl*.

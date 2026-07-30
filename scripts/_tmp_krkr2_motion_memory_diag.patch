@@ -1,0 +1,63 @@
+diff --git a/cpp/plugins/motionplayer/SourceCache.cpp b/cpp/plugins/motionplayer/SourceCache.cpp
+--- a/cpp/plugins/motionplayer/SourceCache.cpp
++++ b/cpp/plugins/motionplayer/SourceCache.cpp
+@@ -1,6 +1,7 @@
+ #include "SourceCache.h"
+ 
+ #include <algorithm>
++#include <cstdio>
+ #include <cstring>
+ #include <optional>
+ #include <unordered_set>
+@@ -265,6 +266,48 @@ namespace {
+     std::shared_ptr<tTVPBaseBitmap>
+     loadPsbBitmap(const motion::detail::MotionSnapshot &snapshot,
+                   const std::string &sourceKey) {
++        int metadataWidth = 0;
++        int metadataHeight = 0;
++        double metadataOriginX = 0.0;
++        double metadataOriginY = 0.0;
++        std::vector<std::uint8_t> ignoredPixels;
++        const auto *metadataResource =
++            motion::internal::findPSBResourceBySourceName(
++                snapshot, sourceKey, metadataWidth, metadataHeight,
++                ignoredPixels, metadataOriginX, metadataOriginY, nullptr,
++                false);
++        int textureWidth = 0;
++        int textureHeight = 0;
++        if(sourceKey.rfind("src/", 0) == 0 && snapshot.root) {
++            const auto afterSrc = sourceKey.substr(4);
++            const auto slash = afterSrc.find('/');
++            if(slash != std::string::npos) {
++                const auto texturePath =
++                    "source/" + afterSrc.substr(0, slash) + "/texture";
++                const auto textureNode =
++                    motion::internal::navigatePSBPath(snapshot.root,
++                                                      texturePath);
++                if(textureNode) {
++                    textureWidth = static_cast<int>(
++                        motion::internal::psbDictionaryNumber(
++                            textureNode, "width")
++                            .value_or(0.0));
++                    textureHeight = static_cast<int>(
++                        motion::internal::psbDictionaryNumber(
++                            textureNode, "height")
++                            .value_or(0.0));
++                }
++            }
++        }
++        const auto rawBytes =
++            metadataResource ? metadataResource->data.size() : 0u;
++        const auto atlasBytes = static_cast<unsigned long long>(
++                                    std::max(textureWidth, 0)) *
++            static_cast<unsigned long long>(std::max(textureHeight, 0)) * 4u;
++        std::fprintf(stderr,
++                     "[motion-memory] source=%s icon=%dx%d atlas=%dx%d "
++                     "raw=%zu atlas-rgba=%llu\n",
++                     sourceKey.c_str(), metadataWidth, metadataHeight,
++                     textureWidth, textureHeight, rawBytes, atlasBytes);
++        std::fflush(stderr);
++
+         int width = 0;
+         int height = 0;
+         double originX = 0.0;

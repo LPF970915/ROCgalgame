@@ -1,0 +1,41 @@
+diff --git a/cpp/core/visual/ogl/RenderManager_ogl.cpp b/cpp/core/visual/ogl/RenderManager_ogl.cpp
+--- a/cpp/core/visual/ogl/RenderManager_ogl.cpp
++++ b/cpp/core/visual/ogl/RenderManager_ogl.cpp
+@@ -2999,11 +2999,13 @@ class TVPRenderManager_OpenGL : public iTVPRenderManager {
+ 
+     static iTVPTexture2D *CreateStaticTexture2D(tTVPBitmap *bmp) {
+         tjs_uint w = bmp->GetWidth(), h = bmp->GetHeight();
+-        if(w > GetMaxTextureWidth()) {
+-            if(w > GetMaxTextureWidth() * 2 && GL_CHECK_unpack_subimage) {
+-                return new tTVPOGLTexture2D_split(bmp);
+-            }
+-        } else if(h > GetMaxTextureHeight() * 2) {
++        if(w > GetMaxTextureWidth() || h > GetMaxTextureHeight()) {
++            TJS::TVPConsoleLog(
++                TJS_W("[rocgalgame] split oversized bitmap: ") +
++                ttstr((tjs_int)w) + TJS_W("x") + ttstr((tjs_int)h) +
++                TJS_W(" max=") + ttstr((tjs_int)GetMaxTextureWidth()) +
++                TJS_W(" unpack-subimage=") +
++                (GL_CHECK_unpack_subimage ? TJS_W("yes") : TJS_W("no")));
+             return new tTVPOGLTexture2D_split(bmp);
+         }
+         return _CreateStaticTexture2D(
+@@ -4351,11 +4353,13 @@ public:
+ 
+     iTVPTexture2D *CreateTexture2D(tTVPBitmap *bmp) override {
+         tjs_uint w = bmp->GetWidth(), h = bmp->GetHeight();
+-        if(w > GetMaxTextureWidth()) {
+-            if(w > GetMaxTextureWidth() * 2 && GL_CHECK_unpack_subimage) {
+-                return new tTVPOGLTexture2D_split(bmp);
+-            }
+-        } else if(h > GetMaxTextureHeight() * 2) {
++        if(w > GetMaxTextureWidth() || h > GetMaxTextureHeight()) {
++            TJS::TVPConsoleLog(
++                TJS_W("[rocgalgame] split oversized bitmap: ") +
++                ttstr((tjs_int)w) + TJS_W("x") + ttstr((tjs_int)h) +
++                TJS_W(" max=") + ttstr((tjs_int)GetMaxTextureWidth()) +
++                TJS_W(" unpack-subimage=") +
++                (GL_CHECK_unpack_subimage ? TJS_W("yes") : TJS_W("no")));
+             return new tTVPOGLTexture2D_split(bmp);
+         }
+         return _CreateStaticTexture2D(

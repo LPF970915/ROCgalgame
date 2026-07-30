@@ -167,6 +167,27 @@ migrate_legacy_path_list() {
   fi
 }
 
+repair_legacy_volume_mute_once() {
+  marker="$APP_DIR/cache/application_volume_v1_migrated"
+  [ -f "$marker" ] && return 0
+
+  # Older builds wired the in-app key-sound slider to ALSA and used the
+  # persistent Master mute switch at 0%. Repair that state once on upgrade.
+  if grep -Eq '^[[:space:]]*system_volume_percent[[:space:]]*=[[:space:]]*0[[:space:]]*$' \
+      "$APP_DIR/native_config.ini" 2>/dev/null; then
+    if [ -x /usr/bin/amixer ] && \
+        env -u LD_LIBRARY_PATH /usr/bin/amixer -q sset Master unmute >/dev/null 2>&1; then
+      log_line "[launcher] repaired legacy Master mute state"
+    else
+      log_line "[launcher] failed to repair legacy Master mute state"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$marker")" 2>/dev/null || true
+  : >"$marker" 2>/dev/null || true
+}
+
 perform_pending_update_if_any() {
   [ -f "$UPDATE_MARKER" ] || return 0
   package_name="$(marker_value filename)"
@@ -240,6 +261,7 @@ fi
 perform_pending_update_if_any
 migrate_legacy_path_list "$APP_DIR/cache/favorites.txt"
 migrate_legacy_path_list "$APP_DIR/cache/history.txt"
+repair_legacy_volume_mute_once
 
 if [ ! -x "$BIN" ]; then
   log_line "[launcher] missing frontend binary: $BIN"

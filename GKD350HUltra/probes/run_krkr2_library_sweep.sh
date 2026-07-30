@@ -47,7 +47,10 @@ copy_or_link_item() {
   source_item="$1"
   destination="$2"
   name="$(basename "$source_item")"
-  [ "$name" = "savedata" ] && return 0
+  lower_name="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
+  case "$lower_name" in
+    savedata|save|saves|strsave) return 0 ;;
+  esac
 
   if [ -d "$source_item" ]; then
     size_kb="$(du -sk "$source_item" 2>/dev/null | awk '{print $1}')"
@@ -204,6 +207,13 @@ run_case() {
   for source_item in "$source_dir"/*; do
     [ -e "$source_item" ] || continue
     copy_or_link_item "$source_item" "$case_dir"
+  done
+  for save_name in savedata save saves strsave; do
+    mkdir -p "$save_dir/$save_name"
+    if [ -d "$source_dir/$save_name" ]; then
+      cp -a "$source_dir/$save_name/." "$save_dir/$save_name/"
+    fi
+    ln -s "$save_dir/$save_name" "$case_dir/$save_name"
   done
 
   cd "$case_dir" || return

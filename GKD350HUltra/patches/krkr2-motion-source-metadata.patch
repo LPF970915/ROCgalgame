@@ -1,0 +1,57 @@
+diff --git a/cpp/plugins/motionplayer/PlayerInternal.h b/cpp/plugins/motionplayer/PlayerInternal.h
+--- a/cpp/plugins/motionplayer/PlayerInternal.h
++++ b/cpp/plugins/motionplayer/PlayerInternal.h
+@@ -1626,7 +1626,8 @@ namespace motion {
+             const detail::MotionSnapshot &snapshot, const std::string &source,
+             int &outWidth, int &outHeight,
+             std::vector<std::uint8_t> &decompressedOut, double &outOriginX,
+-            double &outOriginY, bool *outDecodedIsBgra = nullptr) {
++            double &outOriginY, bool *outDecodedIsBgra = nullptr,
++            bool decodePixels = true) {
+             outWidth = 0;
+             outHeight = 0;
+             outOriginX = 0.0;
+@@ -1698,6 +1699,9 @@ namespace motion {
+                                iconLeft >= 0 && iconTop >= 0 &&
+                                iconLeft + outWidth <= textureWidth &&
+                                iconTop + outHeight <= textureHeight) {
++                                if(!decodePixels) {
++                                    return textureResIt->second.get();
++                                }
+                                 bool texturePixelsAreBgra = false;
+                                 std::vector<std::uint8_t> texturePixels;
+                                 const auto textureCompress =
+@@ -1768,6 +1772,9 @@ namespace motion {
+                            !resIt->second->data.empty() && outWidth > 0 &&
+                            outHeight > 0) {
++                            if(!decodePixels) {
++                                return resIt->second.get();
++                            }
+                             auto compressStr =
+                                 psbDictionaryString(iconNode, "compress");
+                             decodePsbPixelResource(
+@@ -1812,7 +1819,7 @@ namespace motion {
+                             auto compressStr =
+                                 psbDictionaryString(node, "compress");
+-                            if(outWidth > 0 && outHeight > 0) {
++                            if(decodePixels && outWidth > 0 && outHeight > 0) {
+                                 decodePsbPixelResource(
+                                     snapshot, parentPath, *resource, outWidth,
+                                     outHeight, compressStr == "RL",
+diff --git a/cpp/plugins/motionplayer/PlayerUpdateLayersInternal.h b/cpp/plugins/motionplayer/PlayerUpdateLayersInternal.h
+--- a/cpp/plugins/motionplayer/PlayerUpdateLayersInternal.h
++++ b/cpp/plugins/motionplayer/PlayerUpdateLayersInternal.h
+@@ -131,9 +131,10 @@ namespace motion::internal {
+         int srcH = 0;
+         double srcOX = 0.0;
+         double srcOY = 0.0;
+-        std::vector<std::uint8_t> decomp;
+-        findPSBResourceBySourceName(*snapshot, sourceName, srcW, srcH, decomp,
+-                                    srcOX, srcOY);
++        std::vector<std::uint8_t> ignoredPixels;
++        findPSBResourceBySourceName(*snapshot, sourceName, srcW, srcH,
++                                    ignoredPixels, srcOX, srcOY, nullptr,
++                                    false);
+         node.clipW = srcW;
+         node.clipH = srcH;
+         node.originX = srcOX;

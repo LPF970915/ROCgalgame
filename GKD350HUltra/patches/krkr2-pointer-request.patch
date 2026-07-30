@@ -1,0 +1,54 @@
+diff --git a/cpp/core/environ/cocos2d/MainScene.cpp b/cpp/core/environ/cocos2d/MainScene.cpp
+--- a/cpp/core/environ/cocos2d/MainScene.cpp
++++ b/cpp/core/environ/cocos2d/MainScene.cpp
+@@ -7,8 +7,10 @@
+ #include <cmath>
+ #include <cstdint>
++#include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
++#include <fstream>
+ 
+ #include "tjsCommHead.h"
+ #include "StorageIntf.h"
+@@ -1513,6 +1515,40 @@ void TVPMainScene::postRocgalgameBridgeKey(unsigned int code, bool down) {
+ }
+ 
+ void TVPMainScene::consumeRocgalgameInputBridge() {
++    static const char *pointerRequest =
++        std::getenv("ROCGALGAME_KRKR_POINTER_REQUEST");
++    if(pointerRequest && pointerRequest[0]) {
++        std::ifstream request(pointerRequest);
++        float normalizedX = 0.0f;
++        float normalizedY = 0.0f;
++        int click = 0;
++        if(request >> normalizedX >> normalizedY >> click) {
++            request.close();
++            std::remove(pointerRequest);
++            TVPWindowLayer *window = TVPWindowLayer::_currentWindowLayer;
++            if(std::isfinite(normalizedX) && std::isfinite(normalizedY) &&
++               _virtualMouseEnabled && window && window->PrimaryLayerArea &&
++               TVPWindowLayer::_mouseCursor &&
++               !TVPWindowLayer::_windowMgrOverlay) {
++                normalizedX = std::max(0.0f, std::min(normalizedX, 1.0f));
++                normalizedY = std::max(0.0f, std::min(normalizedY, 1.0f));
++                const Size size = GameNode->getContentSize();
++                const Vec2 point(normalizedX * size.width,
++                                 (1.0f - normalizedY) * size.height);
++                TVPWindowLayer::_mouseCursor->setPosition(point);
++                window->onMouseMove(GameNode->convertToWorldSpace(point));
++                if(click) {
++                    postVirtualMouseButton(true, true);
++                    postVirtualMouseButton(true, false);
++                }
++                if(auto logger = spdlog::get("tjs2")) {
++                    logger->info("[rocgalgame] pointer_request x={:.4f} "
++                                 "y={:.4f} click={}", normalizedX,
++                                 normalizedY, click != 0);
++                }
++            }
++        }
++    }
+     if(!_rocgalgameTransport)
+         return;
+     const RocgalgameInputSnapshot snapshot = _rocgalgameTransport->drain();

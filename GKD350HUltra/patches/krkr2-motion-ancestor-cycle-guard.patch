@@ -1,0 +1,59 @@
+diff --git a/cpp/plugins/motionplayer/PlayerMotionLoad.cpp b/cpp/plugins/motionplayer/PlayerMotionLoad.cpp
+--- a/cpp/plugins/motionplayer/PlayerMotionLoad.cpp
++++ b/cpp/plugins/motionplayer/PlayerMotionLoad.cpp
+@@ -76,6 +76,55 @@ namespace motion {
+                     resolveMotion(*_runtime, name, &_resourceManagerNative);
+             }
+         }
++
++        // Malformed or compatibility-quirk motion graphs can reference an
++        // ancestor motion again. Expanding that edge creates a fresh Player
++        // subtree on every level until the process exhausts memory. A module
++        // path alone is not a cycle key because one PSB normally contains
++        // many motions; chara and motion key must match as well.
++        if(snapshot && _parentPlayer) {
++            constexpr size_t kMaxMotionAncestorDepth = 32;
++            const Player *ancestor = _parentPlayer;
++            size_t ancestorDepth = 1;
++            for(; ancestor && ancestorDepth <= kMaxMotionAncestorDepth;
++                ancestor = ancestor->_parentPlayer, ++ancestorDepth) {
++                if(ancestor->_runtime &&
++                   ancestor->_runtime->activeMotion &&
++                   ancestor->_runtime->activeMotion->path == snapshot->path &&
++                   ancestor->_motionKey == name &&
++                   ancestor->_chara == _chara) {
++                    static unsigned cycleLogCount = 0;
++                    if(cycleLogCount < 32) {
++                        std::fprintf(
++                            stderr,
++                            "[rocgalgame] blocked cyclic child motion: "
++                            "module=%s chara=%s motion=%s "
++                            "ancestor-depth=%zu\n",
++                            snapshot->path.c_str(),
++                            detail::narrow(_chara).c_str(),
++                            motionRaw.c_str(), ancestorDepth);
++                        std::fflush(stderr);
++                    }
++                    ++cycleLogCount;
++                    return;
++                }
++            }
++            if(ancestor) {
++                static unsigned depthLogCount = 0;
++                if(depthLogCount < 32) {
++                    std::fprintf(
++                        stderr,
++                        "[rocgalgame] blocked child motion beyond ancestor "
++                        "limit: module=%s chara=%s motion=%s limit=%zu\n",
++                        snapshot->path.c_str(),
++                        detail::narrow(_chara).c_str(), motionRaw.c_str(),
++                        kMaxMotionAncestorDepth);
++                    std::fflush(stderr);
++                }
++                ++depthLogCount;
++                return;
++            }
++        }
+         if(snapshot) {
+             activateMotion(*_runtime, snapshot);
+             _motionKey = name;

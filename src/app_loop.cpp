@@ -130,9 +130,9 @@ struct AppState {
   AppState()
       : config(config_store.Mutable()),
 #ifdef _WIN32
-        system_controls(false), volume_controller(system_controls, system_levels, false) {}
+        system_controls(false), volume_controller(system_levels) {}
 #else
-        system_controls(true), volume_controller(system_controls, system_levels, true) {}
+        system_controls(true), volume_controller(system_levels) {}
 #endif
 };
 

@@ -5,9 +5,20 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
+#include <limits>
 #include <system_error>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -68,6 +79,153 @@ bool HasXp3Signature(const fs::path &path) {
          header == kMagic;
 }
 
+constexpr std::uint64_t kMaxXp3IndexBytes = 64ull * 1024ull * 1024ull;
+
+std::uint64_t ReadLe64(const unsigned char *data) {
+  std::uint64_t value = 0;
+  for (unsigned shift = 0; shift < 64; shift += 8)
+    value |= static_cast<std::uint64_t>(*data++) << shift;
+  return value;
+}
+
+std::uint16_t ReadLe16(const unsigned char *data) {
+  return static_cast<std::uint16_t>(data[0]) |
+         static_cast<std::uint16_t>(data[1] << 8);
+}
+
+using ZlibUncompress = int (*)(unsigned char *, unsigned long *,
+                               const unsigned char *, unsigned long);
+
+ZlibUncompress ResolveZlibUncompress() {
+  static ZlibUncompress function = []() -> ZlibUncompress {
+#ifdef _WIN32
+    HMODULE library = LoadLibraryA("zlib1.dll");
+    return library ? reinterpret_cast<ZlibUncompress>(
+                         GetProcAddress(library, "uncompress"))
+                   : nullptr;
+#else
+    void *library = dlopen("libz.so.1", RTLD_LAZY | RTLD_LOCAL);
+    if (!library) library = dlopen("libz.so", RTLD_LAZY | RTLD_LOCAL);
+    return library ? reinterpret_cast<ZlibUncompress>(
+                         dlsym(library, "uncompress"))
+                   : nullptr;
+#endif
+  }();
+  return function;
+}
+
+bool ReadXp3Index(const fs::path &path, std::vector<unsigned char> &index) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) return false;
+  std::array<unsigned char, 19> header{};
+  in.read(reinterpret_cast<char *>(header.data()),
+          static_cast<std::streamsize>(header.size()));
+  if (in.gcount() != static_cast<std::streamsize>(header.size())) return false;
+  static constexpr std::array<unsigned char, 11> kMagic = {
+      'X', 'P', '3', '\r', '\n', ' ', '\n', 0x1a, 0x8b, 0x67, 0x01};
+  if (!std::equal(kMagic.begin(), kMagic.end(), header.begin())) return false;
+  const std::uint64_t index_offset = ReadLe64(header.data() + kMagic.size());
+  if (index_offset > static_cast<std::uint64_t>(
+                         std::numeric_limits<std::streamoff>::max()))
+    return false;
+  in.seekg(static_cast<std::streamoff>(index_offset));
+  if (!in) return false;
+
+  index.clear();
+  for (int block = 0; block < 32; ++block) {
+    unsigned char flags = 0;
+    std::array<unsigned char, 8> raw_size{};
+    in.read(reinterpret_cast<char *>(&flags), 1);
+    in.read(reinterpret_cast<char *>(raw_size.data()), 8);
+    if (!in) return false;
+    const std::uint64_t archive_size = ReadLe64(raw_size.data());
+    std::uint64_t original_size = archive_size;
+    if (flags & 0x01) {
+      in.read(reinterpret_cast<char *>(raw_size.data()), 8);
+      if (!in) return false;
+      original_size = ReadLe64(raw_size.data());
+    }
+    if (archive_size > kMaxXp3IndexBytes || original_size > kMaxXp3IndexBytes ||
+        index.size() + original_size > kMaxXp3IndexBytes)
+      return false;
+
+    std::vector<unsigned char> archived(static_cast<size_t>(archive_size));
+    in.read(reinterpret_cast<char *>(archived.data()),
+            static_cast<std::streamsize>(archived.size()));
+    if (!in) return false;
+    if (flags & 0x01) {
+      const auto uncompress = ResolveZlibUncompress();
+      if (!uncompress ||
+          archive_size > std::numeric_limits<unsigned long>::max() ||
+          original_size > std::numeric_limits<unsigned long>::max())
+        return false;
+      std::vector<unsigned char> inflated(static_cast<size_t>(original_size));
+      unsigned long inflated_size = static_cast<unsigned long>(original_size);
+      if (uncompress(inflated.data(), &inflated_size, archived.data(),
+                     static_cast<unsigned long>(archive_size)) != 0 ||
+          inflated_size != original_size)
+        return false;
+      index.insert(index.end(), inflated.begin(), inflated.end());
+    } else {
+      index.insert(index.end(), archived.begin(), archived.end());
+    }
+    if (!(flags & 0x80)) return true;
+  }
+  return false;
+}
+
+bool IsRootStartupName(const unsigned char *data, size_t byte_count) {
+  if (byte_count % 2 != 0) return false;
+  std::string name;
+  name.reserve(byte_count / 2);
+  for (size_t offset = 0; offset < byte_count; offset += 2) {
+    const std::uint16_t value = ReadLe16(data + offset);
+    if (value > 0x7f) return false;
+    char ch = static_cast<char>(value);
+    if (ch == '\\') ch = '/';
+    if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>(ch + ('a' - 'A'));
+    name.push_back(ch);
+  }
+  while (!name.empty() && name.front() == '/') name.erase(name.begin());
+  while (name.rfind("./", 0) == 0) name.erase(0, 2);
+  return name == "startup.tjs";
+}
+
+bool Xp3IndexContainsStartup(const std::vector<unsigned char> &index) {
+  size_t offset = 0;
+  while (offset + 12 <= index.size()) {
+    const std::uint64_t chunk_size = ReadLe64(index.data() + offset + 4);
+    const size_t payload = offset + 12;
+    if (chunk_size > index.size() - payload) return false;
+    const size_t chunk_end = payload + static_cast<size_t>(chunk_size);
+    if (std::memcmp(index.data() + offset, "File", 4) == 0) {
+      size_t sub = payload;
+      while (sub + 12 <= chunk_end) {
+        const std::uint64_t sub_size = ReadLe64(index.data() + sub + 4);
+        const size_t sub_payload = sub + 12;
+        if (sub_size > chunk_end - sub_payload) return false;
+        const size_t sub_end = sub_payload + static_cast<size_t>(sub_size);
+        if (std::memcmp(index.data() + sub, "info", 4) == 0 && sub_size >= 22) {
+          const std::uint16_t name_length =
+              ReadLe16(index.data() + sub_payload + 20);
+          const size_t name_bytes = static_cast<size_t>(name_length) * 2;
+          if (name_bytes <= sub_end - (sub_payload + 22) &&
+              IsRootStartupName(index.data() + sub_payload + 22, name_bytes))
+            return true;
+        }
+        sub = sub_end;
+      }
+    }
+    offset = chunk_end;
+  }
+  return false;
+}
+
+bool HasXp3StartupScript(const fs::path &path) {
+  std::vector<unsigned char> index;
+  return ReadXp3Index(path, index) && Xp3IndexContainsStartup(index);
+}
+
 bool HasXp3SignatureInDirectory(const fs::path &dir) {
   std::error_code ec;
   for (const auto &entry : fs::directory_iterator(dir, ec)) {
@@ -88,6 +246,7 @@ bool IsPatchArchive(const fs::path &path) {
 
 fs::path DetectKrkrEntryPoint(const fs::path &dir) {
   std::vector<fs::path> archives;
+  std::vector<fs::path> startup_archives;
   fs::path data_archive;
   std::error_code ec;
   for (const auto &entry : fs::directory_iterator(dir, ec)) {
@@ -100,11 +259,13 @@ fs::path DetectKrkrEntryPoint(const fs::path &dir) {
     if (filename == "startup.tjs" || filename == "data.xp3") return dir;
     if (!HasXp3Signature(entry.path()) || IsPatchArchive(entry.path())) continue;
     archives.push_back(entry.path());
+    if (HasXp3StartupScript(entry.path())) startup_archives.push_back(entry.path());
     if (ToLowerAscii(entry.path().stem().u8string()) == "data") {
       data_archive = entry.path();
     }
   }
   if (!data_archive.empty()) return data_archive;
+  if (startup_archives.size() == 1) return startup_archives.front();
   if (archives.size() == 1) return archives.front();
   return dir;
 }

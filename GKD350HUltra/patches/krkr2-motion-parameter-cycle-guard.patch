@@ -1,0 +1,34 @@
+diff --git a/cpp/plugins/motionplayer/PlayerVariable.cpp b/cpp/plugins/motionplayer/PlayerVariable.cpp
+--- a/cpp/plugins/motionplayer/PlayerVariable.cpp
++++ b/cpp/plugins/motionplayer/PlayerVariable.cpp
+@@ -286,10 +286,25 @@ namespace motion {
+     void Player::bindParameterValueLike_0x6C4668(const std::string &label,
+                                                  int mode, double value) {
+         if(!_runtime || label.empty()) {
+             return;
+         }
+ 
++        struct ParameterPropagationState {
++            std::size_t depth = 0;
++            std::unordered_set<const Player *> visited;
++        };
++        thread_local ParameterPropagationState parameterPropagation;
++        if(parameterPropagation.depth == 0) {
++            parameterPropagation.visited.clear();
++        }
++        if(!parameterPropagation.visited.insert(this).second) {
++            return;
++        }
++        ++parameterPropagation.depth;
++        struct PropagationGuard {
++            ParameterPropagationState &state;
++            ~PropagationGuard() {
++                if(--state.depth == 0) {
++                    state.visited.clear();
++                }
++            }
++        } propagationGuard{ parameterPropagation };
++
+         const auto parts = splitParameterLabelLike_0x6D0BF4(label);
+         bindParameterEntriesLike_0x6C4668(_runtime->parameterEntries, parts,
+                                           mode, value);

@@ -50,5 +50,6 @@ if ldd "`$target" 2>&1 | grep -q 'not found'; then
 fi
 "@
 
+$remoteCommand = $remoteCommand -replace "`r`n", "`n"
 & ssh $DeviceHost $remoteCommand
 if ($LASTEXITCODE -ne 0) { throw "Remote atomic KRKR2 deployment failed" }

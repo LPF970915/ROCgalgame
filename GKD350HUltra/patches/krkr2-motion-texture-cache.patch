@@ -1,0 +1,33 @@
+diff --git a/cpp/plugins/motionplayer/SourceCache.cpp b/cpp/plugins/motionplayer/SourceCache.cpp
+--- a/cpp/plugins/motionplayer/SourceCache.cpp
++++ b/cpp/plugins/motionplayer/SourceCache.cpp
+@@ -562,8 +562,15 @@ namespace motion {
+         if(key.empty()) {
+             return nullptr;
+         }
+ 
+-        if(auto *entry = findEntry(key, blendMode, packedColors)) {
++        // PrivateMotionGLL and D3D apply animated colors while drawing. Keep
++        // the cached texture untinted so changing colors do not materialize a
++        // complete bitmap and GPU texture on every frame.
++        static constexpr std::array<std::uint32_t, 4> textureCacheColors{
++            0xFF808080u, 0xFF808080u, 0xFF808080u, 0xFF808080u
++        };
++
++        if(auto *entry = findEntry(key, blendMode, textureCacheColors)) {
+             if(entry->sourceTexture) {
+                 return entry->sourceTexture;
+             }
+@@ -574,10 +581,11 @@ namespace motion {
+             ? currentSource
+             : loadRawSourceVariant(name, resolvedKey);
+         auto &entry = ensureEntry(key, resolvedKey.empty() ? key : resolvedKey,
+-                                  blendMode, packedColors);
++                                  blendMode, textureCacheColors);
+         entry.rawSource = rawSource;
+ 
+-        if(!ensureEntryBackingBitmap(entry, key, blendMode, packedColors)) {
++        if(!ensureEntryBackingBitmap(entry, key, blendMode,
++                                     textureCacheColors)) {
+             return nullptr;
+         }

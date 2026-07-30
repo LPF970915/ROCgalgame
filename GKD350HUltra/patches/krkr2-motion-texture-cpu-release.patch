@@ -1,0 +1,21 @@
+diff --git a/cpp/plugins/motionplayer/SourceCache.cpp b/cpp/plugins/motionplayer/SourceCache.cpp
+--- a/cpp/plugins/motionplayer/SourceCache.cpp
++++ b/cpp/plugins/motionplayer/SourceCache.cpp
+@@ -613,11 +613,18 @@ namespace motion {
+         // D3DAdaptor_renderFromPlayer @ 0x6ADE24 passes a source texture
+         // getter into 0x6ADFBC, so this path returns texture data directly
+         // instead of materializing an intermediate SourceCache Layer.
+         entry.sourceTexture = TVPGetRenderManager()->CreateTexture2D(
+             pixels, pitch, width, height,
+             entry.backingBitmap->Is8BPP() ? TVPTextureFormat::Gray
+                                           : TVPTextureFormat::RGBA,
+             RENDER_CREATE_TEXTURE_FLAG_ANY);
++        if(entry.sourceTexture) {
++            // CreateTexture2D uploads/copies synchronously. Keeping the CPU
++            // bitmap as well as the GPU texture doubles the resident memory
++            // of large embedded Emote atlases and can exhaust 2 GB devices.
++            entry.backingBitmap.reset();
++        }
+         return entry.sourceTexture;
+     }
+

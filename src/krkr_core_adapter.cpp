@@ -1,6 +1,10 @@
 #include "krkr_core_adapter.h"
 
+#include <array>
+#include <cstdint>
 #include <cstdlib>
+#include <iomanip>
+#include <sstream>
 #include <system_error>
 
 namespace {
@@ -40,6 +44,101 @@ std::string Krkr2LibrarySearchPath(const AppConfig &config,
 std::string InheritedOrDefault(const char *name, std::string fallback) {
   if (const char *value = std::getenv(name); value && *value) return value;
   return fallback;
+}
+
+bool IsLegacySaveDirectory(const std::filesystem::path &path) {
+  const std::string name = ToLowerAscii(path.filename().u8string());
+  return name == "savedata" || name == "save" || name == "saves" ||
+         name == "strsave";
+}
+
+bool EnsureProjectViewLink(const std::filesystem::path &source,
+                           const std::filesystem::path &link,
+                           bool directory, std::error_code &ec) {
+  const auto status = std::filesystem::symlink_status(link, ec);
+  if (ec == std::errc::no_such_file_or_directory)
+    ec.clear();
+  else if (ec)
+    return false;
+  if (status.type() != std::filesystem::file_type::not_found) {
+    if (!std::filesystem::is_symlink(status)) return true;
+    const auto current = std::filesystem::read_symlink(link, ec);
+    if (ec) return false;
+    if (current == source) return true;
+    std::filesystem::remove(link, ec);
+    if (ec) return false;
+  }
+  if (directory)
+    std::filesystem::create_directory_symlink(source, link, ec);
+  else
+    std::filesystem::create_symlink(source, link, ec);
+  return !ec;
+}
+
+std::string StableProjectViewId(const std::filesystem::path &game_path) {
+  std::uint64_t hash = 1469598103934665603ull;
+  for (unsigned char ch : game_path.u8string()) {
+    hash ^= ch;
+    hash *= 1099511628211ull;
+  }
+  std::ostringstream value;
+  value << std::hex << std::setfill('0') << std::setw(16) << hash;
+  return value.str();
+}
+
+std::filesystem::path ProjectViewRoot() {
+  if (const char *configured =
+          std::getenv("ROCGALGAME_KRKR_PROJECT_VIEW_ROOT");
+      configured && *configured)
+    return std::filesystem::u8path(configured);
+  return "/tmp/rocgalgame-krkr2-projects";
+}
+
+bool PrepareKrkr2ProjectView(CoreLaunchSpec &spec, const GameEntry &game,
+                            std::error_code &ec) {
+  const auto view = ProjectViewRoot() / StableProjectViewId(game.path);
+  std::filesystem::create_directories(view, ec);
+  if (ec) return false;
+
+  static constexpr std::array<const char *, 4> kSaveDirectories = {
+      "savedata", "save", "saves", "strsave"};
+  for (const char *name : kSaveDirectories) {
+    const auto target = std::filesystem::absolute(spec.save_path / name, ec);
+    if (ec) return false;
+    std::filesystem::create_directories(target, ec);
+    if (ec) return false;
+    const auto bundled = game.path / name;
+    if (std::filesystem::is_directory(bundled, ec)) {
+      std::filesystem::copy(
+          bundled, target,
+          std::filesystem::copy_options::recursive |
+              std::filesystem::copy_options::skip_existing,
+          ec);
+      if (ec) return false;
+    }
+    ec.clear();
+    if (!EnsureProjectViewLink(target, view / name, true, ec)) return false;
+  }
+
+  for (const auto &entry : std::filesystem::directory_iterator(game.path, ec)) {
+    if (ec) return false;
+    if (IsLegacySaveDirectory(entry.path())) continue;
+    const auto source = std::filesystem::absolute(entry.path(), ec);
+    if (ec) return false;
+    const bool directory = entry.is_directory(ec);
+    if (ec || !EnsureProjectViewLink(source, view / entry.path().filename(),
+                                     directory, ec))
+      return false;
+  }
+
+  std::filesystem::path relative = spec.entry_point.lexically_relative(game.path);
+  if (relative.empty() || relative == ".")
+    spec.entry_point = view;
+  else if (*relative.begin() != "..")
+    spec.entry_point = view / relative;
+  spec.working_directory = view;
+  spec.environment["ROCGALGAME_KRKR_PROJECT_VIEW"] = view.u8string();
+  return true;
 }
 #endif
 }  // namespace
@@ -89,6 +188,14 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
   if (!std::filesystem::exists(spec.entry_point, ec)) {
     return CoreSpecResult{LaunchStatus::InvalidGame, {}, "entry point missing"};
   }
+#ifndef _WIN32
+  if (runtime == KrkrRuntime::Krkr2 &&
+      !PrepareKrkr2ProjectView(spec, game, ec)) {
+    return CoreSpecResult{LaunchStatus::InvalidGame, std::move(spec),
+                          "failed to prepare writable KRKR2 project view: " +
+                              ec.message()};
+  }
+#endif
   const std::filesystem::path font = PreferredGameFont(config, game);
   if (runtime == KrkrRuntime::Krkr2) {
     // krkr2's Linux host consumes the project path as argv[1].

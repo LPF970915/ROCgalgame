@@ -1,0 +1,29 @@
+diff --git a/cpp/core/visual/GraphicsLoaderIntf.cpp b/cpp/core/visual/GraphicsLoaderIntf.cpp
+--- a/cpp/core/visual/GraphicsLoaderIntf.cpp
++++ b/cpp/core/visual/GraphicsLoaderIntf.cpp
+@@ -1702,6 +1702,8 @@ TVPInternalLoadBitmap(const ttstr &_name, tjs_uint32 keyidx, tjs_uint desw,
+         name, &maskname, mode == glmNormal ? provincename : nullptr);
+     tTVPStreamHolder holder(name); // open a storage named "name"
+ 
++    TVPAddImportantLog(TJS_W("[png-diag] load name=") + name);
++
+     // load the image
+     tTVPLoadGraphicData data;
+     data.Dest = nullptr;
+diff --git a/cpp/core/visual/LoadPNG.cpp b/cpp/core/visual/LoadPNG.cpp
+--- a/cpp/core/visual/LoadPNG.cpp
++++ b/cpp/core/visual/LoadPNG.cpp
+@@ -222,6 +222,13 @@ void TVPLoadPNG(void *formatdata, void *callbackdata,
+                      &color_type, &interlace_type, &compression_type,
+                      &filter_type);
+ 
++        TVPAddImportantLog(
++            TJS_W("[png-diag] ihdr width=") + ttstr((tjs_int64)width) +
++            TJS_W(" height=") + ttstr((tjs_int64)height) +
++            TJS_W(" depth=") + ttstr((tjs_int)bit_depth) +
++            TJS_W(" color=") + ttstr((tjs_int)color_type) +
++            TJS_W(" stream-pos=") + ttstr((tjs_int64)src->GetPosition()));
++
+         if(bit_depth == 16)
+             png_set_strip_16(png_ptr);
+ 
