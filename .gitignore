@@ -39,6 +39,7 @@
 /GKD350HUltra/build_ffmpeg_headers_n6/
 /GKD350HUltra/toolchain/bin/
 /GKD350HUltra/tools/
+/GKD350HUltra/__pycache__/
 /GKD350HUltra/compat/libglvnd-arm64/*.deb
 /GKD350HUltra/compat/libglvnd-arm64/extracted/usr/lib/aarch64-linux-gnu/libGL.so.1
 /GKD350HUltra/compat/libglvnd-arm64/extracted/usr/share/bug/
@@ -46,6 +47,8 @@
 /H700/dist_lowglibc/
 /H700/logs/
 /H700/Downloads/
+/logs/
+/scripts/_tmp_*
 *.zip
 *.tar.gz
 
