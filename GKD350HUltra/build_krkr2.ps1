@@ -1,17 +1,17 @@
 param(
   [string]$Distro = "Ubuntu",
   [string]$Krkr2Root = "D:\Works\Tyranor\krkr2",
-  [string]$Sysroot = "$PSScriptRoot\sysroot_device",
-  [string]$VcpkgRoot = "$PSScriptRoot\tools\vcpkg",
+  [string]$Sysroot = "$PSScriptRoot\..\build\gkd350h-glibc234\sysroot",
+  [string]$VcpkgRoot = "$PSScriptRoot\..\build\gkd350h-glibc234\vcpkg",
   [ValidateSet("Probe", "Configure", "Build", "FastBuild", "Full")]
   [string]$Mode = "Probe",
   [ValidateRange(1, 4)]
-  [int]$Jobs = 1,
-  [string]$SafeCpuSet = "0",
+  [int]$Jobs = 3,
+  [string]$SafeCpuSet = "0-2",
   [ValidateRange(60, 1800)]
   [int]$WorkSeconds = 300,
   [ValidateRange(15, 900)]
-  [int]$CoolSeconds = 60,
+  [int]$CoolSeconds = 240,
   [switch]$PeriodicCooling,
   [switch]$ConfirmHeavyBuild
 )
