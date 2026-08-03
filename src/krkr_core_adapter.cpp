@@ -201,10 +201,11 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
     // krkr2's Linux host consumes the project path as argv[1].
     spec.arguments = {spec.executable.u8string(), spec.entry_point.u8string()};
 #ifndef _WIN32
-    const std::string requested_backend =
-        InheritedOrDefault("ROCGALGAME_KRKR_DISPLAY_BACKEND", "wayland");
+    const std::string requested_backend = ToLowerAscii(
+        InheritedOrDefault("ROCGALGAME_KRKR_DISPLAY_BACKEND", "wayland"));
     const std::string display_backend =
-        requested_backend == "xwayland" ? "xwayland" : "wayland";
+        requested_backend == "xwayland" ? "xwayland" :
+        requested_backend == "x11" ? "x11" : "wayland";
     spec.environment["ROCGALGAME_KRKR_DISPLAY_BACKEND"] = display_backend;
     spec.environment["ROCGALGAME_KRKR_XWAYLAND_WIDTH"] =
         InheritedOrDefault("ROCGALGAME_KRKR_XWAYLAND_WIDTH",
@@ -221,7 +222,7 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
       spec.environment["DISPLAY"] = ":2";
       spec.environment["GDK_BACKEND"] = "x11";
       spec.environment["SDL_VIDEODRIVER"] = "x11";
-    } else {
+    } else if (display_backend == "wayland") {
       spec.environment["ROCGALGAME_KRKR_XWAYLAND"] = "0";
       spec.environment["XDG_RUNTIME_DIR"] =
           InheritedOrDefault("XDG_RUNTIME_DIR", "/run/0-runtime-dir");
@@ -231,6 +232,12 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
           "SWAYSOCK", "/run/0-runtime-dir/sway-ipc.0.sock");
       spec.environment["GDK_BACKEND"] = "wayland";
       spec.environment["SDL_VIDEODRIVER"] = "wayland";
+    } else {
+      spec.environment["ROCGALGAME_KRKR_XWAYLAND"] = "0";
+      spec.environment["DISPLAY"] =
+          InheritedOrDefault("DISPLAY", ":0");
+      spec.environment["GDK_BACKEND"] = "x11";
+      spec.environment["SDL_VIDEODRIVER"] = "x11";
     }
     spec.environment["LD_LIBRARY_PATH"] =
         Krkr2LibrarySearchPath(config, display_backend != "xwayland");

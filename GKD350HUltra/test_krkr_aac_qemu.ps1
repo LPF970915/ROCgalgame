@@ -1,12 +1,14 @@
 param(
   [string]$AudioFile = "",
+  [string]$DistRoot = "$PSScriptRoot\dist_glibc234",
+  [string]$Sysroot = "$PSScriptRoot\..\build\gkd350h-glibc234\sysroot",
   [string]$QemuDistro = "Ubuntu"
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$core = Join-Path $PSScriptRoot "dist_lowglibc\ROCgalgame\cores\krkr\krkrsdl2"
-$sysroot = Join-Path $PSScriptRoot "sysroot_device"
+$core = Join-Path $DistRoot "ROCgalgame\cores\krkr\krkrsdl2"
+$sysroot = $Sysroot
 $fixture = Join-Path $repoRoot "tests\krkr\aac_probe"
 $runtime = Join-Path $repoRoot "build\test-data\krkr-aac-qemu"
 $data = "$runtime-data"

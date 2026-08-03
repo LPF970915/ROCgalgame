@@ -38,7 +38,9 @@ bool ApplyKnownProfile(const std::string &token, int &width, int &height, std::s
     name = "640x480";
     return true;
   }
-  if (profile == "720x480" || profile == "desktop") {
+  if (profile == "720x480" || profile == "h700-34xxsp" ||
+      profile == "rg34xx-sp" || profile == "rg34xxsp" ||
+      profile == "desktop") {
     width = 720;
     height = 480;
     name = "720x480";

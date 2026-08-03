@@ -32,6 +32,20 @@ int main() {
   assert(defaults.default_aspect == "contain");
   assert(defaults.default_filter == "reflection");
 
+  const std::filesystem::path profile_root =
+      std::filesystem::path("build") / "config_profile_test_data";
+  std::filesystem::create_directories(profile_root);
+  const std::filesystem::path profile_path = profile_root / "native_config.ini";
+  {
+    std::ofstream out(profile_path);
+    out << "screen_profile=720x480\ninput_profile=h700-34xxsp\n";
+  }
+  const AppConfig h700_config = LoadAppConfigFromFile(profile_path, profile_root);
+  assert(h700_config.screen_w == 720);
+  assert(h700_config.screen_h == 480);
+  std::error_code profile_ec;
+  std::filesystem::remove_all(profile_root, profile_ec);
+
   const std::filesystem::path root = std::filesystem::path("build") / "config_store_test_data";
   std::error_code ec;
   std::filesystem::remove_all(root, ec);
@@ -111,7 +125,7 @@ int main() {
 
   ConfigStore legacy;
   legacy.LoadFromPath(path);
-  assert(legacy.Get().default_aspect == "contain");
+  assert(legacy.Get().default_aspect == "fill-width");
   assert(!legacy.Get().auto_sleep_enabled);
   assert(legacy.Get().selected_avatar == "legacy-avatar.png");
   assert(legacy.Get().system_volume_percent == 100);
@@ -122,7 +136,7 @@ int main() {
   assert(legacy.Save());
 
   const std::string migrated = ReadAll(path);
-  assert(migrated.find("default_aspect=contain\n") != std::string::npos);
+  assert(migrated.find("default_aspect=fill-width\n") != std::string::npos);
   assert(migrated.find("lid_close_screen_off=0\n") != std::string::npos);
   assert(migrated.find("selected_contributor_avatar_label=legacy-avatar.png\n") != std::string::npos);
   assert(migrated.find("third_party_key=preserved\n") != std::string::npos);

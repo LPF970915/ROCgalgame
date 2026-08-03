@@ -15,6 +15,7 @@ AppPlatformEnvironment ResolveAppPlatformEnvironment(
   environment.capabilities.has_screen_power_control = true;
   environment.capabilities.has_evdev_input = true;
   environment.capabilities.packaging_verified =
-      input_profile == InputProfile::GKD350HUltra;
+      input_profile == InputProfile::GKD350HUltra ||
+      input_profile == InputProfile::H70034xxSp;
   return environment;
 }

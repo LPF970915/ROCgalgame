@@ -236,6 +236,19 @@ int main() {
       assert(xwayland.spec.environment.at("SDL_VIDEODRIVER") == "x11");
       assert(xwayland.spec.environment.at("LD_LIBRARY_PATH").rfind(
                  (root / "cores/krkr/lib_krkr2").u8string(), 0) == 0);
+
+      setenv("ROCGALGAME_KRKR_DISPLAY_BACKEND", "x11", 1);
+      setenv("DISPLAY", ":7", 1);
+      const CoreSpecResult x11 = krkr_adapter.BuildSpec(config, game);
+      unsetenv("DISPLAY");
+      unsetenv("ROCGALGAME_KRKR_DISPLAY_BACKEND");
+      assert(x11.Ok());
+      assert(x11.spec.environment.at("ROCGALGAME_KRKR_DISPLAY_BACKEND") ==
+             "x11");
+      assert(x11.spec.environment.at("ROCGALGAME_KRKR_XWAYLAND") == "0");
+      assert(x11.spec.environment.at("DISPLAY") == ":7");
+      assert(x11.spec.environment.at("GDK_BACKEND") == "x11");
+      assert(x11.spec.environment.at("SDL_VIDEODRIVER") == "x11");
 #endif
       AppConfig legacy = config;
       legacy.mouse_speed = 720;

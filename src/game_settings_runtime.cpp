@@ -36,8 +36,9 @@ bool ApplyDelta(int row, int delta, GameSettingsState &state,
                 const GameSettingsCallbacks &callbacks) {
   switch (row) {
     case 0: {
-      constexpr std::array<GameAspectMode, 3> values = {
-          GameAspectMode::Stretch, GameAspectMode::FillHeight, GameAspectMode::Contain};
+      constexpr std::array<GameAspectMode, 4> values = {
+          GameAspectMode::Stretch, GameAspectMode::FillHeight,
+          GameAspectMode::FillWidth, GameAspectMode::Contain};
       return callbacks.set_aspect &&
              callbacks.set_aspect(CycleValue(state.aspect, values, delta), state);
     }
@@ -78,6 +79,7 @@ const char *LabelForLanguage(int language_index, const char *zh, const char *zh_
 GameAspectMode ParseGameAspectMode(const std::string &value) {
   if (value == "stretch") return GameAspectMode::Stretch;
   if (value == "fill-height") return GameAspectMode::FillHeight;
+  if (value == "fill-width" || value == "fit-width") return GameAspectMode::FillWidth;
   return GameAspectMode::Contain;
 }
 
@@ -85,6 +87,7 @@ const char *GameAspectConfigValue(GameAspectMode value) {
   switch (value) {
     case GameAspectMode::Stretch: return "stretch";
     case GameAspectMode::FillHeight: return "fill-height";
+    case GameAspectMode::FillWidth: return "fill-width";
     case GameAspectMode::Contain: return "contain";
   }
   return "contain";
@@ -171,6 +174,8 @@ std::string LocalizedGameSettingsLabel(int language_index, int row) {
 
 std::string LocalizedGameAspectLabel(int language_index, GameAspectMode value) {
   switch (value) {
+    case GameAspectMode::FillWidth:
+      return LabelForLanguage(language_index, u8"等比适宽", u8"等比適寬", "Fill Width");
     case GameAspectMode::Stretch:
       return LabelForLanguage(language_index, u8"拉伸全屏", u8"拉伸全螢幕", "Stretch");
     case GameAspectMode::FillHeight:

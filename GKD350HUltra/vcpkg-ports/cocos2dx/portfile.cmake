@@ -55,8 +55,8 @@ file(COPY_FILE "${CMAKE_CURRENT_LIST_DIR}/patch/cocos2d-x/external/CMakeLists.tx
 set(GKD_SAVED_PKG_CONFIG_SYSROOT_DIR "$ENV{PKG_CONFIG_SYSROOT_DIR}")
 set(ENV{PKG_CONFIG_SYSROOT_DIR} "")
 
-if(_VCPKG_EDITABLE AND EXISTS "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/build.ninja")
-    message(STATUS "Reusing existing editable Cocos2d-x buildtree")
+if(EXISTS "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/build.ninja")
+    message(STATUS "Reusing existing Cocos2d-x buildtree")
 else()
     vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"

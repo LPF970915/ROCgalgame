@@ -20,7 +20,7 @@
   GKD350H Ultra 和 RGDS profile。
 - Windows 强制使用 desktop input profile，不访问 ALSA、evdev、sysfs 或 screen-power 命令。
 - `system_controls.*`、`lid_power_control.*` 和 `power_lifecycle.*` 拥有设备系统控制生命周期。
-- 只有 GKD350H Ultra 当前标记为 `packaging_verified`；其他 profile 可编译不代表已经支持对应设备。
+- GKD350H Ultra 和 H700 34xxSP 标记为 `packaging_verified`，但 H700 仍需真机输入、KMSDRM/X11 和核心启动回归；其他 profile 可编译不代表已经支持对应设备。
 
 ## Menu Layer
 

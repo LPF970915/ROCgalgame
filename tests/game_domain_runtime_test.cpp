@@ -76,7 +76,7 @@ int main() {
   ConfigStore store;
   store.LoadFromPath(config_path);
   GameSettingsState settings = MakeGameSettingsState(store.Get());
-  assert(settings.aspect == GameAspectMode::Contain);
+  assert(settings.aspect == GameAspectMode::FillWidth);
   assert(settings.virtual_mouse);
   const GameSettingsCallbacks callbacks =
       MakeGameSettingsCallbacks(store, []() { return 123u; });
@@ -96,6 +96,9 @@ int main() {
   assert(!snapshot.virtual_mouse);
   assert(snapshot.mouse_speed == 960);
   assert(snapshot.mouse_acceleration == 2.0f);
+  assert(ParseGameAspectMode("fill-width") == GameAspectMode::FillWidth);
+  assert(GameAspectConfigValue(GameAspectMode::FillWidth) == std::string("fill-width"));
+  assert(LocalizedGameAspectLabel(9, GameAspectMode::FillWidth) == "Fill Width");
   assert(LocalizedGameAspectLabel(9, GameAspectMode::Contain) == "Contain");
   assert(ParseGameFilterMode("crt-soft") == GameFilterMode::AntiAlias);
   assert(ParseGameFilterMode("mask") == GameFilterMode::DotMatrix);

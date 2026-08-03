@@ -8,6 +8,7 @@
 #include "renderer/gles_renderer.h"
 #include "Utils.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -167,7 +168,7 @@ vec3 containReflection(vec2 screenPixel, vec2 windowSize, vec2 renderOrigin,
 }
 
 vec3 fullFrameReflection(vec2 screenPixel, vec2 windowSize, vec2 renderOrigin,
-                         vec2 renderSize) {
+                         vec2 renderSize, float reflectionProfile) {
     vec2 visibleOrigin = max(-renderOrigin, vec2(0.0));
     vec2 visibleEnd = min(renderSize, windowSize - renderOrigin);
     vec2 visibleSize = max(visibleEnd - visibleOrigin, vec2(1.0));
@@ -176,7 +177,11 @@ vec3 fullFrameReflection(vec2 screenPixel, vec2 windowSize, vec2 renderOrigin,
         1.0 - (visibleOrigin.y + visibleSize.y) / renderSize.y);
     vec2 sourceScale = visibleSize / renderSize;
 
-    vec2 border = clamp(windowSize * 0.030, vec2(30.0), vec2(46.0));
+    // GKD350H keeps the larger 3% bezel. The 34xxSP panel is smaller and
+    // wider, so its reflection frame is kept inside a 19x16px envelope.
+    vec2 border = reflectionProfile > 0.5 && reflectionProfile < 1.5
+        ? clamp(windowSize * vec2(0.026, 0.033), vec2(18.0, 14.0), vec2(22.0, 18.0))
+        : clamp(windowSize * 0.030, vec2(30.0), vec2(46.0));
     vec2 innerMin = border;
     vec2 innerMax = windowSize - border;
     vec2 innerSize = max(innerMax - innerMin, vec2(1.0));
@@ -230,7 +235,7 @@ void main() {
     vec2 outputPixel = gl_FragCoord.xy - u_view.xy;
     vec2 uv = outputPixel / u_sizes.zw;
     uv.y = 1.0 - uv.y;
-    float mode = u_view.z;
+    float mode = floor(u_view.z + 0.001);
     vec3 color;
     if (mode < 0.5) {
         color = sampleSource(uv);
@@ -251,9 +256,11 @@ void main() {
                          renderEnd.y <= windowSize.y + 0.5 &&
                          (u_sizes.z < windowSize.x - 0.5 ||
                           u_sizes.w < windowSize.y - 0.5);
+        float reflectionProfile = clamp(floor(fract(u_view.z) * 10.0 + 0.5), 0.0, 3.0);
         color = contained
             ? containReflection(screenPixel, windowSize, u_view.xy, u_sizes.zw)
-            : fullFrameReflection(screenPixel, windowSize, u_view.xy, u_sizes.zw);
+            : fullFrameReflection(screenPixel, windowSize, u_view.xy, u_sizes.zw,
+                                  reflectionProfile);
     }
     if (u_cursor.w > 0.5) {
         float cursorDistance = length(gl_FragCoord.xy - u_cursor.xy);
@@ -278,6 +285,29 @@ float ParseFilterMode() {
     if (std::strcmp(filter, "reflection") == 0) return 4.0f;
     return 0.0f;
 }
+
+float ParseReflectionProfile() {
+    const char *model = std::getenv("ROCGALGAME_DEVICE_MODEL");
+    const char *screen = std::getenv("ROCGALGAME_SCREEN_PROFILE");
+    if ((model && (std::strcmp(model, "rg34xx-sp") == 0 ||
+                  std::strcmp(model, "rg34xxsp") == 0 ||
+                  std::strcmp(model, "h700-34xxsp") == 0)) ||
+        (screen && (std::strcmp(screen, "720x480") == 0 ||
+                    std::strcmp(screen, "h700-34xxsp") == 0))) {
+        return 1.0f;
+    }
+    return 0.0f;
+}
+
+void ReflectionBorder(int width, int height, float &border_x, float &border_y) {
+    if (ParseReflectionProfile() > 0.5f) {
+        border_x = utils::clamp(width * 26 / 1000, 18, 22);
+        border_y = utils::clamp(height * 33 / 1000, 14, 18);
+        return;
+    }
+    border_x = utils::clamp(width * 30 / 1000, 30, 46);
+    border_y = utils::clamp(height * 30 / 1000, 30, 46);
+}
 }  // namespace
 
 void GlesRenderer::setConstBuffer(const float input_size[2], const float output_size[2], float) {
@@ -301,7 +331,7 @@ GlesRenderer::GlesRenderer(SDL_Window *window, SDL_Texture *texture,
                            float sharpness) {
     this->window = window;
     this->texture = texture;
-    cas_con[4] = ParseFilterMode();
+    cas_con[4] = ParseFilterMode() + ParseReflectionProfile() * 0.1f;
     SDL_GL_BindTexture(texture, nullptr, nullptr);
     context = SDL_GL_GetCurrentContext();
     if (!context) {
@@ -330,7 +360,8 @@ GlesRenderer::GlesRenderer(SDL_Window *window, SDL_Texture *texture,
     glUniform1i(glGetUniformLocation(post_program, "u_texture"), 0);
     setConstBuffer(input_size, output_size, sharpness);
     initVertexData();
-    utils::printInfo("ROCGalgame GLES filter mode: %.0f\n", cas_con[4]);
+    utils::printInfo("ROCGalgame GLES filter mode: %.0f profile: %.0f\n",
+                     std::floor(cas_con[4]), ParseReflectionProfile());
 }
 
 GlesRenderer::~GlesRenderer() {
@@ -411,8 +442,9 @@ void GlesRenderer::copy(int window_x, int window_y) {
                         ? output_size[1] : drawable_height - window_y);
                 const float visible_width = visible_end_x - visible_origin_x;
                 const float visible_height = visible_end_y - visible_origin_y;
-                const float border_x = utils::clamp(drawable_width * 30 / 1000, 30, 46);
-                const float border_y = utils::clamp(drawable_height * 30 / 1000, 30, 46);
+                float border_x = 0.0f;
+                float border_y = 0.0f;
+                ReflectionBorder(drawable_width, drawable_height, border_x, border_y);
                 cursor_x = border_x +
                     (local_cursor_x - visible_origin_x) /
                     (visible_width > 1.0f ? visible_width : 1.0f) *

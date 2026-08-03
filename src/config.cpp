@@ -8,6 +8,40 @@
 #include <vector>
 
 namespace {
+bool ApplyScreenProfileDimensions(const std::string &raw_profile,
+                                  int &screen_w, int &screen_h) {
+  const std::string profile = ToLowerAscii(Trim(raw_profile));
+  if (profile == "1600x1440" || profile == "gkd350h-ultra" ||
+      profile == "gkd350h") {
+    screen_w = 1600;
+    screen_h = 1440;
+    return true;
+  }
+  if (profile == "1024x768" || profile == "trimui-brick") {
+    screen_w = 1024;
+    screen_h = 768;
+    return true;
+  }
+  if (profile == "720x720" || profile == "rgds" ||
+      profile == "rgcubexx") {
+    screen_w = 720;
+    screen_h = 720;
+    return true;
+  }
+  if (profile == "640x480") {
+    screen_w = 640;
+    screen_h = 480;
+    return true;
+  }
+  if (profile == "720x480" || profile == "h700-34xxsp" ||
+      profile == "rg34xx-sp" || profile == "rg34xxsp") {
+    screen_w = 720;
+    screen_h = 480;
+    return true;
+  }
+  return false;
+}
+
 std::filesystem::path ExeDir(const char *argv0) {
   std::error_code ec;
   if (const char *root = std::getenv("ROCGALGAME_ROOT"); root && *root) {
@@ -29,10 +63,7 @@ void ParseConfigLine(AppConfig &config, const std::string &raw_line) {
   const std::string value = Trim(line.substr(eq + 1));
   if (key == "screen_profile") {
     config.screen_profile = value;
-    if (value == "1600x1440" || ToLowerAscii(value) == "gkd350h-ultra" || ToLowerAscii(value) == "gkd350h") {
-      config.screen_w = 1600;
-      config.screen_h = 1440;
-    }
+    ApplyScreenProfileDimensions(value, config.screen_w, config.screen_h);
   } else if (key == "input_profile") {
     config.input_profile = value;
   } else if (key == "games_root") {
@@ -74,8 +105,9 @@ void ParseConfigLine(AppConfig &config, const std::string &raw_line) {
 
 void NormalizeConfig(AppConfig &config) {
   config.default_aspect = ToLowerAscii(Trim(config.default_aspect));
-  if (config.default_aspect == "fit-width") config.default_aspect = "contain";
+  if (config.default_aspect == "fit-width") config.default_aspect = "fill-width";
   if (config.default_aspect != "stretch" && config.default_aspect != "fill-height" &&
+      config.default_aspect != "fill-width" &&
       config.default_aspect != "contain") {
     config.default_aspect = "contain";
   }
@@ -114,10 +146,8 @@ AppConfig LoadAppConfig(const char *argv0) {
 
   if (const char *profile = std::getenv("ROCGALGAME_SCREEN_PROFILE"); profile && *profile) {
     config.screen_profile = profile;
-    if (config.screen_profile == "1600x1440") {
-      config.screen_w = 1600;
-      config.screen_h = 1440;
-    }
+    ApplyScreenProfileDimensions(config.screen_profile, config.screen_w,
+                                 config.screen_h);
   }
   NormalizeConfig(config);
   return config;

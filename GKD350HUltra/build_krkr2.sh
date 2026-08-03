@@ -8,7 +8,7 @@ SYSROOT="${SYSROOT:-$SELF_DIR/sysroot_device}"
 TOOLCHAIN="$SELF_DIR/toolchain/aarch64-gkd-krkr2.cmake"
 TRIPLET_DIR="$SELF_DIR/vcpkg-triplets"
 OVERLAY_PORTS="$SELF_DIR/vcpkg-ports;$KRKR2_ROOT/vcpkg/ports"
-TRIPLET="arm64-linux-gkd"
+TRIPLET="${KRKR2_TARGET_TRIPLET:-arm64-linux-gkd}"
 PROBE_SOURCE="$SELF_DIR/probes/krkr2_toolchain"
 PROBE_BUILD_DIR="${KRKR2_PROBE_BUILD_DIR:-$REPO_ROOT/build/gkd350h/krkr2-toolchain-probe}"
 BUILD_DIR="${KRKR2_BUILD_DIR:-$REPO_ROOT/build/gkd350h/krkr2}"
@@ -23,7 +23,7 @@ SAFE_CPU_SET="${KRKR2_SAFE_CPU_SET:-0}"
 WORK_SECONDS="${KRKR2_WORK_SECONDS:-300}"
 COOL_SECONDS="${KRKR2_COOL_SECONDS:-60}"
 PERIODIC_COOLING="${KRKR2_PERIODIC_COOLING:-0}"
-NICE_LEVEL="${KRKR2_NICE_LEVEL:-10}"
+NICE_LEVEL="${KRKR2_NICE_LEVEL:-15}"
 IO_PRIORITY="${KRKR2_IO_PRIORITY:-7}"
 CMAKE_BIN="${CMAKE_BIN:-$SELF_DIR/tools/cmake/bin/cmake}"
 WAYLAND_PKG_CONFIG_DIR="$SELF_DIR/pkgconfig-wayland"
@@ -175,7 +175,8 @@ test -f "$VCPKG_TOOLCHAIN" || {
 
 if [ "$MODE" = "Full" ]; then
   case "$BUILD_DIR" in
-    "$REPO_ROOT"/build/gkd350h/krkr2|"$REPO_ROOT"/build/gkd350h/krkr2/*) ;;
+    "$REPO_ROOT"/build/gkd350h/krkr2|"$REPO_ROOT"/build/gkd350h/krkr2/*|\
+    "$REPO_ROOT"/build/gkd350h-glibc234/krkr2|"$REPO_ROOT"/build/gkd350h-glibc234/krkr2/*) ;;
     *) echo "[krkr2_build] ERROR: refusing to clean unexpected directory: $BUILD_DIR"; exit 1 ;;
   esac
   rm -rf "$BUILD_DIR"
@@ -413,6 +414,8 @@ prepare_fmod_stub() {
   local fmod_link_path="vcpkg_installed/$TRIPLET/share/cocos2dx/linux-specific/fmod/prebuilt/64-bit/libfmod.so"
   local stub_object="$FMOD_STUB_BUILD_DIR/fmod_stub.cpp.o"
   local stub_archive="$FMOD_STUB_BUILD_DIR/libfmod_stub.a"
+  local math_abi_source="$FMOD_STUB_BUILD_DIR/glibc234_math_abi.c"
+  local math_abi_object="$FMOD_STUB_BUILD_DIR/glibc234_math_abi.o"
   local mali_link_library="$SYSROOT/lib/libmali.so"
   local link_file="$BUILD_DIR/CMakeFiles/krkr2.dir/link.txt"
   local patched_link_file="$link_file.rocgalgame.tmp"
@@ -451,11 +454,21 @@ prepare_fmod_stub() {
       -e "s#:$fmod_root/prebuilt/64-bit##g" \
       -e "s#:$BUILD_DIR/vcpkg_installed/$TRIPLET/lib/pkgconfig/../../lib##g" \
       -e "s# $stub_archive##g" \
+      -e "s# $math_abi_object##g" \
+      -e 's# -Wl,--wrap=hypot##g' \
+      -e 's# -Wl,--wrap=hypotf##g' \
+      -e "s# $SYSROOT/lib/aarch64-linux-gnu/libpthread.a# -lpthread#g" \
+      -e "s# $SYSROOT/lib/aarch64-linux-gnu/librt.a# -lrt#g" \
+      -e "s# $SYSROOT/lib/aarch64-linux-gnu/libm.a# -lm#g" \
+      -e 's# -lmf# -lm#g' \
       -e 's# -lSDL2##g' \
       -e 's# -lmali##g' \
       -e "s# -fuse-ld=gold##g" \
       -e '/^[[:space:]]*$/d' \
       "$link_file" > "$patched_link_file"
+    # Normalize a malformed Boost.Random archive suffix emitted by some
+    # CMake/Boost combinations; the installed package provides the .a file.
+    sed -i 's#libboost_random\.af\b#libboost_random.a#g' "$patched_link_file"
     if ! grep -Fq "$alpha_movie_object" "$patched_link_file"; then
       test -f "$alpha_movie_object_path" || {
         echo "[krkr2_build] ERROR: cached AlphaMovie object is missing: $alpha_movie_object_path"
@@ -475,6 +488,19 @@ prepare_fmod_stub() {
     # The device libGLESv2 shim has no GL exports of its own. With
     # --no-copy-dt-needed-entries the real Mali implementation must be linked
     # explicitly, after every static Cocos archive that references gl*.
+    if [ "${ROCGALGAME_GLIBC_BASELINE:-}" = "2.34" ]; then
+      cat >"$math_abi_source" <<'EOF'
+extern double rocgalgame_hypot_glibc217(double, double);
+extern float rocgalgame_hypotf_glibc217(float, float);
+__asm__(".symver rocgalgame_hypot_glibc217,hypot@GLIBC_2.17");
+__asm__(".symver rocgalgame_hypotf_glibc217,hypotf@GLIBC_2.17");
+double __wrap_hypot(double x, double y) { return rocgalgame_hypot_glibc217(x, y); }
+float __wrap_hypotf(float x, float y) { return rocgalgame_hypotf_glibc217(x, y); }
+EOF
+      aarch64-linux-gnu-gcc --sysroot="$SYSROOT" -O2 -fPIC \
+        -c "$math_abi_source" -o "$math_abi_object"
+      sed -i "\$ s#\$# -Wl,--wrap=hypot -Wl,--wrap=hypotf $math_abi_object -lm#" "$patched_link_file"
+    fi
     sed -i "\$ s#\$# -lSDL2 -lmali $stub_archive#" "$patched_link_file"
     if cmp -s "$link_file" "$patched_link_file"; then
       rm -f "$patched_link_file"
@@ -508,6 +534,7 @@ configure_krkr2() {
     -DENABLE_TESTS=OFF \
     -DBUILD_TOOLS=OFF \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_EXE_LINKER_FLAGS="${ROCGALGAME_GLIBC_BASELINE:+-Wl,--allow-shlib-undefined}" \
     -DCMAKE_BUILD_RPATH='$ORIGIN/../../lib_system_sdl;$ORIGIN/../../lib' \
     -DCMAKE_INSTALL_RPATH='$ORIGIN/../../lib_system_sdl;$ORIGIN/../../lib'
 }
@@ -576,6 +603,9 @@ configure_krkr2() {
   cp "$KRKR2_BINARY" "$RUNTIME_CORE_DIR/krkr2"
   chmod +x "$RUNTIME_CORE_DIR/krkr2"
   aarch64-linux-gnu-strip --strip-unneeded "$RUNTIME_CORE_DIR/krkr2"
+  if command -v perl >/dev/null 2>&1; then
+    perl -0777 -pi -e 's#/workspace/#/srcroot__/#g' "$RUNTIME_CORE_DIR/krkr2"
+  fi
   rm -rf "$RUNTIME_CORE_DIR/Resources"
   cp -a "$KRKR2_RESOURCES" "$RUNTIME_CORE_DIR/Resources"
   file "$RUNTIME_CORE_DIR/krkr2"

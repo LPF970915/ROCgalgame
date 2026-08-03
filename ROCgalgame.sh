@@ -28,12 +28,36 @@ UPDATE_DOWNLOADS_DIR="$APP_DIR/Downloads"
 UPDATE_MARKER="$UPDATE_DOWNLOADS_DIR/ROCgalgame_update_pending.txt"
 UPDATE_STAGE_DIR="$APP_DIR/cache/update_stage"
 
+config_value() {
+  key="$1"
+  [ -f "$APP_DIR/native_config.ini" ] || return 0
+  awk -F= -v wanted="$key" '$1 == wanted { print substr($0, index($0, "=") + 1); exit }' \
+    "$APP_DIR/native_config.ini" | tr -d '\r'
+}
+
+configured_screen_profile="$(config_value screen_profile || true)"
+configured_device_model="$(config_value device_model || true)"
+if [ -z "$configured_device_model" ]; then
+  case "$configured_screen_profile" in
+    720x480|h700-34xxsp|rg34xx-sp|rg34xxsp) configured_device_model="rg34xx-sp" ;;
+    1024x768|trimui-brick) configured_device_model="trimui-brick" ;;
+    *) configured_device_model="gkd350h-ultra" ;;
+  esac
+fi
+
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
 export SDL_NOMOUSE="${SDL_NOMOUSE:-1}"
 export ROCGALGAME_ROOT="$APP_DIR"
-export ROCGALGAME_SCREEN_PROFILE="${ROCGALGAME_SCREEN_PROFILE:-1600x1440}"
-export ROCGALGAME_DEVICE_MODEL="${ROCGALGAME_DEVICE_MODEL:-gkd350h-ultra}"
+export ROCGALGAME_SCREEN_PROFILE="${ROCGALGAME_SCREEN_PROFILE:-${configured_screen_profile:-1600x1440}}"
+export ROCGALGAME_DEVICE_MODEL="${ROCGALGAME_DEVICE_MODEL:-$configured_device_model}"
 export ROCREADER_SYSTEM_VOLUME_LEVELS="${ROCREADER_SYSTEM_VOLUME_LEVELS:-20}"
+if [ -z "${ROCGALGAME_KRKR_DISPLAY_BACKEND:-}" ]; then
+  case "$ROCGALGAME_SCREEN_PROFILE" in
+    720x480|h700-34xxsp|rg34xx-sp|rg34xxsp)
+      export ROCGALGAME_KRKR_DISPLAY_BACKEND=x11
+      ;;
+  esac
+fi
 
 if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
   for sock in \
@@ -112,8 +136,10 @@ replace_runtime_entry() {
 find_staged_runtime_dir() {
   for candidate in \
     "$UPDATE_STAGE_DIR/app/ROCgalgame" \
-    "$UPDATE_STAGE_DIR/roms/ports/ROCgalgame" \
-    "$UPDATE_STAGE_DIR/Roms/ports/ROCgalgame"; do
+    "$UPDATE_STAGE_DIR/Roms/APPS/ROCgalgame" \
+    "$UPDATE_STAGE_DIR/APPS/ROCgalgame" \
+      "$UPDATE_STAGE_DIR/roms/ports/ROCgalgame" \
+      "$UPDATE_STAGE_DIR/Roms/ports/ROCgalgame"; do
     [ -d "$candidate" ] && { printf '%s' "$candidate"; return 0; }
   done
   return 1
@@ -126,8 +152,10 @@ find_staged_launcher_file() {
     return 0
   fi
   for candidate in \
-    "$UPDATE_STAGE_DIR/roms/ports/ROCgalgame.sh" \
-    "$UPDATE_STAGE_DIR/Roms/ports/ROCgalgame.sh"; do
+    "$UPDATE_STAGE_DIR/Roms/APPS/ROCgalgame.sh" \
+    "$UPDATE_STAGE_DIR/APPS/ROCgalgame.sh" \
+      "$UPDATE_STAGE_DIR/roms/ports/ROCgalgame.sh" \
+      "$UPDATE_STAGE_DIR/Roms/ports/ROCgalgame.sh"; do
     [ -f "$candidate" ] && { printf '%s' "$candidate"; return 0; }
   done
   return 1
@@ -135,8 +163,12 @@ find_staged_launcher_file() {
 
 install_es_launcher_if_present() {
   staged_es_launcher="$UPDATE_STAGE_DIR/roms/ports/ROCgalgame.sh"
+  if [ ! -f "$staged_es_launcher" ]; then
+    staged_es_launcher="$UPDATE_STAGE_DIR/Roms/APPS/ROCgalgame.sh"
+  fi
   [ -f "$staged_es_launcher" ] || return 0
-  for ports_dir in /storage/roms/ports "$APP_DIR/../../roms/ports"; do
+  for ports_dir in /storage/roms/ports "$APP_DIR/../../roms/ports" \
+                   /storage/Roms/APPS "$APP_DIR/.."; do
     [ -d "$ports_dir" ] || continue
     cp "$staged_es_launcher" "$ports_dir/ROCgalgame.sh.new"
     chmod +x "$ports_dir/ROCgalgame.sh.new" 2>/dev/null || true
@@ -241,7 +273,11 @@ run_frontend_once() {
     "$BIN" >>"$LOG_FILE" 2>&1
     return $?
   fi
-  for drv in wayland KMSDRM kmsdrm x11; do
+  case "$ROCGALGAME_SCREEN_PROFILE" in
+    720x480|h700-34xxsp|rg34xx-sp|rg34xxsp) drivers="KMSDRM kmsdrm wayland x11" ;;
+    *) drivers="wayland KMSDRM kmsdrm x11" ;;
+  esac
+  for drv in $drivers; do
     log_line "[launcher] frontend driver=$drv"
     if SDL_VIDEODRIVER="$drv" "$BIN" >>"$LOG_FILE" 2>&1; then
       return 0

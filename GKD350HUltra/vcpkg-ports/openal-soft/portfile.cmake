@@ -8,6 +8,7 @@ vcpkg_from_github(
         pkgconfig-cxx.diff
         devendor-fmt.diff
         fix-fmt-header.patch
+        gcc11-libstdcxx-compat.patch
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
@@ -57,6 +58,7 @@ vcpkg_cmake_configure(
         -DALSOFT_INSTALL_AMBDEC_PRESETS=OFF
         -DALSOFT_INSTALL_CONFIG=OFF
         -DALSOFT_INSTALL_HRTF_DATA=OFF
+        -DALSOFT_ENABLE_MODULES=OFF
         -DALSOFT_NO_CONFIG_UTIL=ON
         -DALSOFT_RTKIT=OFF
         -DALSOFT_UPDATE_BUILD_VERSION=OFF

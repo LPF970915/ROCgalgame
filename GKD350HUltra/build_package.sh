@@ -109,6 +109,9 @@ show_elf_info "$RUNTIME_DIR/cores/ons/onsyuri"
 show_elf_info "$RUNTIME_DIR/cores/krkr/krkrsdl2"
 show_elf_info "$RUNTIME_DIR/cores/krkr/krkr2"
 "$SELF_DIR/validate_runtime_deps.sh"
+if [ -n "${ROCGALGAME_GLIBC_BASELINE:-}" ]; then
+  MAX_GLIBC="$ROCGALGAME_GLIBC_BASELINE" "$SELF_DIR/verify_glibc_compat.sh"
+fi
 
 if [ "$PACKAGE_OUTPUT" = "Stage" ]; then
   echo "[package] staged and validated without archive: $DIST_ROOT"

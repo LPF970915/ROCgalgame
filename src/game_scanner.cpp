@@ -297,7 +297,8 @@ KrkrRuntime ParseKrkrRuntime(const std::string &value) {
 
 bool IsAspectValue(const std::string &value) {
   const std::string v = ToLowerAscii(Trim(value));
-  return v == "stretch" || v == "contain" || v == "fill-height";
+  return v == "stretch" || v == "contain" || v == "fill-height" ||
+         v == "fill-width" || v == "fit-width";
 }
 
 bool IsFilterValue(const std::string &value) {

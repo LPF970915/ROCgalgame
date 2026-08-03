@@ -1,0 +1,14 @@
+FROM ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        autoconf autoconf-archive automake binutils bison build-essential ca-certificates \
+        bzip2 curl file flex g++-aarch64-linux-gnu git gperf gzip libltdl-dev libtool make \
+        nasm ninja-build patch perl pkg-config python3 rsync tar unzip util-linux \
+        libwayland-dev wayland-protocols \
+        xz-utils zip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace

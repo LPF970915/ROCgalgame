@@ -1,6 +1,6 @@
 # ROCgalgame
 
-ROCgalgame is an SDL2/C++ frontend for Linux handheld visual novel runtimes. Its frontend structure and common behavior follow ROCreader, while game-specific differences are isolated in game models, callbacks, core adapters, and composition code. The first verified package target is GKD350H Ultra with a 1600x1440 Wayland-oriented layout. OnscripterYuri is the stable gameplay path; KRKRSDL2 remains an experimental core.
+ROCgalgame is an SDL2/C++ frontend for Linux handheld visual novel runtimes. Its frontend structure and common behavior follow ROCreader, while game-specific differences are isolated in game models, callbacks, core adapters, and composition code. GKD350H Ultra is the original verified package target with a 1600x1440 Wayland-oriented layout; H700/RG34XX SP packaging is provided separately at 720x480. OnscripterYuri is the stable gameplay path; KRKRSDL2 remains an experimental core.
 
 The frontend owns the game library, covers, settings, and device-friendly controls. ONS and KRKR run as child processes managed by the still-running frontend process. Before starting a core, the frontend destroys its SDL renderer, window, audio, and input state so the core can take over the display without a competing black surface. When the core exits, the frontend rebuilds its SDL state and returns to the matching cover shelf. See [CURRENT_PORT_STATUS.md](CURRENT_PORT_STATUS.md) for the current capability boundary and known KRKR issues.
 
@@ -59,6 +59,7 @@ Aspect values currently used by the frontend are:
 
 - `stretch`: scale to the full panel.
 - `fill-height`: keep source ratio and fill vertically, allowing horizontal crop if needed.
+- `fill-width`: keep source ratio and fill horizontally, allowing vertical crop if needed.
 - `contain`: keep source ratio inside the panel without crop.
 
 Filter values are `clean`, `antialias`, `scanline`, `dot`, and `reflection`. ONS uses a GKD-tuned GLES2 single-pass implementation: FXAA for anti-aliasing, a thin phosphor-line treatment based on `D01_PLB-Thin`, a lightweight dot treatment based on `fast-Dot`, and a reduced-cost reflection treatment based on `F00_PhosphorLineReflex`. Legacy `crt-soft` and `mask` game overrides remain accepted and map to anti-aliasing and dot matrix respectively.
@@ -87,9 +88,9 @@ mouse_speed=720
 mouse_accel=1.6
 ```
 
-`game.ini` values are optional. Missing values fall back to `native_config.ini`, and save data still uses `saves/<core>/<folder-name>/` so changing the display title does not move existing saves. Legacy `fit-width` in the global config is migrated to `contain`.
+`game.ini` values are optional. Missing values fall back to `native_config.ini`, and save data still uses `saves/<core>/<folder-name>/` so changing the display title does not move existing saves. Legacy `fit-width` is accepted as an alias for `fill-width` and is migrated to the canonical value.
 
-For handheld use, ROCgalgame passes ONS runtime settings through environment variables. `ROCGALGAME_VIRTUAL_MOUSE=1` enables the patched ONS virtual mouse layer. The D-pad navigates between real ONS `ButtonLink` hit regions in four directions and centers the cursor on the selected button. The left stick moves continuously for controls such as sliders and scrollbars; approaching a button snaps to its center, with a short escape threshold so the stick can pull away. The GKD east face button sends a normal left-button down/up pair: tapping a button selects it, tapping empty dialogue advances, and holding while moving the stick drags. The cursor is a white line ring with a center point and contracts while the button is held. It remains visible while ONS exposes interactive buttons; idle hiding on ordinary dialogue only redraws the cursor and never completes the current input wait. The south face button keeps the native cancel/right-click behavior. For ONS, `stretch` uses `--fullscreen2`, `contain` preserves the complete game frame, and `fill-height` fills the panel vertically while cropping the scene horizontally. Standard ONS dialogue text is reflowed inside the visible horizontal safe area in `fill-height` mode.
+For handheld use, ROCgalgame passes ONS runtime settings through environment variables. `ROCGALGAME_VIRTUAL_MOUSE=1` enables the patched ONS virtual mouse layer. The D-pad navigates between real ONS `ButtonLink` hit regions in four directions and centers the cursor on the selected button. The left stick moves continuously for controls such as sliders and scrollbars; approaching a button snaps to its center, with a short escape threshold so the stick can pull away. The GKD east face button sends a normal left-button down/up pair: tapping a button selects it, tapping empty dialogue advances, and holding while moving the stick drags. The cursor is a white line ring with a center point and contracts while the button is held. It remains visible while ONS exposes interactive buttons; idle hiding on ordinary dialogue only redraws the cursor and never completes the current input wait. The south face button keeps the native cancel/right-click behavior. For ONS, `stretch` uses `--fullscreen2`, `contain` preserves the complete game frame, `fill-height` fills the panel vertically while cropping the scene horizontally, and `fill-width` fills it horizontally while cropping the scene vertically. Standard ONS dialogue text is reflowed inside the visible horizontal safe area in `fill-height` and the visible vertical safe area in `fill-width` mode.
 
 ## Build
 
@@ -117,6 +118,17 @@ powershell -ExecutionPolicy Bypass -File GKD350HUltra\build_low_glibc.ps1
 powershell -ExecutionPolicy Bypass -File GKD350HUltra\build_onsyuri.ps1
 powershell -ExecutionPolicy Bypass -File GKD350HUltra\build_krkr.ps1 -Mode Fast -Jobs 1 -ConfirmHeavyBuild
 ```
+
+H700 / RG34XX SP package from the existing low-glibc runtime and cores:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File H700\build_package.ps1 -Output Zip -Version 0.01
+```
+
+This produces the stock `Roms/APPS` layout and stages the 720x480 profile. The
+script validates the four application ELF files against the GLIBC 2.34
+baseline and gathers non-glibc FFmpeg dependencies for `krkrsdl2`; real-device
+input and display smoke testing remains required before calling it device-verified.
 
 Canonical GKD350H Ultra release build (Docker, frontend-only):
 

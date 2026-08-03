@@ -30,6 +30,8 @@
 /GKD350HUltra/sysroot_device/
 /GKD350HUltra/dist_clean_ons/
 /GKD350HUltra/dist_lowglibc/
+/GKD350HUltra/dist_glibc234/
+/build/gkd350h-glibc234/
 /GKD350HUltra/Downloads/*
 /GKD350HUltra/logs/
 /GKD350HUltra/package_check_ui/
@@ -41,6 +43,9 @@
 /GKD350HUltra/compat/libglvnd-arm64/extracted/usr/lib/aarch64-linux-gnu/libGL.so.1
 /GKD350HUltra/compat/libglvnd-arm64/extracted/usr/share/bug/
 /GKD350HUltra/compat/libglvnd-arm64/extracted/usr/share/doc/libgl1/changelog*
+/H700/dist_lowglibc/
+/H700/logs/
+/H700/Downloads/
 *.zip
 *.tar.gz
 

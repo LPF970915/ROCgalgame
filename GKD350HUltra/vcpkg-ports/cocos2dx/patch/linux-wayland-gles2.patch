@@ -1,46 +1,86 @@
-diff --git a/cocos/platform/linux/CCGL-linux.h b/cocos/platform/linux/CCGL-linux.h
-index f130f70838..5200454e14 100644
---- a/cocos/platform/linux/CCGL-linux.h
-+++ b/cocos/platform/linux/CCGL-linux.h
-@@ -35,9 +35,33 @@ limitations under the License.
- #include "platform/CCPlatformConfig.h"
- #if CC_TARGET_PLATFORM == CC_PLATFORM_LINUX
+diff --git a/cocos/2d/CCClippingNode.cpp b/cocos/2d/CCClippingNode.cpp
+index 69fbfbb..d5fa2b9 100644
+--- a/cocos/2d/CCClippingNode.cpp
++++ b/cocos/2d/CCClippingNode.cpp
+@@ -35,7 +35,8 @@
+ #include "base/CCDirector.h"
+ #include "base/CCStencilStateManager.h"
  
-+#if defined(ROCGALGAME_LINUX_GLES2)
-+#define glClearDepth                glClearDepthf
-+#define glDeleteVertexArrays        glDeleteVertexArraysOES
-+#define glGenVertexArrays           glGenVertexArraysOES
-+#define glBindVertexArray           glBindVertexArrayOES
-+#define glMapBuffer                 glMapBufferOES
-+#define glUnmapBuffer               glUnmapBufferOES
-+#ifndef GL_GLEXT_PROTOTYPES
-+#define GL_GLEXT_PROTOTYPES 1
-+#endif
-+#include <EGL/egl.h>
-+#include <GLES2/gl2.h>
-+#include <GLES2/gl2ext.h>
-+#ifndef GL_DEPTH24_STENCIL8
-+#define GL_DEPTH24_STENCIL8 0x88F0
-+#endif
-+#ifndef GL_WRITE_ONLY
-+#define GL_WRITE_ONLY GL_WRITE_ONLY_OES
-+#endif
-+#ifndef GL_BGRA
-+#define GL_BGRA GL_BGRA_EXT
-+#endif
-+#else
- #include "GL/glew.h"
-+#endif
+-#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
++#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || \
++    (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX && !defined(ROCGALGAME_LINUX_GLES2)))
+ #define CC_CLIPPING_NODE_OPENGLES 0
+ #else
+ #define CC_CLIPPING_NODE_OPENGLES 1
+diff --git a/cocos/3d/CCTerrain.cpp b/cocos/3d/CCTerrain.cpp
+index 19335b2..fcda460 100644
+--- a/cocos/3d/CCTerrain.cpp
++++ b/cocos/3d/CCTerrain.cpp
+@@ -138,7 +138,8 @@ void Terrain::onDraw(const Mat4 &transform, uint32_t /*flags*/)
  
- #define CC_GL_DEPTH24_STENCIL8      GL_DEPTH24_STENCIL8
+     auto glProgram = getGLProgram();
+     glProgram->use();
+-#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
++#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || \
++    ((CC_TARGET_PLATFORM == CC_PLATFORM_LINUX) && !defined(ROCGALGAME_LINUX_GLES2))
+     if(_isDrawWire)
+     {
+         glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+@@ -216,7 +217,8 @@ void Terrain::onDraw(const Mat4 &transform, uint32_t /*flags*/)
+     }
+     glActiveTexture(GL_TEXTURE0);
  
- #endif // CC_TARGET_PLATFORM == CC_PLATFORM_LINUX
+-#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
++#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || \
++    ((CC_TARGET_PLATFORM == CC_PLATFORM_LINUX) && !defined(ROCGALGAME_LINUX_GLES2))
+     if(_isDrawWire)//reset state.
+     {
+         glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+diff --git a/cocos/base/CCConfiguration.cpp b/cocos/base/CCConfiguration.cpp
+index 28ad261..9843146 100644
+--- a/cocos/base/CCConfiguration.cpp
++++ b/cocos/base/CCConfiguration.cpp
+@@ -113,11 +113,16 @@ std::string Configuration::getInfo() const
  
+ void Configuration::gatherGPUInfo()
+ {
+-	_valueDict["gl.vendor"] = Value((const char*)glGetString(GL_VENDOR));
+-	_valueDict["gl.renderer"] = Value((const char*)glGetString(GL_RENDERER));
+-	_valueDict["gl.version"] = Value((const char*)glGetString(GL_VERSION));
++    const char* glVendor = (const char*)glGetString(GL_VENDOR);
++    const char* glRenderer = (const char*)glGetString(GL_RENDERER);
++    const char* glVersion = (const char*)glGetString(GL_VERSION);
++    const char* glExtensions = (const char*)glGetString(GL_EXTENSIONS);
+ 
+-    _glExtensions = (char *)glGetString(GL_EXTENSIONS);
++	_valueDict["gl.vendor"] = Value(glVendor ? glVendor : "unknown");
++	_valueDict["gl.renderer"] = Value(glRenderer ? glRenderer : "unknown");
++	_valueDict["gl.version"] = Value(glVersion ? glVersion : "unknown");
++
++    _glExtensions = (char *)(glExtensions ? glExtensions : "");
+ 
+     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &_maxTextureSize);
+ 	_valueDict["gl.max_texture_size"] = Value((int)_maxTextureSize);
+diff --git a/cocos/base/CCStencilStateManager.cpp b/cocos/base/CCStencilStateManager.cpp
+index 2747fed..6e87e0d 100644
+--- a/cocos/base/CCStencilStateManager.cpp
++++ b/cocos/base/CCStencilStateManager.cpp
+@@ -30,7 +30,8 @@
+ #include "renderer/ccGLStateCache.h"
+ #include "renderer/CCRenderer.h"
+ #include "renderer/CCRenderState.h"
+-#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
++#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || \
++    (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX && !defined(ROCGALGAME_LINUX_GLES2)))
+ #define CC_CLIPPING_NODE_OPENGLES 0
+ #else
+ #define CC_CLIPPING_NODE_OPENGLES 1
 diff --git a/cocos/platform/desktop/CCGLViewImpl-desktop.cpp b/cocos/platform/desktop/CCGLViewImpl-desktop.cpp
-index 212f11acec..d19358b070 100644
+index 74e2ca7..edd353e 100644
 --- a/cocos/platform/desktop/CCGLViewImpl-desktop.cpp
 +++ b/cocos/platform/desktop/CCGLViewImpl-desktop.cpp
-@@ -27,6 +27,8 @@ limitations under the License.
+@@ -26,7 +26,11 @@ THE SOFTWARE.
+ 
  #include "platform/desktop/CCGLViewImpl-desktop.h"
  
 +#include <chrono>
@@ -49,21 +89,36 @@ index 212f11acec..d19358b070 100644
 +#include <cstdlib>
 +#include <cstring>
  #include <unordered_map>
- #include <unordered_map>
  
  #include "platform/CCApplication.h"
-@@ -218,6 +220,10 @@ GLViewImpl::GLViewImpl(bool initglfw)
+@@ -218,6 +222,26 @@ GLViewImpl::GLViewImpl(bool initglfw)
      if (initglfw)
      {
          glfwSetErrorCallback(GLFWEventHandler::onGLFWError);
 +#if defined(ROCGALGAME_LINUX_GLES2)
-+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
-+        glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
++        const char* displayBackend =
++            std::getenv("ROCGALGAME_KRKR_DISPLAY_BACKEND");
++        const bool useWayland = displayBackend &&
++            std::strcmp(displayBackend, "wayland") == 0;
++        const bool useX11 = displayBackend &&
++            (std::strcmp(displayBackend, "x11") == 0 ||
++             std::strcmp(displayBackend, "xwayland") == 0);
++        const int platformHint =
++            useWayland ? GLFW_PLATFORM_WAYLAND :
++            (useX11 && glfwPlatformSupported(GLFW_PLATFORM_X11) ?
++                 GLFW_PLATFORM_X11 :
++                 GLFW_ANY_PLATFORM);
++        glfwInitHint(GLFW_PLATFORM, platformHint);
++        if (useWayland)
++            glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
++        log("[rocgalgame] GLFW platform hint: %s",
++            platformHint == GLFW_PLATFORM_WAYLAND ? "wayland" :
++            (platformHint == GLFW_PLATFORM_X11 ? "x11" : "auto"));
 +#endif
          glfwInit();
      }
  }
-@@ -282,6 +288,11 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float frame
+@@ -282,6 +306,11 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float fram
  {
      setViewName(viewName);
  
@@ -75,7 +130,7 @@ index 212f11acec..d19358b070 100644
      _frameZoomFactor = frameZoomFactor;
  
      glfwWindowHint(GLFW_RESIZABLE,resizable?GL_TRUE:GL_FALSE);
-@@ -334,6 +345,18 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float frame
+@@ -334,6 +363,18 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float fram
      }
  
      glfwMakeContextCurrent(_mainWindow);
@@ -94,7 +149,7 @@ index 212f11acec..d19358b070 100644
  
      glfwSetMouseButtonCallback(_mainWindow, GLFWEventHandler::onGLFWMouseCallBack);
      glfwSetCursorPosCallback(_mainWindow, GLFWEventHandler::onGLFWMouseMoveCallBack);
-@@ -351,6 +374,12 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float frame
+@@ -351,6 +392,14 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float fram
      // check OpenGL version at first
      const GLubyte* glVersion = glGetString(GL_VERSION);
  
@@ -102,12 +157,14 @@ index 212f11acec..d19358b070 100644
 +    const GLubyte* glRenderer = glGetString(GL_RENDERER);
 +    log("OpenGL ES version: %s", glVersion ? (const char*)glVersion : "unknown");
 +    log("OpenGL ES renderer: %s", glRenderer ? (const char*)glRenderer : "unknown");
++    log("[rocgalgame] GLFW context current: %s",
++        glfwGetCurrentContext() == _mainWindow ? "yes" : "no");
 +    initGlew();
 +#else
      if ( utils::atof((const char*)glVersion) < 1.5 )
      {
          char strComplain[256] = {0};
-@@ -362,12 +391,15 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float frame
+@@ -362,15 +411,22 @@ bool GLViewImpl::initWithRect(const std::string& viewName, Rect rect, float fram
      }
  
      initGlew();
@@ -122,11 +179,19 @@ index 212f11acec..d19358b070 100644
 +#endif
  
  //    // GLFW v3.2 no longer emits "onGLFWWindowSizeFunCallback" at creation time. Force default viewport:
++#if defined(ROCGALGAME_LINUX_GLES2)
++    setViewPortInPoints(0, 0, rect.size.width, rect.size.height);
++#else
  //    setViewPortInPoints(0, 0, neededWidth, neededHeight);
-@@ -421,7 +453,26 @@ void GLViewImpl::end()
++#endif
+ //
+     return true;
+ }
+@@ -421,7 +477,115 @@ void GLViewImpl::end()
  void GLViewImpl::swapBuffers()
  {
      if(_mainWindow)
+-        glfwSwapBuffers(_mainWindow);
 +    {
 +#if defined(ROCGALGAME_LINUX_GLES2)
 +        const auto started = std::chrono::steady_clock::now();
@@ -220,8 +285,7 @@ index 212f11acec..d19358b070 100644
 +            }
 +        }
 +#endif
-         glfwSwapBuffers(_mainWindow);
-         glfwSwapBuffers(_mainWindow);
++        glfwSwapBuffers(_mainWindow);
 +#if defined(ROCGALGAME_LINUX_GLES2)
 +        const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
 +            std::chrono::steady_clock::now() - started).count();
@@ -240,7 +304,7 @@ index 212f11acec..d19358b070 100644
  }
  
  bool GLViewImpl::windowShouldClose()
-@@ -1022,6 +1073,9 @@ static bool glew_dynamic_binding()
+@@ -1022,6 +1186,9 @@ static bool glew_dynamic_binding()
  // helper
  bool GLViewImpl::initGlew()
  {
@@ -250,82 +314,19 @@ index 212f11acec..d19358b070 100644
  #if (CC_TARGET_PLATFORM != CC_PLATFORM_MAC)
      GLenum GlewInitResult = glewInit();
      if (GLEW_OK != GlewInitResult)
-@@ -1057,6 +1111,7 @@ bool GLViewImpl::initGlew()
+@@ -1057,6 +1224,7 @@ bool GLViewImpl::initGlew()
  #endif
-
+ 
  #endif // (CC_TARGET_PLATFORM != CC_PLATFORM_MAC)
 +#endif
  
      return true;
  }
-
-diff --git a/cocos/3d/CCTerrain.cpp b/cocos/3d/CCTerrain.cpp
---- a/cocos/3d/CCTerrain.cpp
-+++ b/cocos/3d/CCTerrain.cpp
-@@ -139,6 +139,7 @@ void Terrain::draw(Renderer *renderer, const Mat4& transform, uint32_t flags)
-     auto glProgram = getGLProgram();
-     glProgram->use();
--#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
-+#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || \
-+    ((CC_TARGET_PLATFORM == CC_PLATFORM_LINUX) && !defined(ROCGALGAME_LINUX_GLES2))
-     if(_isDrawWire)
-     {
-         glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
-@@ -217,6 +218,7 @@ void Terrain::draw(Renderer *renderer, const Mat4& transform, uint32_t flags)
-     glActiveTexture(GL_TEXTURE0);
- 
--#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
-+#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || \
-+    ((CC_TARGET_PLATFORM == CC_PLATFORM_LINUX) && !defined(ROCGALGAME_LINUX_GLES2))
-     if(_isDrawWire)//reset state.
-     {
-         glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-
-diff --git a/cocos/2d/CCClippingNode.cpp b/cocos/2d/CCClippingNode.cpp
---- a/cocos/2d/CCClippingNode.cpp
-+++ b/cocos/2d/CCClippingNode.cpp
-@@ -35,7 +35,8 @@
- #include "base/CCDirector.h"
- #include "base/CCStencilStateManager.h"
- 
--#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
-+#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || \
-+    (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX && !defined(ROCGALGAME_LINUX_GLES2)))
- #define CC_CLIPPING_NODE_OPENGLES 0
- #else
- #define CC_CLIPPING_NODE_OPENGLES 1
-
-diff --git a/cocos/base/CCStencilStateManager.cpp b/cocos/base/CCStencilStateManager.cpp
---- a/cocos/base/CCStencilStateManager.cpp
-+++ b/cocos/base/CCStencilStateManager.cpp
-@@ -30,7 +30,8 @@
- #include "renderer/ccGLStateCache.h"
- #include "renderer/CCRenderer.h"
- #include "renderer/CCRenderState.h"
--#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
-+#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC || CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || \
-+    (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX && !defined(ROCGALGAME_LINUX_GLES2)))
- #define CC_CLIPPING_NODE_OPENGLES 0
- #else
- #define CC_CLIPPING_NODE_OPENGLES 1
-diff --git a/cocos/renderer/CCGLProgram.cpp b/cocos/renderer/CCGLProgram.cpp
-index fd1db53ab3..5cba90b872 100644
---- a/cocos/renderer/CCGLProgram.cpp
-+++ b/cocos/renderer/CCGLProgram.cpp
-@@ -488,7 +488,7 @@ bool GLProgram::compileShader(GLuint * shader, GLenum type, const GLchar* source,
-         headersDef = (type == GL_VERTEX_SHADER ? "precision mediump float;\n precision mediump int;\n" : "precision mediump float;\n precision mediump int;\n");
- // Bugfix to make shader variables types constant to be understood by the current Android Virtual Devices or Emulators. This will also eliminate the 0x501 and 0x502 OpenGL Errors during emulation.
- // Changed shader data types mediump to highp to remove possible sprite joggling on some Android phones.
--#elif CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID
-+#elif CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID || defined(ROCGALGAME_LINUX_GLES2)
-         headersDef = "#version 100\n precision highp float;\n precision highp int;\n";
- #elif (CC_TARGET_PLATFORM != CC_PLATFORM_WIN32 && CC_TARGET_PLATFORM != CC_PLATFORM_LINUX && CC_TARGET_PLATFORM != CC_PLATFORM_MAC)
-         headersDef = (type == GL_VERTEX_SHADER ? "precision highp float;\n precision highp int;\n" : "precision mediump float;\n precision mediump int;\n");
-
 diff --git a/cocos/platform/linux/CCDevice-linux.cpp b/cocos/platform/linux/CCDevice-linux.cpp
+index 92e4137..b91b013 100644
 --- a/cocos/platform/linux/CCDevice-linux.cpp
 +++ b/cocos/platform/linux/CCDevice-linux.cpp
-@@ -31,6 +31,7 @@ limitations under the License.
+@@ -32,6 +32,7 @@ THE SOFTWARE.
  
  #include <X11/Xlib.h>
  #include <stdio.h>
@@ -354,10 +355,60 @@ diff --git a/cocos/platform/linux/CCDevice-linux.cpp b/cocos/platform/linux/CCDe
      static int dpi = -1;
      if (dpi == -1)
      {
-@@ -103,5 +118,6 @@ int Device::getDPI()
+@@ -103,6 +118,7 @@ int Device::getDPI()
+         XCloseDisplay (dpy);
      }
      return dpi;
 +#endif
  }
  
  void Device::setAccelerometerEnabled(bool isEnabled)
+diff --git a/cocos/platform/linux/CCGL-linux.h b/cocos/platform/linux/CCGL-linux.h
+index 42c860b..be32d1c 100644
+--- a/cocos/platform/linux/CCGL-linux.h
++++ b/cocos/platform/linux/CCGL-linux.h
+@@ -29,7 +29,31 @@ THE SOFTWARE.
+ #include "platform/CCPlatformConfig.h"
+ #if CC_TARGET_PLATFORM == CC_PLATFORM_LINUX
+ 
++#if defined(ROCGALGAME_LINUX_GLES2)
++#define glClearDepth                glClearDepthf
++#define glDeleteVertexArrays        glDeleteVertexArraysOES
++#define glGenVertexArrays           glGenVertexArraysOES
++#define glBindVertexArray           glBindVertexArrayOES
++#define glMapBuffer                 glMapBufferOES
++#define glUnmapBuffer               glUnmapBufferOES
++#ifndef GL_GLEXT_PROTOTYPES
++#define GL_GLEXT_PROTOTYPES 1
++#endif
++#include <EGL/egl.h>
++#include <GLES2/gl2.h>
++#include <GLES2/gl2ext.h>
++#ifndef GL_DEPTH24_STENCIL8
++#define GL_DEPTH24_STENCIL8 0x88F0
++#endif
++#ifndef GL_WRITE_ONLY
++#define GL_WRITE_ONLY GL_WRITE_ONLY_OES
++#endif
++#ifndef GL_BGRA
++#define GL_BGRA GL_BGRA_EXT
++#endif
++#else
+ #include "GL/glew.h"
++#endif
+ 
+ #define CC_GL_DEPTH24_STENCIL8      GL_DEPTH24_STENCIL8
+ 
+diff --git a/cocos/renderer/CCGLProgram.cpp b/cocos/renderer/CCGLProgram.cpp
+index 04785f2..85d5c35 100644
+--- a/cocos/renderer/CCGLProgram.cpp
++++ b/cocos/renderer/CCGLProgram.cpp
+@@ -488,7 +488,7 @@ bool GLProgram::compileShader(GLuint * shader, GLenum type, const GLchar* source
+         headersDef = (type == GL_VERTEX_SHADER ? "precision mediump float;\n precision mediump int;\n" : "precision mediump float;\n precision mediump int;\n");
+ // Bugfix to make shader variables types constant to be understood by the current Android Virtual Devices or Emulators. This will also eliminate the 0x501 and 0x502 OpenGL Errors during emulation.
+ // Changed shader data types mediump to highp to remove possible sprite joggling on some Android phones.
+-#elif CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID
++#elif CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID || defined(ROCGALGAME_LINUX_GLES2)
+         headersDef = "#version 100\n precision highp float;\n precision highp int;\n";
+ #elif (CC_TARGET_PLATFORM != CC_PLATFORM_WIN32 && CC_TARGET_PLATFORM != CC_PLATFORM_LINUX && CC_TARGET_PLATFORM != CC_PLATFORM_MAC)
+         headersDef = (type == GL_VERTEX_SHADER ? "precision highp float;\n precision highp int;\n" : "precision mediump float;\n precision mediump int;\n");

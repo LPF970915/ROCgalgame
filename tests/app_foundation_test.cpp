@@ -53,6 +53,10 @@ int main() {
   assert(gkd_environment.capabilities.has_evdev_input);
   assert(gkd_environment.capabilities.packaging_verified);
 
+  const AppPlatformEnvironment h700_sp_environment = ResolveAppPlatformEnvironment(
+      desktop_profile, InputProfile::H70034xxSp, "rg34xx-sp");
+  assert(h700_sp_environment.capabilities.packaging_verified);
+
   for (InputProfile profile : {InputProfile::H700Default, InputProfile::H70034xxSp,
                                InputProfile::H70035xxH, InputProfile::TrimuiBrick,
                                InputProfile::GKD350HUltra, InputProfile::RGDS}) {

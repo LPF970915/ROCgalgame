@@ -9,8 +9,8 @@
 - 前端：ONS/KRKR 独立导航栏、平铺 `games/` 自动识别、封面与存档隔离、核心退出后返回原书架。
 - 架构：公共前端模块边界对齐 ROCreader；游戏差异集中在 `GameEntry`、Game Settings callbacks、core adapters 和应用组合层。
 - 启动：只有 `GameLaunchService -> IGameCoreAdapter -> CoreProcessRunner` 一条内部管线，前端负责核心退出后的 SDL 重建和书架状态恢复。
-- 平台：Windows 使用 desktop capability；GKD350H Ultra 是当前唯一声明 packaging verified 的设备 profile。
-- ONS：手柄导航、同款圆形虚拟光标、A 确认/B 取消、拖动、画面比例与 `fill-height` 文本安全区处理。
+- 平台：Windows 使用 desktop capability；GKD350H Ultra 和 H700 34xxSP 当前声明 packaging verified，H700 真机输入/显示矩阵仍待回归。
+- ONS：手柄导航、同款圆形虚拟光标、A 确认/B 取消、拖动、画面比例与 `fill-height`/`fill-width` 文本安全区处理。
 - KRKR：ARM64 交叉构建、XP3/项目目录启动、基础插件兼容、`System.addFont`、中文字体、WebP、AAC/FFmpeg 音频、FFmpeg 视频、存档目录、手柄与虚拟光标基础。
 - 默认中文字体：`fonts/ui_font_02.ttf`。
 - 安全部署：Stage 11 只原子替换 launcher 与前端，ONS/KRKR、配置、键位和用户数据保持原哈希/目录状态；回滚备份与部署前哈希清单已保存。游戏、封面和存档不属于构建产物。
@@ -37,6 +37,7 @@ build/gkd350h/krkrsdl2       KRKR CMake 对象与预编译头缓存
 build/gkd350h/obj            前端 ARM64 对象缓存
 GKD350HUltra/sysroot_device  设备 sysroot 与目标依赖
 GKD350HUltra/dist_lowglibc    已验证的 staging 和三个可执行产物
+H700/dist_lowglibc             H700 34xxSP stage/zip 输出
 ```
 
 游戏、封面、存档目录同样不得由构建/清理脚本覆盖：
@@ -72,6 +73,12 @@ saves/
 
 ```powershell
 .\GKD350HUltra\build_krkr.ps1 -Mode Configure -Jobs 1 -Ccache Auto -ConfirmHeavyBuild
+```
+
+H700 34xxSP 包装（复用已编好的低 glibc 核心）：
+
+```powershell
+.\H700\build_package.ps1 -Output Stage -Version 0.01
 ```
 
 只有工具链/ABI 变化、缓存损坏或重大目录重构时才使用 `-Mode Full`。日常不要传 `-Clean`，也不要删除上述缓存目录。

@@ -193,6 +193,10 @@ elif [ "$USE_CCACHE" = "On" ] && [ "${#CCACHE_ARGS[@]}" -gt 0 ] && \
      ! grep -q '^CMAKE_CXX_COMPILER_LAUNCHER:.*ccache' "$BUILD_DIR/CMakeCache.txt"; then
   echo "[krkr_build] ccache was explicitly requested; performing a non-clean configure once"
   NEED_CONFIGURE=1
+elif [ "${ROCGALGAME_GLIBC_BASELINE:-}" = "2.34" ] && \
+     ! grep -q '^CMAKE_EXE_LINKER_FLAGS:STRING=.*allow-shlib-undefined' "$BUILD_DIR/CMakeCache.txt"; then
+  echo "[krkr_build] adding low-glibc device-library link policy without cleaning objects"
+  NEED_CONFIGURE=1
 fi
 
 {
@@ -212,12 +216,13 @@ fi
   fi
   if [ "$NEED_CONFIGURE" = "1" ]; then
     echo "[krkr_build] configure build tree"
-    nice -n 10 "$CMAKE_BIN" -S "$KRKR_ROOT" -B "$BUILD_DIR" \
+    nice -n 15 ionice -c 2 -n 7 "$CMAKE_BIN" -S "$KRKR_ROOT" -B "$BUILD_DIR" \
       -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
       -DGKD_SYSROOT="$SYSROOT" \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
       -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG" \
+      -DCMAKE_EXE_LINKER_FLAGS="${ROCGALGAME_GLIBC_BASELINE:+-Wl,--allow-shlib-undefined}" \
       -DCMAKE_BUILD_RPATH='$ORIGIN/../../lib_system_sdl;$ORIGIN/../../lib' \
       -DCMAKE_INSTALL_RPATH='$ORIGIN/../../lib_system_sdl;$ORIGIN/../../lib' \
       -DOPTION_USE_SYSTEM_SDL2=ON \
@@ -239,7 +244,7 @@ fi
     echo "[krkr_build] fast path: reuse configured build tree without manual configure: $BUILD_DIR"
   fi
   echo "[krkr_build] jobs=$BUILD_JOBS (kept conservative after host power-off incidents)"
-  nice -n 10 "$CMAKE_BIN" --build "$BUILD_DIR" --config Release --parallel "$BUILD_JOBS"
+  nice -n 15 ionice -c 2 -n 7 "$CMAKE_BIN" --build "$BUILD_DIR" --config Release --parallel "$BUILD_JOBS"
   cp "$BUILD_DIR/krkrsdl2" "$RUNTIME_CORE_DIR/krkrsdl2"
   chmod +x "$RUNTIME_CORE_DIR/krkrsdl2"
   mkdir -p "$DIST_ROOT/ROCgalgame/lib"

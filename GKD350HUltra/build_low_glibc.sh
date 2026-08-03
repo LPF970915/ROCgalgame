@@ -14,6 +14,9 @@ LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 LOG_FILE="$LOG_DIR/build_$(date +%Y%m%d_%H%M%S).log"
 BUILD_JOBS="${ROC_BUILD_JOBS:-1}"
 CLEAN_BUILD="${ROC_CLEAN_BUILD:-0}"
+BUILD_ROOT="${ROC_BUILD_ROOT:-$REPO_ROOT/build/gkd350h}"
+TARGET="$BUILD_ROOT/rocgalgame_sdl"
+OBJ_DIR="$BUILD_ROOT/obj"
 
 mkdir -p "$LOG_DIR" "$RUNTIME_DIR"
 
@@ -59,13 +62,13 @@ export PKG_CONFIG_PATH=""
 
 cd "$REPO_ROOT"
 if [ "$CLEAN_BUILD" = "1" ]; then
-  make TARGET=build/gkd350h/rocgalgame_sdl OBJDIR=build/gkd350h/obj clean >/dev/null 2>&1 || true
+  make TARGET="$TARGET" OBJDIR="$OBJ_DIR" clean >/dev/null 2>&1 || true
 fi
 
 # Docker and WSL share this object cache but mount the repository at different
 # absolute paths. Normalize generated dependency paths so switching builders
 # does not invalidate otherwise current objects.
-for dep_file in build/gkd350h/obj/*.d; do
+for dep_file in "$OBJ_DIR"/*.d; do
   [ -f "$dep_file" ] || continue
   if grep -Fq '/workspace/' "$dep_file" || {
        [ "$REPO_ROOT" != "/mnt/d/Works/ROCgalgame" ] &&
@@ -82,9 +85,9 @@ done
   echo "[gkd_build] sysroot=$SYSROOT"
   echo "[gkd_build] cxx=$CXX_CMD"
   echo "[gkd_build] pkg_libdir=$PKG_CONFIG_LIBDIR"
-  nice -n 10 make -j"$BUILD_JOBS" \
-    TARGET=build/gkd350h/rocgalgame_sdl \
-    OBJDIR=build/gkd350h/obj \
+  nice -n 15 ionice -c 2 -n 7 make -j"$BUILD_JOBS" \
+    TARGET="$TARGET" \
+    OBJDIR="$OBJ_DIR" \
     CXX="$CXX_CMD" \
     PKG_CONFIG="$PKG_CMD" \
     IMG_LIBS="-lSDL2_image" \
@@ -97,7 +100,7 @@ done
 } 2>&1 | tee "$LOG_FILE"
 
 mkdir -p "$RUNTIME_DIR"
-cp build/gkd350h/rocgalgame_sdl "$RUNTIME_DIR/rocgalgame_sdl"
+cp "$TARGET" "$RUNTIME_DIR/rocgalgame_sdl"
 bash "$SELF_DIR/sync_runtime_assets.sh"
 chmod +x "$RUNTIME_DIR/rocgalgame_sdl" 2>/dev/null || true
 

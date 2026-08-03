@@ -14,6 +14,7 @@ struct SettingsRuntimeState;
 enum class GameAspectMode {
   Stretch,
   FillHeight,
+  FillWidth,
   Contain,
 };
 

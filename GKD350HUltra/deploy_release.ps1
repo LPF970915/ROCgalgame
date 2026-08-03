@@ -2,7 +2,8 @@ param(
   [string]$DeviceHost = "root@192.168.31.13",
   [string]$Version = "0.04",
   [string]$AppDir = "/storage/games-external/app/ROCgalgame",
-  [string]$PackagePath = ""
+  [string]$PackagePath = "",
+  [string]$DistRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,7 +18,10 @@ if ([string]::IsNullOrWhiteSpace($PackagePath)) {
 }
 
 $package = (Resolve-Path -LiteralPath $PackagePath).Path
-$dist = Join-Path $PSScriptRoot "dist_lowglibc\ROCgalgame"
+if ([string]::IsNullOrWhiteSpace($DistRoot)) {
+  $DistRoot = Join-Path $PSScriptRoot "dist_lowglibc"
+}
+$dist = Join-Path $DistRoot "ROCgalgame"
 $frontend = (Resolve-Path -LiteralPath (Join-Path $dist "rocgalgame_sdl")).Path
 $ons = (Resolve-Path -LiteralPath (Join-Path $dist "cores\ons\onsyuri")).Path
 $krkr = (Resolve-Path -LiteralPath (Join-Path $dist "cores\krkr\krkrsdl2")).Path

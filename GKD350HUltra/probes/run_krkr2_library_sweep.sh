@@ -1,10 +1,11 @@
 #!/bin/sh
 set -u
 
-APP_DIR="${APP_DIR:-/storage/roms/ports/ROCgalgame}"
+APP_DIR="${APP_DIR:-/storage/games-external/app/ROCgalgame}"
 GAMES_DIR="${GAMES_DIR:-$APP_DIR/games}"
 CORE="${CORE:-$APP_DIR/cores/krkr/krkr2}"
 RUN_SECONDS="${RUN_SECONDS:-20}"
+RSS_LIMIT_KB="${RSS_LIMIT_KB:-950000}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 TEST_ROOT="${TEST_ROOT:-/tmp/rocgalgame-krkr2-library-sweep-$STAMP}"
 LOG_DIR="${LOG_DIR:-$APP_DIR/logs/krkr2-library-sweep-$STAMP}"
@@ -26,7 +27,7 @@ if [ "$DISCOVER_ONLY" != "1" ]; then
   test -x "$CORE" || { echo "[sweep] missing core: $CORE"; exit 2; }
 fi
 mkdir -p "$TEST_ROOT" "$LOG_DIR"
-printf 'id\ttitle\tsource\tentry\tstatus\talive\twindow\tstartup\trenderer\texceptions\tplugin_errors\tsave_files\texit_code\tlog\n' >"$SUMMARY"
+printf 'id\ttitle\tsource\tentry\tstatus\talive\twindow\tstartup\trenderer\texceptions\tplugin_errors\tsave_files\tmax_rss_kb\texit_code\tlog\n' >"$SUMMARY"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/0-runtime-dir}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
@@ -196,8 +197,8 @@ run_case() {
   tree_file="$LOG_DIR/$id.sway-tree.json"
 
   echo "[sweep] START id=$id title=$title source=$source_dir entry=$entry"
-  if [ ! -d "$source_dir" ] || [ ! -e "$source_dir/$entry" ]; then
-    printf '%s\t%s\t%s\t%s\tmissing_entry\t0\t0\t0\tmissing\t0\t0\t0\t127\t%s\n' \
+  if [ ! -d "$source_dir" ] || { [ "$entry" != "." ] && [ ! -e "$source_dir/$entry" ]; }; then
+    printf '%s\t%s\t%s\t%s\tmissing_entry\t0\t0\t0\tmissing\t0\t0\t0\t0\t127\t%s\n' \
       "$id" "$title" "$source_dir" "$entry" "$log_file" >>"$SUMMARY"
     echo "[sweep] DONE id=$id status=missing_entry"
     return
@@ -217,14 +218,41 @@ run_case() {
   done
 
   cd "$case_dir" || return
+  if [ "$entry" = "." ]; then
+    launch_arg="$case_dir"
+  else
+    launch_arg="$case_dir/$entry"
+  fi
+
   if [ "${USE_SAVE_ENV:-1}" = "1" ]; then
     ROCGALGAME_KRKR_SAVE_PATH="$save_dir" \
-      "$CORE" "$case_dir/$entry" >"$log_file" 2>&1 &
+      "$CORE" "$launch_arg" >"$log_file" 2>&1 &
   else
-    "$CORE" "$case_dir/$entry" >"$log_file" 2>&1 &
+    "$CORE" "$launch_arg" >"$log_file" 2>&1 &
   fi
   CURRENT_PID=$!
-  sleep "$RUN_SECONDS"
+
+  elapsed=0
+  rss_limited=0
+  max_rss_kb=0
+  while [ "$elapsed" -lt "$RUN_SECONDS" ]; do
+    kill -0 "$CURRENT_PID" 2>/dev/null || break
+    rss_kb="$(awk '/^VmRSS:/ { print $2; exit }' "/proc/$CURRENT_PID/status" 2>/dev/null || echo 0)"
+    case "$rss_kb" in ''|*[!0-9]*) rss_kb=0 ;; esac
+    if [ "$rss_kb" -gt "$max_rss_kb" ]; then
+      max_rss_kb="$rss_kb"
+    fi
+    if [ "$RSS_LIMIT_KB" -gt 0 ] && [ "$rss_kb" -gt "$RSS_LIMIT_KB" ]; then
+      rss_limited=1
+      echo "[sweep] RSS_LIMIT id=$id rss_kb=$rss_kb limit_kb=$RSS_LIMIT_KB"
+      kill -TERM "$CURRENT_PID" 2>/dev/null || true
+      sleep 1
+      kill -KILL "$CURRENT_PID" 2>/dev/null || true
+      break
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
 
   alive=0
   if kill -0 "$CURRENT_PID" 2>/dev/null; then alive=1; fi
@@ -255,7 +283,9 @@ run_case() {
   save_files="$(find "$save_dir" -type f -print 2>/dev/null | wc -l | tr -d ' ')"
 
   status=pass
-  if [ "$alive" -ne 1 ]; then
+  if [ "$rss_limited" -eq 1 ]; then
+    status=rss_limit
+  elif [ "$alive" -ne 1 ]; then
     status=early_exit
   elif [ "$window" -ne 1 ]; then
     status=no_window
@@ -267,11 +297,11 @@ run_case() {
     status=non_mali_renderer
   fi
 
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$id" "$title" "$source_dir" "$entry" "$status" "$alive" "$window" "$startup" \
-    "$renderer" "$exceptions" "$plugin_errors" "$save_files" \
+    "$renderer" "$exceptions" "$plugin_errors" "$save_files" "$max_rss_kb" \
     "$exit_code" "$log_file" >>"$SUMMARY"
-  echo "[sweep] DONE id=$id status=$status alive=$alive window=$window startup=$startup renderer=$renderer exceptions=$exceptions plugin_errors=$plugin_errors save_files=$save_files exit_code=$exit_code"
+  echo "[sweep] DONE id=$id status=$status alive=$alive window=$window startup=$startup renderer=$renderer exceptions=$exceptions plugin_errors=$plugin_errors save_files=$save_files max_rss_kb=$max_rss_kb exit_code=$exit_code"
 }
 
 discover_bucket() {
@@ -289,7 +319,7 @@ discover_bucket() {
 
     if [ -z "$entry" ]; then
       log_file="$LOG_DIR/$id.log"
-      printf '%s\t%s\t%s\t\tambiguous_entry\t0\t0\t0\tmissing\t0\t0\t0\t127\t%s\n' \
+      printf '%s\t%s\t%s\t\tambiguous_entry\t0\t0\t0\tmissing\t0\t0\t0\t0\t127\t%s\n' \
         "$id" "$title" "$source_dir" "$log_file" >>"$SUMMARY"
       echo "[sweep] DISCOVER id=$id title=$title source=$source_dir status=ambiguous_entry"
       continue
@@ -297,7 +327,7 @@ discover_bucket() {
 
     echo "[sweep] DISCOVER id=$id title=$title source=$source_dir entry=$entry"
     if [ "$DISCOVER_ONLY" = "1" ]; then
-      printf '%s\t%s\t%s\t%s\tdiscovered\t0\t0\t0\tmissing\t0\t0\t0\t0\t\n' \
+      printf '%s\t%s\t%s\t%s\tdiscovered\t0\t0\t0\tmissing\t0\t0\t0\t0\t0\t\n' \
         "$id" "$title" "$source_dir" "$entry" >>"$SUMMARY"
     else
       run_case "$id" "$title" "$source_dir" "$entry"

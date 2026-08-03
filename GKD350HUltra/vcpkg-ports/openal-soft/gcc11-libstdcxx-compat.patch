@@ -1,0 +1,182 @@
+diff --git a/al/source.cpp b/al/source.cpp
+index 7e040d4d2..7d1b133aa 100644
+--- a/al/source.cpp
++++ b/al/source.cpp
+@@ -2508,7 +2508,7 @@ using source_store_single = std::array<gsl::not_null<al::Source*>,1>;
+ using source_store_vector = std::vector<gsl::not_null<al::Source*>>;
+ using source_store_variant = std::variant<std::monostate,source_store_single,source_store_vector>;
+ 
+-constexpr auto get_srchandles(gsl::not_null<al::Context*> const context,
++auto get_srchandles(gsl::not_null<al::Context*> const context,
+     source_store_variant &source_store, std::span<ALuint const> const sids)
+     -> std::span<gsl::not_null<al::Source*>>
+ {
+diff --git a/alc/alc.cpp b/alc/alc.cpp
+index d10d186be..01514a8fe 100644
+--- a/alc/alc.cpp
++++ b/alc/alc.cpp
+@@ -197,7 +197,16 @@ namespace {
+ using namespace std::string_view_literals;
+ using std::chrono::seconds;
+ using std::chrono::nanoseconds;
+ 
++template<typename Range>
++[[nodiscard]] constexpr auto SplitRangeToStringView(Range&& range) noexcept -> std::string_view
++{
++    auto first = std::ranges::begin(range);
++    auto last = std::ranges::end(range);
++    if(first == last) return {};
++    return {std::addressof(*first), static_cast<size_t>(std::ranges::distance(first, last))};
++}
++
+ using voidp = void*;
+ 
+ 
+@@ -360,7 +370,7 @@ using std::chrono::nanoseconds;
+     constexpr auto extlist = std::string_view{GetNoDeviceExtString()};
+     auto ret = std::array<std::string_view, std::ranges::count(extlist, ' ')+1>{};
+     std::ranges::transform(extlist | std::views::split(' '), ret.begin(),
+-        [](auto&& namerange) { return std::string_view{namerange.begin(), namerange.end()}; });
++        [](auto&& namerange) { return SplitRangeToStringView(namerange); });
+     return ret;
+ }
+ /* Returns the above Extension string as an array of string_views. */
+@@ -369,7 +379,7 @@ using std::chrono::nanoseconds;
+     constexpr auto extlist = std::string_view{GetExtensionString()};
+     auto ret = std::array<std::string_view, std::ranges::count(extlist, ' ')+1>{};
+     std::ranges::transform(extlist | std::views::split(' '), ret.begin(),
+-        [](auto&& namerange) { return std::string_view{namerange.begin(), namerange.end()}; });
++        [](auto&& namerange) { return SplitRangeToStringView(namerange); });
+     return ret;
+ }
+ 
+@@ -456,7 +466,7 @@ using std::chrono::nanoseconds;
+         {
+             std::ranges::for_each(cpulist | std::views::split(','), [&capfilter](auto&& namerange)
+             {
+-                auto entry = std::string_view{namerange.begin(), namerange.end()};
++                auto entry = SplitRangeToStringView(namerange);
+                 constexpr auto wspace_chars = " \t\n\f\r\v"sv;
+                 entry.remove_prefix(std::min(entry.find_first_not_of(wspace_chars), entry.size()));
+                 entry.remove_suffix(entry.size() - (entry.find_last_not_of(wspace_chars)+1));
+@@ -599,6 +608,6 @@ using std::chrono::nanoseconds;
+             [backends,&BackendListEnd,&backendlist_cur,&endlist](auto&& namerange)
+         {
+-            auto entry = std::string_view{namerange.begin(), namerange.end()};
++            auto entry = SplitRangeToStringView(namerange);
+ 
+             constexpr auto whitespace_chars = " \t\n\f\r\v"sv;
+             entry.remove_prefix(std::min(entry.find_first_not_of(whitespace_chars), entry.size()));
+@@ -683,7 +693,7 @@ using std::chrono::nanoseconds;
+     {
+         std::ranges::for_each(*exclopt | std::views::split(','), [](auto&& namerange) noexcept
+         {
+-            const auto entry = std::string_view{namerange.begin(), namerange.end()};
++            const auto entry = SplitRangeToStringView(namerange);
+             std::ranges::for_each(gEffectList, [entry](const EffectList &effectitem) noexcept
+             {
+                 if(entry == effectitem.name)
+diff --git a/core/hrtf.cpp b/core/hrtf.cpp
+index e0bfac4e7..fdd140277 100644
+--- a/core/hrtf.cpp
++++ b/core/hrtf.cpp
+@@ -43,6 +43,15 @@ namespace {
+ 
+ using namespace std::string_view_literals;
+ 
++template<typename Range>
++[[nodiscard]] auto SplitRangeToStringView(Range&& range) noexcept -> std::string_view
++{
++    auto first = std::ranges::begin(range);
++    auto last = std::ranges::end(range);
++    if(first == last) return {};
++    return {std::addressof(*first), static_cast<size_t>(std::ranges::distance(first, last))};
++}
++
+ struct HrtfEntry {
+     std::string mDispName;
+     std::string mFilename;
+@@ -435,7 +445,7 @@ using namespace std::string_view_literals;
+     {
+         std::ranges::for_each(*pathopt | std::views::split(','), [&usedefaults](auto&& range)
+         {
+-            auto entry = std::string_view{range.begin(), range.end()};
++            auto entry = SplitRangeToStringView(range);
+             constexpr auto wspace_chars = " \t\n\f\r\v"sv;
+             entry.remove_prefix(std::min(entry.find_first_not_of(wspace_chars), entry.size()));
+             entry.remove_suffix(entry.size() - (entry.find_last_not_of(wspace_chars)+1));
+diff --git a/router/alc.cpp b/router/alc.cpp
+index 5b10ae86b..9b087d394 100644
+--- a/router/alc.cpp
++++ b/router/alc.cpp
+@@ -40,6 +40,15 @@ namespace {
+ 
+ using namespace std::string_view_literals;
+ 
++template<typename Range>
++[[nodiscard]] constexpr auto SplitRangeToStringView(Range&& range) noexcept -> std::string_view
++{
++    auto first = std::ranges::begin(range);
++    auto last = std::ranges::end(range);
++    if(first == last) return {};
++    return {std::addressof(*first), static_cast<size_t>(std::ranges::distance(first, last))};
++}
++
+ using LPALCdevice = ALCdevice*;
+ 
+ void LoadDrivers()
+@@ -325,7 +335,7 @@ using LPALCdevice = ALCdevice*;
+     constexpr auto extlist = std::string_view{GetExtensionString()};
+     auto ret = std::array<std::string_view, std::ranges::count(extlist, ' ')+1>{};
+     std::ranges::transform(extlist | std::views::split(' '), ret.begin(),
+-        [](auto&& namerange) { return std::string_view{namerange.begin(), namerange.end()}; });
++        [](auto&& namerange) { return SplitRangeToStringView(namerange); });
+     return ret;
+ }
+ 
+@@ -448,7 +458,7 @@ using LPALCdevice = ALCdevice*;
+     {
+         std::ranges::transform(mNamesStore | std::views::split('\0') | std::views::drop(base)
+             | std::views::take(list.mNames.size()), list.mNames.begin(), [](auto&& namerange)
+-        { return std::string_view{namerange.begin(), namerange.end()}; });
++        { return SplitRangeToStringView(namerange); });
+         base += list.mNames.size();
+     });
+ }
+diff --git a/router/router.cpp b/router/router.cpp
+index 416c2af67..2635d8d1c 100644
+--- a/router/router.cpp
++++ b/router/router.cpp
+@@ -39,5 +39,14 @@
+ namespace {
+ 
++template<typename Range>
++[[nodiscard]] auto SplitRangeToWStringView(Range&& range) noexcept -> std::wstring_view
++{
++    auto first = std::ranges::begin(range);
++    auto last = std::ranges::end(range);
++    if(first == last) return {};
++    return {&*first, static_cast<size_t>(std::ranges::distance(first, last))};
++}
++
+ /* C++23 has this... */
+ struct contains_fn_ {
+     template<std::input_iterator I, std::sentinel_for<I> S, typename T,
+@@ -348,7 +357,7 @@ void LoadDriverList()
+         std::ranges::for_each(*list | std::views::split(','), [](auto&& subrange)
+         {
+             if(!subrange.empty())
+-                gAcceptList.emplace_back(std::wstring_view{subrange.begin(), subrange.end()});
++                gAcceptList.emplace_back(SplitRangeToWStringView(subrange));
+         });
+     }
+     if(auto const list = al::getenv(L"ALROUTER_REJECT"))
+@@ -356,7 +365,7 @@ void LoadDriverList()
+         std::ranges::for_each(*list | std::views::split(','), [](auto&& subrange)
+         {
+             if(!subrange.empty())
+-                gRejectList.emplace_back(std::wstring_view{subrange.begin(), subrange.end()});
++                gRejectList.emplace_back(SplitRangeToWStringView(subrange));
+         });
+     }
+ 
