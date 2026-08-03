@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-BUILD_DIR="${COCOS2DX_BUILD_DIR:-/mnt/d/Works/ROCgalgame/GKD350HUltra/tools/vcpkg/buildtrees/cocos2dx/arm64-linux-gkd-rel}"
-NINJA="${NINJA:-/mnt/d/Works/ROCgalgame/GKD350HUltra/tools/vcpkg/downloads/tools/ninja-1.13.2-linux/ninja}"
-LOG_FILE="${COCOS2DX_LOG_FILE:-/mnt/d/Works/ROCgalgame/GKD350HUltra/logs/cocos2dx_gles2_resume.log}"
+BUILD_DIR="${COCOS2DX_BUILD_DIR:-/mnt/d/Works/ROCgalgame/build/gkd350h-glibc234/vcpkg/buildtrees/cocos2dx/arm64-linux-gkd-glibc234-rel}"
+NINJA="${NINJA:-/mnt/d/Works/ROCgalgame/build/gkd350h-glibc234/vcpkg/downloads/tools/ninja-1.13.2-linux/ninja}"
+LOG_FILE="${COCOS2DX_LOG_FILE:-/mnt/d/Works/ROCgalgame/GKD350HUltra/logs/glibc234/cocos2dx_gles2_resume.log}"
 WORK_SECONDS="${KRKR2_WORK_SECONDS:-300}"
 COOL_SECONDS="${KRKR2_COOL_SECONDS:-60}"
 SAFE_CPU_SET="${KRKR2_SAFE_CPU_SET:-0}"

@@ -3,18 +3,19 @@ set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SELF_DIR/.." && pwd)"
+DEFAULT_BUILD_ROOT="$REPO_ROOT/build/gkd350h-glibc234"
 
-SYSROOT="${SYSROOT:-$SELF_DIR/sysroot_device}"
+SYSROOT="${SYSROOT:-$DEFAULT_BUILD_ROOT/sysroot}"
 TOOL_PREFIX="${CROSS_TOOL_PREFIX:-aarch64-linux-gnu}"
 CXX_CMD="${CROSS_CXX:-${TOOL_PREFIX}-g++}"
 PKG_CMD="${CROSS_PKG_CONFIG:-pkg-config}"
-DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
+DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME_DIR="$DIST_ROOT/ROCgalgame"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 LOG_FILE="$LOG_DIR/build_$(date +%Y%m%d_%H%M%S).log"
 BUILD_JOBS="${ROC_BUILD_JOBS:-1}"
 CLEAN_BUILD="${ROC_CLEAN_BUILD:-0}"
-BUILD_ROOT="${ROC_BUILD_ROOT:-$REPO_ROOT/build/gkd350h}"
+BUILD_ROOT="${ROC_BUILD_ROOT:-$DEFAULT_BUILD_ROOT/frontend}"
 TARGET="$BUILD_ROOT/rocgalgame_sdl"
 OBJ_DIR="$BUILD_ROOT/obj"
 

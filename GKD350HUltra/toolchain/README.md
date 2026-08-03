@@ -35,7 +35,7 @@ without copying files between projects:
 
 ```powershell
 .\build_krkr2.ps1 -Mode Probe `
-  -Sysroot D:\Works\ROCreader\GKD350HUltra\sysroot_device
+  -Sysroot D:\Works\ROCgalgame\build\gkd350h-glibc234\sysroot
 ```
 
 Use only a GKD sysroot with a matching target libc. H700 supplies many of the
@@ -56,7 +56,7 @@ first full dependency configure is intentionally guarded as a heavy operation:
 
 ```powershell
 .\build_krkr2.ps1 -Mode Configure -ConfirmHeavyBuild `
-  -Sysroot D:\Works\ROCreader\GKD350HUltra\sysroot_device
+  -Sysroot D:\Works\ROCgalgame\build\gkd350h-glibc234\sysroot
 ```
 
 After Configure succeeds, use `FastBuild` for normal KRKR2 `.cpp` and `.h`
@@ -76,6 +76,6 @@ incremental dependency rules.
 
 Use `Build` when generated build metadata should be checked. Use `Configure`
 after changing CMake files, triplets, toolchains, or vcpkg ports. `Build`,
-`FastBuild`, and `Full` use the same isolated `build/gkd350h/krkr2` tree and
+`FastBuild`, and `Full` use the same isolated `build/gkd350h-glibc234/krkr2` tree and
 install only the resulting executable as `cores/krkr/krkr2` in the staged
 package.

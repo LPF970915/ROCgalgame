@@ -3,16 +3,17 @@ set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SELF_DIR/.." && pwd)"
+BUILD_ROOT="${KRKR2_BUILD_ROOT:-$REPO_ROOT/build/gkd350h-glibc234}"
 KRKR2_ROOT="${KRKR2_ROOT:-/mnt/d/Works/Tyranor/krkr2}"
-SYSROOT="${SYSROOT:-$SELF_DIR/sysroot_device}"
+SYSROOT="${SYSROOT:-$BUILD_ROOT/sysroot}"
 TOOLCHAIN="$SELF_DIR/toolchain/aarch64-gkd-krkr2.cmake"
 TRIPLET_DIR="$SELF_DIR/vcpkg-triplets"
 OVERLAY_PORTS="$SELF_DIR/vcpkg-ports;$KRKR2_ROOT/vcpkg/ports"
-TRIPLET="${KRKR2_TARGET_TRIPLET:-arm64-linux-gkd}"
+TRIPLET="${KRKR2_TARGET_TRIPLET:-arm64-linux-gkd-glibc234}"
 PROBE_SOURCE="$SELF_DIR/probes/krkr2_toolchain"
-PROBE_BUILD_DIR="${KRKR2_PROBE_BUILD_DIR:-$REPO_ROOT/build/gkd350h/krkr2-toolchain-probe}"
-BUILD_DIR="${KRKR2_BUILD_DIR:-$REPO_ROOT/build/gkd350h/krkr2}"
-DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
+PROBE_BUILD_DIR="${KRKR2_PROBE_BUILD_DIR:-$BUILD_ROOT/krkr2-toolchain-probe}"
+BUILD_DIR="${KRKR2_BUILD_DIR:-$BUILD_ROOT/krkr2}"
+DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME_CORE_DIR="$DIST_ROOT/ROCgalgame/cores/krkr"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 FMOD_STUB_SOURCE="$SELF_DIR/compat/fmod_stub.cpp"
@@ -165,17 +166,16 @@ if [ "${KRKR2_CONFIRM_HEAVY_BUILD:-0}" != "1" ]; then
 fi
 
 test -f "$KRKR2_ROOT/CMakeLists.txt" || { echo "[krkr2_build] ERROR: invalid KRKR2_ROOT: $KRKR2_ROOT"; exit 1; }
-VCPKG_ROOT="${VCPKG_ROOT:-$SELF_DIR/tools/vcpkg}"
+VCPKG_ROOT="${VCPKG_ROOT:-$BUILD_ROOT/vcpkg}"
 VCPKG_TOOLCHAIN="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 test -f "$VCPKG_TOOLCHAIN" || {
   echo "[krkr2_build] ERROR: vcpkg is missing: $VCPKG_TOOLCHAIN"
-  echo "[krkr2_build] Install vcpkg under $SELF_DIR/tools/vcpkg or set VCPKG_ROOT."
+  echo "[krkr2_build] Restore the glibc 2.34 baseline cache or set VCPKG_ROOT."
   exit 1
 }
 
 if [ "$MODE" = "Full" ]; then
   case "$BUILD_DIR" in
-    "$REPO_ROOT"/build/gkd350h/krkr2|"$REPO_ROOT"/build/gkd350h/krkr2/*|\
     "$REPO_ROOT"/build/gkd350h-glibc234/krkr2|"$REPO_ROOT"/build/gkd350h-glibc234/krkr2/*) ;;
     *) echo "[krkr2_build] ERROR: refusing to clean unexpected directory: $BUILD_DIR"; exit 1 ;;
   esac

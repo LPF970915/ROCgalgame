@@ -340,8 +340,8 @@ copying and compression:
 ```
 
 Release archives intentionally contain empty `games`, `covers`, `saves`, and
-`cache` directories rather than private content. Preserve `build/gkd350h/`,
-`GKD350HUltra/sysroot_device/`, `GKD350HUltra/dist_lowglibc/`, and the ignored
-local CMake tool directory. Removing them turns later work into recovery or a
-full rebuild. Each successful PowerShell build/package run refreshes the
-ignored `build/gkd350h/build_checkpoint.json` artifact/cache record.
+`cache` directories rather than private content. Preserve
+`build/gkd350h-glibc234/`, `GKD350HUltra/dist_glibc234/`, and the ignored local
+CMake tool directory. Removing them turns later work into recovery or a full
+rebuild. Each successful PowerShell build/package run refreshes the ignored
+`build/gkd350h-glibc234/build_checkpoint.json` artifact/cache record.

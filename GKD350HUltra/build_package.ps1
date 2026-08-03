@@ -57,7 +57,7 @@ $packageName = "ROCgalgame ver$Version for GKD350H Ultra"
 $zipPath = Join-Path $downloads "$packageName.zip"
 $tarPath = Join-Path $downloads "$packageName.tar.gz"
 if ($Output -eq "Stage") {
-  Write-Host "[package] staged and validated: $(Join-Path $PSScriptRoot 'dist_lowglibc')"
+  Write-Host "[package] staged and validated: $(Join-Path $PSScriptRoot 'dist_glibc234')"
 } elseif (($Output -eq "Zip" -or $Output -eq "Both") -and (Test-Path -LiteralPath $zipPath)) {
   Write-Host "[package] output: $zipPath"
 } elseif (($Output -eq "Tar" -or $Output -eq "Both") -and (Test-Path -LiteralPath $tarPath)) {

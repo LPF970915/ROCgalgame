@@ -33,10 +33,10 @@
 以下目录被 Git 忽略，但不应作为普通清理对象删除：
 
 ```text
-build/gkd350h/krkrsdl2       KRKR CMake 对象与预编译头缓存
-build/gkd350h/obj            前端 ARM64 对象缓存
-GKD350HUltra/sysroot_device  设备 sysroot 与目标依赖
-GKD350HUltra/dist_lowglibc    已验证的 staging 和三个可执行产物
+build/gkd350h-glibc234/krkrsdl2  KRKR CMake 对象与预编译头缓存
+build/gkd350h-glibc234/frontend 前端 ARM64 对象缓存
+build/gkd350h-glibc234/sysroot  glibc 2.34 设备 sysroot 与目标依赖
+GKD350HUltra/dist_glibc234      已验证的 staging 和三个可执行产物
 H700/dist_lowglibc             H700 34xxSP stage/zip 输出
 ```
 
@@ -85,5 +85,5 @@ H700 34xxSP 包装（复用已编好的低 glibc 核心）：
 
 需要发行压缩包时显式传 `-Output Zip`、`Tar` 或 `Both`。压缩包会保留空的游戏/封面/存档目录结构，但不会打入本机私人内容。
 
-每次成功运行 PowerShell 构建或打包脚本后，会刷新被 Git 忽略的 `build/gkd350h/build_checkpoint.json`，记录源码状态、缓存可用性和当前三个可执行产物哈希。
+每次成功运行 PowerShell 构建或打包脚本后，会刷新被 Git 忽略的 `build/gkd350h-glibc234/build_checkpoint.json`，记录源码状态、缓存可用性和当前三个可执行产物哈希。
 

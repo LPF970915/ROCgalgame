@@ -150,7 +150,7 @@ For the next UI/ONS development pass, build only those targets and reuse the sta
 powershell -ExecutionPolicy Bypass -File GKD350HUltra\build_package.ps1 -Mode Incremental -BuildTargets Frontend,ONS -Output Stage
 ```
 
-Create a distributable zip only when needed by adding `-Output Zip`. Both the manual and Docker package paths use the same dual IUX/ES release layout and package naming. Building KRKR is always explicit and uses the preserved `build/gkd350h/krkrsdl2` CMake tree. Full rebuilds are reserved for toolchain/ABI changes, incompatible CMake option changes, cache corruption, or major KRKR restructuring. See `GKD350HUltra/IUX_APP_LAYOUT.md` for the one-time migration and update-path notes.
+Create a distributable zip only when needed by adding `-Output Zip`. Both the manual and Docker package paths use the same dual IUX/ES release layout and package naming. Building KRKR is always explicit and uses the preserved `build/gkd350h-glibc234/krkrsdl2` CMake tree. Full rebuilds are reserved for toolchain/ABI changes, incompatible CMake option changes, cache corruption, or major KRKR restructuring. See `GKD350HUltra/IUX_APP_LAYOUT.md` for the one-time migration and update-path notes.
 
 The GKD sysroot and helper scripts were copied from `D:\Works\ROCreader\GKD350HUltra` as the initial target toolchain baseline.
 The checked-in `GKD350HUltra/toolchain` folder is currently a placeholder/notes directory. The working compiler used by the build script is the WSL Ubuntu `aarch64-linux-gnu-g++`, unless `CROSS_CXX` or a populated `GKD350HUltra/toolchain/bin/aarch64-linux-gnu-g++` is provided.
