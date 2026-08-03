@@ -1,6 +1,6 @@
 ﻿# 当前移植状态与后续开发边界
 
-更新时间：2026-07-19。
+更新时间：2026-08-03。
 
 当前仓库已经完成 Stage 6–10 的前端架构重构：公共菜单、Game Settings、书架服务、核心 adapter/registry/process runner 和 capability 层已经拆分，旧 `launch_request.ini`/退出码 `42` 协议已删除。Stage 11 的文档、自动化和 Windows 模拟校验已经完成；候选前端与 launcher 已部署到 GKD350H Ultra，并通过书架、菜单、系统设置和游戏设置的轻量截图冒烟。完整 GKD 真机功能矩阵按用户要求留给重构后的手工测试。
 
@@ -24,20 +24,25 @@
 
 ## 当前开发优先级
 
-1. UI 导航、菜单交互、显示设置和视觉一致性。
-2. ONS 手柄、虚拟光标、文字可读性、比例模式与长时间游玩体验。
-3. 完成一次 Git 基线提交后，再继续 KRKR 标题动画黑屏和快速输入崩溃回归。
+1. 以 GKD350H Ultra 真机复现、最小修改、单线程增量构建、原子部署和真机回归为一轮，持续修复 KRKR2 核心能力。
+2. 保持 GKD350H Ultra 与 H700 34xxSP 的复用式打包可用，发布前验证核心哈希、glibc 基线和包内目录。
+3. 只补充明确需要的小功能；前端结构不再做大规模重构。
+
+除非用户明确要求，不运行 `build_glibc234_all.*`、`build_release_docker.ps1`、`-Mode Full`、`-Clean` 或会重新配置/编译大规模 vcpkg 依赖图的命令。
 
 ## 必须保留的本地缓存
 
 以下目录被 Git 忽略，但不应作为普通清理对象删除：
 
 ```text
-build/gkd350h-glibc234/krkrsdl2  KRKR CMake 对象与预编译头缓存
-build/gkd350h-glibc234/frontend 前端 ARM64 对象缓存
-build/gkd350h-glibc234/sysroot  glibc 2.34 设备 sysroot 与目标依赖
-GKD350HUltra/dist_glibc234      已验证的 staging 和三个可执行产物
-H700/dist_lowglibc             H700 34xxSP stage/zip 输出
+build/gkd350h-glibc234/vcpkg      KRKR2 目标依赖与包缓存
+build/gkd350h-glibc234/krkr2      KRKR2 CMake、对象和链接缓存
+build/gkd350h-glibc234/krkrsdl2   KRKRSDL2 CMake 对象与预编译头缓存
+build/gkd350h-glibc234/frontend   前端 ARM64 对象缓存
+build/gkd350h-glibc234/sysroot    glibc 2.34 设备 sysroot 与目标依赖
+GKD350HUltra/tools                 固定版本 CMake 与 vcpkg 源码/下载缓存
+GKD350HUltra/dist_glibc234        当前 GKD staging 和已验证核心
+H700/dist_lowglibc                H700 34xxSP stage 输出
 ```
 
 游戏、封面、存档目录同样不得由构建/清理脚本覆盖：
@@ -63,16 +68,16 @@ saves/
 .\GKD350HUltra\build_package.ps1 -Mode Incremental -BuildTargets Frontend,ONS -Output Stage
 ```
 
-以后继续修改 KRKR 源码时，默认复用现有 CMake 树并保持单线程低优先级：
+用户明确批准编译后，KRKR2 小范围源码修改默认复用现有 CMake 树并保持单线程低优先级：
 
 ```powershell
-.\GKD350HUltra\build_krkr.ps1 -Mode Fast -Jobs 1 -ConfirmHeavyBuild
+.\GKD350HUltra\build_krkr2.ps1 -Mode FastBuild -Jobs 1 -SafeCpuSet 0 -ConfirmHeavyBuild
 ```
 
-仅修改 CMake 选项、工具链参数或首次启用 ccache 时重新配置，但不清对象：
+构建成功后只原子部署 KRKR2，不替换前端、ONS、KRKRSDL2、配置或用户数据：
 
 ```powershell
-.\GKD350HUltra\build_krkr.ps1 -Mode Configure -Jobs 1 -Ccache Auto -ConfirmHeavyBuild
+.\GKD350HUltra\deploy_krkr2.ps1
 ```
 
 H700 34xxSP 包装（复用已编好的低 glibc 核心）：
@@ -81,7 +86,7 @@ H700 34xxSP 包装（复用已编好的低 glibc 核心）：
 .\H700\build_package.ps1 -Output Stage -Version 0.01
 ```
 
-只有工具链/ABI 变化、缓存损坏或重大目录重构时才使用 `-Mode Full`。日常不要传 `-Clean`，也不要删除上述缓存目录。
+只有工具链/ABI 变化、缓存损坏或重大目录重构，并且用户主动要求时，才使用 `-Mode Full`。日常不要传 `-Clean`，也不要删除上述缓存目录。
 
 需要发行压缩包时显式传 `-Output Zip`、`Tar` 或 `Both`。压缩包会保留空的游戏/封面/存档目录结构，但不会打入本机私人内容。
 

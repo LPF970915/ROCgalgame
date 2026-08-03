@@ -19,7 +19,7 @@ if ([string]::IsNullOrWhiteSpace($PackagePath)) {
 
 $package = (Resolve-Path -LiteralPath $PackagePath).Path
 if ([string]::IsNullOrWhiteSpace($DistRoot)) {
-  $DistRoot = Join-Path $PSScriptRoot "dist_lowglibc"
+  $DistRoot = Join-Path $PSScriptRoot "dist_glibc234"
 }
 $dist = Join-Path $DistRoot "ROCgalgame"
 $frontend = (Resolve-Path -LiteralPath (Join-Path $dist "rocgalgame_sdl")).Path

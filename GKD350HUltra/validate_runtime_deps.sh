@@ -2,8 +2,9 @@
 set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-SYSROOT="${SYSROOT:-$SELF_DIR/sysroot_device}"
-DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
+REPO_ROOT="$(CDPATH= cd -- "$SELF_DIR/.." && pwd)"
+SYSROOT="${SYSROOT:-$REPO_ROOT/build/gkd350h-glibc234/sysroot}"
+DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME="$DIST_ROOT/ROCgalgame"
 failed=0
 queue_file="$(mktemp)"
@@ -22,13 +23,28 @@ for binary in "$RUNTIME/rocgalgame_sdl" \
   fi
 done
 
+declare -A library_index=()
+index_library_tree() {
+  local root="$1" max_depth="$2" candidate name
+  [ -d "$root" ] || return 0
+  while IFS= read -r -d '' candidate; do
+    name="${candidate##*/}"
+    if [ -z "${library_index[$name]+present}" ]; then
+      library_index["$name"]="$candidate"
+    fi
+  done < <(find "$root" -maxdepth "$max_depth" -name '*.so*' \
+    \( -type f -o -type l \) -size +0c -print0 2>/dev/null)
+}
+
+# Runtime libraries take precedence. Index each tree once because repeatedly
+# traversing the sysroot over a Windows/WSL mount makes reuse-only packaging slow.
+index_library_tree "$RUNTIME" 5
+index_library_tree "$SYSROOT/lib" 4
+index_library_tree "$SYSROOT/usr/lib" 5
+
 resolve_library() {
-  local name="$1" candidate
-  candidate="$(find "$RUNTIME" -type f -name "$name" -print -quit 2>/dev/null || true)"
-  if [ -z "$candidate" ]; then
-    candidate="$(find "$SYSROOT/lib" "$SYSROOT/usr/lib" -name "$name" -size +0c -print -quit 2>/dev/null || true)"
-  fi
-  printf '%s' "$candidate"
+  local name="$1"
+  printf '%s' "${library_index[$name]-}"
 }
 
 index=1

@@ -3,7 +3,7 @@ set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SELF_DIR/.." && pwd)"
-DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
+DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME_DIR="$DIST_ROOT/ROCgalgame"
 KRKR2_GL_SOURCE="$SELF_DIR/compat/libglvnd-arm64/extracted/usr/lib/aarch64-linux-gnu/libGL.so.1.7.0"
 

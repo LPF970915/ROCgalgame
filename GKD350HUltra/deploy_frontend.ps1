@@ -1,7 +1,7 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
   [string]$AppDir = "/storage/games-external/app/ROCgalgame",
-  [string]$FrontendPath = "$PSScriptRoot\dist_lowglibc\ROCgalgame\rocgalgame_sdl"
+  [string]$FrontendPath = "$PSScriptRoot\dist_glibc234\ROCgalgame\rocgalgame_sdl"
 )
 
 $ErrorActionPreference = "Stop"

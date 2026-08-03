@@ -9,14 +9,31 @@ import zipfile
 
 APP_ROOT = "app/ROCgalgame"
 EXPECTED_PACK = f"{APP_ROOT}/ui.pack"
+EXPECTED_ONS = f"{APP_ROOT}/cores/ons/onsyuri"
 EXPECTED_KRKRSDL2 = f"{APP_ROOT}/cores/krkr/krkrsdl2"
 EXPECTED_KRKR2 = f"{APP_ROOT}/cores/krkr/krkr2"
 EXPECTED_KRKR2_RESOURCES = f"{APP_ROOT}/cores/krkr/Resources/"
 EXPECTED_KRKR2_GL = f"{APP_ROOT}/cores/krkr/lib_krkr2/libGL.so.1"
-EXPECTED_KRKRSDL2_SHA256 = "cfff05da86ced8e8530f2cc08c478418dd2b2cd7a746e6ed161a15c6352efc3f"
-EXPECTED_KRKR2_SHA256 = "4c633112890401d233ef3eae92c4472f171c7f3f370a8b91116394bf89b8f6c8"
-EXPECTED_KRKR2_GL_SHA256 = "0e1d74952d5edcfd023c214a19f280a5248a256cbc179fbee2285b50bc3ec918"
+CORE_HASH_MANIFEST = pathlib.Path(__file__).with_name("release_core_hashes.sha256")
 EMPTY_RUNTIME_DIRS = ("games", "covers", "saves", "cache")
+
+
+def load_expected_core_hashes() -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for line_number, raw_line in enumerate(CORE_HASH_MANIFEST.read_text(encoding="ascii").splitlines(), 1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split(maxsplit=1)
+        if len(fields) != 2 or not re.fullmatch(r"[0-9a-fA-F]{64}", fields[0]):
+            raise ValueError(f"invalid core hash manifest line {line_number}")
+        archive_name = f"app/{fields[1].lstrip('*')}"
+        hashes[archive_name] = fields[0].lower()
+    required_paths = {EXPECTED_ONS, EXPECTED_KRKRSDL2, EXPECTED_KRKR2, EXPECTED_KRKR2_GL}
+    missing_paths = sorted(required_paths - hashes.keys())
+    if missing_paths:
+        raise ValueError(f"core hash manifest is missing {missing_paths[0]}")
+    return hashes
 
 
 def main() -> int:
@@ -25,6 +42,11 @@ def main() -> int:
         return 2
 
     archive_path = pathlib.Path(sys.argv[1])
+    try:
+        expected_core_hashes = load_expected_core_hashes()
+    except (OSError, ValueError) as error:
+        print(f"[package] ERROR: unable to load core hash manifest: {error}", file=sys.stderr)
+        return 1
     version_match = re.match(
         r"^ROCgalgame ver([0-9]+\.[0-9]{2}) for GKD350H Ultra\.zip$",
         archive_path.name,
@@ -86,15 +108,14 @@ def main() -> int:
         if EXPECTED_KRKR2_GL not in names:
             print(f"[package] ERROR: missing KRKR2 private GLVND library: {EXPECTED_KRKR2_GL}", file=sys.stderr)
             return 1
-        if hashlib.sha256(archive.read(EXPECTED_KRKRSDL2)).hexdigest() != EXPECTED_KRKRSDL2_SHA256:
-            print("[package] ERROR: KRKRSDL2 core hash mismatch", file=sys.stderr)
-            return 1
-        if hashlib.sha256(archive.read(EXPECTED_KRKR2)).hexdigest() != EXPECTED_KRKR2_SHA256:
-            print("[package] ERROR: KRKR2 core hash mismatch", file=sys.stderr)
-            return 1
-        if hashlib.sha256(archive.read(EXPECTED_KRKR2_GL)).hexdigest() != EXPECTED_KRKR2_GL_SHA256:
-            print("[package] ERROR: KRKR2 private GLVND library hash mismatch", file=sys.stderr)
-            return 1
+        for core_path, expected_hash in expected_core_hashes.items():
+            if core_path not in names:
+                print(f"[package] ERROR: missing manifest artifact: {core_path}", file=sys.stderr)
+                return 1
+            actual_hash = hashlib.sha256(archive.read(core_path)).hexdigest()
+            if actual_hash != expected_hash:
+                print(f"[package] ERROR: manifest hash mismatch: {core_path}", file=sys.stderr)
+                return 1
         debug_cores = [
             name
             for name in names

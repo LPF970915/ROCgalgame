@@ -132,8 +132,9 @@ Suggested local workspace layout:
 
 - `gkd350h_ultra_layout.h`: 1600x1440 layout metrics
 - `gkd350h_ultra_profile.h`: model/profile constants and aliases
-- `sysroot_device/`: synced from the target over SSH
-- `dist_lowglibc/`: staged package output
+- `../build/gkd350h-glibc234/sysroot/`: current merged target sysroot
+- `sysroot_device/`: optional raw device snapshot, recreated with `sync_sysroot.sh` only for a full sysroot rebuild
+- `dist_glibc234/`: current glibc 2.34 staged package output
 - `Downloads/`: final release zip files
 - `logs/`: build logs
 

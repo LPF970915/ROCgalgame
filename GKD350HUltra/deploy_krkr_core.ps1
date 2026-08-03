@@ -1,7 +1,7 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
   [string]$AppDir = "/storage/roms/ports/ROCgalgame",
-  [string]$CorePath = "$PSScriptRoot\dist_lowglibc\ROCgalgame\cores\krkr\krkrsdl2"
+  [string]$CorePath = "$PSScriptRoot\dist_glibc234\ROCgalgame\cores\krkr\krkrsdl2"
 )
 
 $ErrorActionPreference = "Stop"

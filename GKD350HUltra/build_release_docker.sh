@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
+DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 VERSION="${1:-}"
 BUILD_JOBS="${ROC_RELEASE_JOBS:-2}"
 FORCE="${ROC_RELEASE_FORCE:-0}"

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
+DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 MAX_GLIBC="${MAX_GLIBC:-2.34}"
 ALLOW_HOST_PATH_LEAK="${ROCGALGAME_ALLOW_HOST_PATH_LEAK:-0}"
 failed=0

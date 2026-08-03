@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_lowglibc}"
+DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME_DIR="$DIST_ROOT/ROCgalgame"
 DOWNLOADS_DIR="${DOWNLOADS_DIR:-$SELF_DIR/Downloads}"
 VERSION="${ROCGALGAME_VERSION:-0.01}"

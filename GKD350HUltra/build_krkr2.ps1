@@ -6,8 +6,8 @@ param(
   [ValidateSet("Probe", "Configure", "Build", "FastBuild", "Full")]
   [string]$Mode = "Probe",
   [ValidateRange(1, 4)]
-  [int]$Jobs = 3,
-  [string]$SafeCpuSet = "0-2",
+  [int]$Jobs = 1,
+  [string]$SafeCpuSet = "0",
   [ValidateRange(60, 1800)]
   [int]$WorkSeconds = 300,
   [ValidateRange(15, 900)]
