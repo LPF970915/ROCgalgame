@@ -7,6 +7,7 @@ HELPER="${HELPER:-/tmp/gkd_uinput_sequence.py}"
 RUN_SECONDS="${RUN_SECONDS:-70}"
 RSS_LIMIT_KB="${RSS_LIMIT_KB:-950000}"
 CAPTURE_SECONDS="${CAPTURE_SECONDS:-3 12 22 36 55}"
+CORE_FILTER="${CORE_FILTER:-krkr}"
 MIN_NONBLACK_RATIO="${MIN_NONBLACK_RATIO:-0.01}"
 REQUIRE_FRAME_DIFF="${REQUIRE_FRAME_DIFF:-1}"
 REQUIRE_SWAP_FRAME="${REQUIRE_SWAP_FRAME:-1}"
@@ -43,7 +44,7 @@ kill_pid_list() {
 }
 
 kill_runtime_processes() {
-  pids="$(pidof rocgalgame_sdl krkr2 2>/dev/null || true)"
+  pids="$(pidof rocgalgame_sdl onsyuri krkr2 krkrsdl2 2>/dev/null || true)"
   if [ -n "$pids" ]; then
     kill_pid_list TERM $pids
     sleep 1
@@ -60,17 +61,11 @@ kill_runtime_processes() {
 }
 
 current_core_pid() {
-  ps -eo pid=,ppid=,etimes=,args= 2>/dev/null | awk '
-    $0 ~ /\/cores\/krkr\/krkr2/ {
-      if (min == "" || $3 < min) {
-        min = $3
-        pid = $1
-      }
-    }
-    END {
-      print pid
-    }
-  '
+  runtime="${1:-${expected_runtime:-}}"
+  case "$runtime" in
+    onsyuri|krkr2|krkrsdl2) pidof "$runtime" 2>/dev/null | awk '{print $1}' ;;
+    *) return 1 ;;
+  esac
 }
 
 kill_stale_uinput_helpers() {
@@ -107,7 +102,13 @@ trap cleanup EXIT INT TERM
 
 test -x "$APP_DIR/rocgalgame_sdl" || { echo "[frontend_sweep] missing frontend"; exit 2; }
 test -x "$APP_DIR/cores/krkr/krkr2" || { echo "[frontend_sweep] missing krkr2"; exit 2; }
+test -x "$APP_DIR/cores/krkr/krkrsdl2" || { echo "[frontend_sweep] missing krkrsdl2"; exit 2; }
+test -x "$APP_DIR/cores/ons/onsyuri" || { echo "[frontend_sweep] missing onsyuri"; exit 2; }
 test -f "$HELPER" || { echo "[frontend_sweep] missing helper: $HELPER"; exit 2; }
+case "$CORE_FILTER" in
+  all|ons|krkr) ;;
+  *) echo "[frontend_sweep] CORE_FILTER must be all, ons, or krkr"; exit 2 ;;
+esac
 mkdir -p "$TEST_ROOT" "$LOG_DIR"
 printf 'id\ttitle\tsource\tstatus\tcore_seen\tcore_early_exit\tfrontend_exit\tcore_log\tfrontend_log\tcaptures\tmax_core_rss_kb\tmax_frontend_rss_kb\tsave_files\tnotes\n' >"$SUMMARY"
 
@@ -162,6 +163,37 @@ is_krkr_game() {
     is_xp3_archive "$candidate" && return 0
   done
   return 1
+}
+
+detect_game_core() {
+  candidate_dir="$1"
+  configured_core="$(ini_value "$candidate_dir/game.ini" core | tr '[:upper:]' '[:lower:]')"
+  case "$configured_core" in
+    ons|onscripter|onsyuri) printf 'ons\n'; return 0 ;;
+    krkr|kirikiri) printf 'krkr\n'; return 0 ;;
+  esac
+  for marker in 0.txt 00.txt nscript.dat nscript.___ arc.nsa arc.sar; do
+    if [ -e "$candidate_dir/$marker" ]; then
+      printf 'ons\n'
+      return 0
+    fi
+  done
+  if is_krkr_game "$candidate_dir"; then
+    printf 'krkr\n'
+    return 0
+  fi
+  return 1
+}
+
+expected_krkr_runtime() {
+  candidate_dir="$1"
+  runtime="$(ini_value "$candidate_dir/game.ini" runtime | tr '[:upper:]' '[:lower:]')"
+  [ -n "$runtime" ] ||
+    runtime="$(ini_value "$candidate_dir/game.ini" krkr_runtime | tr '[:upper:]' '[:lower:]')"
+  case "$runtime" in
+    krkr2|kirikiroid2|native) printf 'krkr2\n' ;;
+    *) printf 'krkrsdl2\n' ;;
+  esac
 }
 
 stable_case_id() {
@@ -226,8 +258,11 @@ EOF
 capture_screen() {
   output="$1"
   focus_capture_target
-  if command -v grim >/dev/null 2>&1 && grim "$output" >/dev/null 2>&1; then
-    return 0
+  if command -v grim >/dev/null 2>&1; then
+    case "$output" in
+      *.ppm) grim -t ppm "$output" >/dev/null 2>&1 && return 0 ;;
+      *) grim "$output" >/dev/null 2>&1 && return 0 ;;
+    esac
   fi
   if [ -r /dev/fb0 ] && command -v ffmpeg >/dev/null 2>&1; then
     ffmpeg -hide_banner -loglevel error -f fbdev -framerate 1 -i /dev/fb0 \
@@ -239,7 +274,7 @@ capture_screen() {
 focus_capture_target() {
   if command -v swaymsg >/dev/null 2>&1 && [ -S "$SWAYSOCK" ]; then
     focused=0
-    core_pid="$(current_core_pid)"
+    core_pid="$(current_core_pid "$expected_runtime")"
     if [ -n "$core_pid" ]; then
       if swaymsg -q -s "$SWAYSOCK" "[pid=$core_pid] focus" >/dev/null 2>&1; then
         focused=1
@@ -329,7 +364,7 @@ validate_render_captures() {
   frame_diff_ok=0
   first_hash=""
   final_hash=""
-  for capture in "$capture_dir"/core-*.ppm; do
+  for capture in "$capture_dir"/screen-*.ppm; do
     [ -s "$capture" ] || continue
     metrics="$(capture_metrics "$capture" 2>/dev/null || true)"
     [ -n "$metrics" ] || continue
@@ -341,13 +376,11 @@ validate_render_captures() {
       nonblack_ok=1
     fi
     case "$capture" in
-      *core-final.ppm) final_hash="$hash" ;;
+      *final.ppm) final_hash="$hash" ;;
       *) [ -n "$first_hash" ] || first_hash="$hash" ;;
     esac
   done
-  if [ "$REQUIRE_FRAME_DIFF" = "0" ]; then
-    frame_diff_ok=1
-  elif [ -n "$first_hash" ] && [ -n "$final_hash" ] && [ "$first_hash" != "$final_hash" ]; then
+  if [ -n "$first_hash" ] && [ -n "$final_hash" ] && [ "$first_hash" != "$final_hash" ]; then
     frame_diff_ok=1
   fi
 }
@@ -402,6 +435,14 @@ run_case() {
   id="$1"
   title="$2"
   source_dir="$3"
+  core_kind="$4"
+  if [ "$core_kind" = "krkr" ]; then
+    expected_runtime="$(expected_krkr_runtime "$source_dir")"
+    nav_index=1
+  else
+    expected_runtime=onsyuri
+    nav_index=0
+  fi
   case "$CASE_FILTER" in
     "") ;;
     *",$id,"*) ;;
@@ -449,7 +490,7 @@ run_case() {
 
   sequence="$INPUT_SEQUENCE"
 
-  echo "[frontend_sweep] START id=$id title=$title"
+  echo "[frontend_sweep] START id=$id core=$core_kind runtime=$expected_runtime title=$title"
   python3 "$HELPER" --device-name gkd_atom_joypad --ready-file "$ready_file" --sequence "$sequence" \
     >"$uinput_log" 2>&1 &
   CURRENT_UINPUT_PID=$!
@@ -463,13 +504,13 @@ run_case() {
     XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
     WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
     SWAYSOCK="$SWAYSOCK" \
-    GDK_BACKEND=wayland \
-    SDL_VIDEODRIVER=wayland \
+    GDK_BACKEND="${GDK_BACKEND:-wayland}" \
+    SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}" \
     SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}" \
     SDL_NOMOUSE=1 \
     ROCGALGAME_ROOT="$front_root" \
     ROCGALGAME_AUTOLAUNCH_FIRST=1 \
-    ROCGALGAME_NAV_INDEX=1 \
+    ROCGALGAME_NAV_INDEX="$nav_index" \
     ROCGALGAME_SCREEN_PROFILE=1600x1440 \
     ROCGALGAME_DEVICE_MODEL=gkd350h-ultra \
     ROCGALGAME_KRKR_DISPLAY_BACKEND="${ROCGALGAME_KRKR_DISPLAY_BACKEND:-wayland}" \
@@ -498,7 +539,7 @@ run_case() {
       front_pid=""
       frontend_early_exit=1
     fi
-    core_pid="$(current_core_pid)"
+    core_pid="$(current_core_pid "$expected_runtime")"
     front_rss=0
     core_rss=0
     if [ -n "$front_pid" ]; then
@@ -536,7 +577,7 @@ run_case() {
     for capture_at in $CAPTURE_SECONDS; do
       if [ "$elapsed" = "$capture_at" ]; then
         capture_tree "$capture_dir/sway-tree-${elapsed}.json"
-        capture_screen "$capture_dir/screen-${elapsed}s.png" || true
+        capture_screen "$capture_dir/screen-${elapsed}s.ppm" || true
         request_core_capture "$core_capture_request" "$capture_dir/core-${elapsed}s.ppm"
       fi
     done
@@ -547,7 +588,7 @@ run_case() {
 
   sleep 2
   capture_tree "$capture_dir/sway-tree-final.json"
-  capture_screen "$capture_dir/screen-final.png" || true
+  capture_screen "$capture_dir/screen-final.ppm" || true
   request_core_capture "$core_capture_request" "$capture_dir/core-final.ppm"
   sleep 1
 
@@ -570,9 +611,9 @@ run_case() {
     CURRENT_GAME_MOUNT=""
   fi
 
-  core_log="$(find "$front_root/logs/krkr" -type f -name '*.log' 2>/dev/null | sort | tail -n 1)"
+  core_log="$(find "$front_root/logs/$core_kind" -type f -name '*.log' 2>/dev/null | sort | tail -n 1)"
   save_files="$(find "$front_root/saves" -type f -print 2>/dev/null | wc -l | tr -d ' ')"
-  notes="last_core_seen=${last_core_seen};frontend_early_exit=${frontend_early_exit}"
+  notes="core=${core_kind};runtime=${expected_runtime};last_core_seen=${last_core_seen};frontend_early_exit=${frontend_early_exit}"
   status=pass
   if [ "$core_seen" -ne 1 ]; then
     status=no_core_seen
@@ -585,18 +626,23 @@ run_case() {
   elif [ "$max_core_rss" -gt "$RSS_LIMIT_KB" ] && [ "$RSS_LIMIT_KB" -gt 0 ]; then
     status=rss_limit
   fi
-  gl_ok=0
-  fbo_ok=0
-  swap_ok=0
-  if grep -Eq 'GL_VENDOR=[^ ]+ GL_RENDERER=[^ ]+ GL_VERSION=[^ ]+' "$core_log" 2>/dev/null &&
-     ! grep -Eqi 'GL_VENDOR=unavailable|GL_RENDERER=unavailable|GL_VERSION=unavailable' "$core_log" 2>/dev/null; then
-    gl_ok=1
-  fi
-  if grep -Eqi 'presentation_probe.*fbo=0x8CD5.*pending=0x0000.*read=0x0000' "$core_log" 2>/dev/null; then
-    fbo_ok=1
-  fi
-  if grep -Eqi 'swap_probe .*fbo=0 .*status=0x8CD5 .*pending=0x0000 .*read=0x0000 .*sample_or=0x(FF|[0-9A-Fa-f]*[1-9A-Fa-f])' "$core_log" 2>/dev/null; then
-    swap_ok=1
+  gl_ok=1
+  fbo_ok=1
+  swap_ok=1
+  if [ "$expected_runtime" = "krkr2" ]; then
+    gl_ok=0
+    fbo_ok=0
+    swap_ok=0
+    if grep -Eq 'GL_VENDOR=[^ ]+ GL_RENDERER=[^ ]+ GL_VERSION=[^ ]+' "$core_log" 2>/dev/null &&
+       ! grep -Eqi 'GL_VENDOR=unavailable|GL_RENDERER=unavailable|GL_VERSION=unavailable' "$core_log" 2>/dev/null; then
+      gl_ok=1
+    fi
+    if grep -Eqi 'presentation_probe.*fbo=0x8CD5.*pending=0x0000.*read=0x0000' "$core_log" 2>/dev/null; then
+      fbo_ok=1
+    fi
+    if grep -Eqi 'swap_probe .*fbo=0 .*status=0x8CD5 .*pending=0x0000 .*read=0x0000 .*sample_or=0x(FF|[0-9A-Fa-f]*[1-9A-Fa-f])' "$core_log" 2>/dev/null; then
+      swap_ok=1
+    fi
   fi
   validate_render_captures
   notes="${notes};gl_ok=${gl_ok};fbo_ok=${fbo_ok};swap_ok=${swap_ok};capture_ok=${capture_ok};nonblack_ok=${nonblack_ok};frame_diff_ok=${frame_diff_ok}"
@@ -610,7 +656,7 @@ run_case() {
     status=render_capture_missing
   elif [ "$status" = "pass" ] && [ "$nonblack_ok" -ne 1 ]; then
     status=render_capture_black
-  elif [ "$status" = "pass" ] && [ "$frame_diff_ok" -ne 1 ]; then
+  elif [ "$status" = "pass" ] && [ "$REQUIRE_FRAME_DIFF" = "1" ] && [ "$frame_diff_ok" -ne 1 ]; then
     status=render_frame_unchanged
   fi
   [ "$status" = "pass" ] || FAILED_COUNT=$((FAILED_COUNT + 1))
@@ -626,25 +672,35 @@ run_case() {
 
 discover_bucket() {
   bucket="$1"
+  forced_core="${2:-}"
   [ -d "$bucket" ] || return 0
   for source_dir in "$bucket"/*; do
     [ -d "$source_dir" ] || continue
-    is_krkr_game "$source_dir" || continue
+    if [ -n "$forced_core" ]; then
+      core_kind="$forced_core"
+    else
+      core_kind="$(detect_game_core "$source_dir" || true)"
+    fi
+    [ -n "$core_kind" ] || continue
+    if [ "$CORE_FILTER" != "all" ] && [ "$CORE_FILTER" != "$core_kind" ]; then
+      continue
+    fi
     DISCOVERED=$((DISCOVERED + 1))
     title="$(basename "$source_dir" | tr '\t\r' '  ')"
     relative_dir="${source_dir#"$GAMES_DIR"/}"
     id="$(stable_case_id "$relative_dir")"
     if [ "$DISCOVER_ONLY" = "1" ]; then
       printf '%s\t%s\t%s\tdiscovered\t0\t0\t0\t\t\t\t0\t0\t0\t\n' "$id" "$title" "$source_dir" >>"$SUMMARY"
-      echo "[frontend_sweep] DISCOVER id=$id title=$title source=$source_dir"
+      echo "[frontend_sweep] DISCOVER id=$id core=$core_kind title=$title source=$source_dir"
     else
-      run_case "$id" "$title" "$source_dir"
+      run_case "$id" "$title" "$source_dir" "$core_kind"
     fi
   done
 }
 
 discover_bucket "$GAMES_DIR"
-discover_bucket "$GAMES_DIR/krkr"
+discover_bucket "$GAMES_DIR/ons" ons
+discover_bucket "$GAMES_DIR/krkr" krkr
 
 echo "[frontend_sweep] DISCOVERED=$DISCOVERED RUN=$RUN_COUNT"
 echo "[frontend_sweep] FAILED=$FAILED_COUNT"

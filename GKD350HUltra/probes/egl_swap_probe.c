@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 typedef EGLBoolean (*SwapBuffersFn)(EGLDisplay, EGLSurface);
@@ -127,6 +128,10 @@ EGLBoolean eglSwapBuffers(EGLDisplay display, EGLSurface surface) {
         fflush(stderr);
     }
     capture_if_requested(display, surface, calls);
+    const char *finish_before_swap = getenv("ROCGALGAME_EGL_FINISH_BEFORE_SWAP");
+    if(finish_before_swap && finish_before_swap[0] &&
+       strcmp(finish_before_swap, "0") != 0)
+        glFinish();
     const EGLBoolean result = real_swap ? real_swap(display, surface) : EGL_FALSE;
     if(report) {
         const EGLint error = eglGetError();
