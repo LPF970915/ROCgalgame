@@ -6,6 +6,12 @@ integrations. The KRKR2 changes are now committed in the independent
 `D:\Works\Tyranor\krkr2` checkout. Use that repository's history for new
 builds and use this file only for legacy patch reconstruction.
 
+> **ARCHIVE ONLY:** Do not run the command block below during normal
+> development or release builds. The active KRKR2 and KRKRSDL2 repositories
+> already contain their committed changes, and replaying this list will create
+> duplicate or conflicting edits. Verify them with
+> `GKD350HUltra/verify_source_trees.ps1` instead.
+
 From PowerShell:
 
 ```powershell
