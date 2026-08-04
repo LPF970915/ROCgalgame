@@ -35,6 +35,14 @@ fi
 verify_reused_cores() {
   echo "[release] verify reused ONS/KRKR cores"
   (cd "$DIST_ROOT" && sha256sum -c "$CORE_HASHES")
+  local metadata="$DIST_ROOT/ROCgalgame/cores/krkr/krkr2.build-meta"
+  if [ ! -s "$metadata" ] ||
+     ! grep -Eq '^source_commit=[0-9a-f]{40}$' "$metadata" ||
+     ! grep -Eq '^source_dirty=0$' "$metadata"; then
+    echo "[release] ERROR: KRKR2 provenance metadata is missing or dirty: $metadata"
+    echo "[release] Rebuild KRKR2 from a clean git checkout before releasing."
+    return 1
+  fi
 }
 
 verify_reused_cores

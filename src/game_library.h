@@ -33,6 +33,7 @@ struct GameOverrides {
   int frame_limit = 0;
   std::string draw_threads;
   int graphic_cache_mb = 0;
+  std::string compat_flags;
 };
 
 struct GameEntry {

@@ -85,6 +85,17 @@ resolves to `krkrsdl2`. The frontend exports `ROCGALGAME_KRKR_RUNTIME` and
 `ROCGALGAME_KRKR_SAVE_PATH`; the KrKr2 host must consume the latter before it
 is considered ready for real saves.
 
+Game-specific workarounds must be opt-in rather than changing shared engine
+semantics. A game's `game.ini` may declare comma-separated compatibility flags:
+
+```ini
+compat_flags=legacy_transition,mali_xr24
+```
+
+The frontend forwards these as `ROCGALGAME_KRKR_COMPAT_FLAGS`. New engine
+workarounds should remain disabled unless their flag is present, and each flag
+must have a regression case in the sweep set.
+
 Expected package layout:
 
 ```text

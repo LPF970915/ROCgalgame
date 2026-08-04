@@ -19,6 +19,13 @@ for required in "$RUNTIME_SOURCE/rocgalgame_sdl" \
   "$RUNTIME_SOURCE/cores/krkr/krkr2" "$RUNTIME_SOURCE/ui.pack"; do
   [ -f "$required" ] || { echo "[h700] missing runtime input: $required" >&2; exit 1; }
 done
+krkr2_meta="$RUNTIME_SOURCE/cores/krkr/krkr2.build-meta"
+if [ ! -s "$krkr2_meta" ] ||
+   ! grep -Eq '^source_commit=[0-9a-f]{40}$' "$krkr2_meta" ||
+   ! grep -Eq '^source_dirty=0$' "$krkr2_meta"; then
+  echo "[h700] missing clean KRKR2 provenance metadata: $krkr2_meta" >&2
+  exit 1
+fi
 
 rm -rf "$STAGE_ROOT"
 mkdir -p "$RUNTIME" "$STAGE_ROOT/Roms/APPS/Imgs" "$SELF_DIR/Downloads"

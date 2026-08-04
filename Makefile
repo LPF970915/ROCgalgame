@@ -104,6 +104,14 @@ SRCS := \
 OBJDIR ?= $(dir $(TARGET))obj
 OBJS := $(SRCS:src/%.cpp=$(OBJDIR)/%.o)
 DEPS := $(OBJS:.o=.d)
+# Ignore dependency files emitted by a different Windows/MSYS toolchain. Their
+# drive-letter paths contain a second ':' and GNU make reports "multiple target
+# patterns" before the current WSL toolchain gets a chance to regenerate them.
+VALID_DEPS := $(shell for dep in $(DEPS); do \
+  if [ -f "$$dep" ] && ! grep -Eq '(^|[[:space:]])[A-Za-z]:/' "$$dep"; then \
+    printf '%s ' "$$dep"; \
+  fi; \
+done)
 
 SDL_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags sdl2 2>/dev/null)
 SDL_LIBS ?= $(shell $(PKG_CONFIG) --libs sdl2 2>/dev/null)
@@ -159,7 +167,7 @@ $(OBJDIR)/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
--include $(DEPS)
+-include $(VALID_DEPS)
 
 install-runtime: $(TARGET)
 	rm -rf runtime

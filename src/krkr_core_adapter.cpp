@@ -157,6 +157,10 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
                                   : game.overrides.krkr_runtime;
   spec.environment["ROCGALGAME_KRKR_RUNTIME"] = KrkrRuntimeName(runtime);
   spec.environment["ROCGALGAME_KRKR_SAVE_PATH"] = spec.save_path.u8string();
+  if (!game.overrides.compat_flags.empty()) {
+    spec.environment["ROCGALGAME_KRKR_COMPAT_FLAGS"] =
+        game.overrides.compat_flags;
+  }
 #ifdef _WIN32
   if (runtime == KrkrRuntime::Wine) {
     return CoreSpecResult{LaunchStatus::Unsupported, std::move(spec),
@@ -207,6 +211,8 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
         requested_backend == "xwayland" ? "xwayland" :
         requested_backend == "x11" ? "x11" : "wayland";
     spec.environment["ROCGALGAME_KRKR_DISPLAY_BACKEND"] = display_backend;
+    spec.environment["ROCGALGAME_KRKR_XWAYLAND"] =
+        display_backend == "xwayland" ? "1" : "0";
     spec.environment["ROCGALGAME_KRKR_XWAYLAND_WIDTH"] =
         InheritedOrDefault("ROCGALGAME_KRKR_XWAYLAND_WIDTH",
                            std::to_string(config.screen_w));
@@ -214,7 +220,6 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
         InheritedOrDefault("ROCGALGAME_KRKR_XWAYLAND_HEIGHT",
                            std::to_string(config.screen_h));
     if (display_backend == "xwayland") {
-      spec.environment["ROCGALGAME_KRKR_XWAYLAND"] = "1";
       spec.environment["ROCGALGAME_KRKR_XWAYLAND_RENDERER"] =
           InheritedOrDefault("ROCGALGAME_KRKR_XWAYLAND_RENDERER", "hardware");
       spec.environment["ROCGALGAME_KRKR_XWAYLAND_SHM"] =
@@ -223,7 +228,6 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
       spec.environment["GDK_BACKEND"] = "x11";
       spec.environment["SDL_VIDEODRIVER"] = "x11";
     } else if (display_backend == "wayland") {
-      spec.environment["ROCGALGAME_KRKR_XWAYLAND"] = "0";
       spec.environment["XDG_RUNTIME_DIR"] =
           InheritedOrDefault("XDG_RUNTIME_DIR", "/run/0-runtime-dir");
       spec.environment["WAYLAND_DISPLAY"] =
@@ -233,7 +237,6 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
       spec.environment["GDK_BACKEND"] = "wayland";
       spec.environment["SDL_VIDEODRIVER"] = "wayland";
     } else {
-      spec.environment["ROCGALGAME_KRKR_XWAYLAND"] = "0";
       spec.environment["DISPLAY"] =
           InheritedOrDefault("DISPLAY", ":0");
       spec.environment["GDK_BACKEND"] = "x11";

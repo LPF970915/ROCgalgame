@@ -23,7 +23,9 @@ fi
 
 export ROCGALGAME_GLIBC_BASELINE=2.34
 export MAX_GLIBC=2.34
-export VCPKG_BINARY_SOURCES=clear
+VCPKG_BINARY_CACHE="${VCPKG_BINARY_CACHE:-$VCPKG_ROOT/binary-cache}"
+mkdir -p "$VCPKG_BINARY_CACHE"
+export VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES:-clear;files,$VCPKG_BINARY_CACHE,readwrite}"
 export VCPKG_DOWNLOADS="$VCPKG_SOURCE_ROOT/downloads" VCPKG_DISABLE_METRICS=1
 export VCPKG_MAX_CONCURRENCY="$BUILD_JOBS" CMAKE_BUILD_PARALLEL_LEVEL="$BUILD_JOBS" MAKEFLAGS="-j$BUILD_JOBS" NINJAFLAGS="-j$BUILD_JOBS"
 export OMP_NUM_THREADS="$BUILD_JOBS" OMP_THREAD_LIMIT="$BUILD_JOBS" OPENBLAS_NUM_THREADS="$BUILD_JOBS" MKL_NUM_THREADS="$BUILD_JOBS" NUMEXPR_NUM_THREADS="$BUILD_JOBS"
@@ -40,6 +42,7 @@ prepare_isolated_vcpkg() {
     mkdir -p "$VCPKG_ROOT"
     rsync -a --delete \
       --exclude='/buildtrees/' --exclude='/packages/' --exclude='/downloads/' \
+      --exclude='/binary-cache/' \
       "$VCPKG_SOURCE_ROOT/" "$VCPKG_ROOT/"
   fi
 }
@@ -79,7 +82,7 @@ echo "[glibc234] stage 3/4: KRKRSDL2 (mode=$KRKRSDL2_MODE)"
 KRKR_ROOT="${KRKR_ROOT:-/sources/krkrsdl2}" \
 KRKR_FFMPEG_INCLUDE_DIR="${KRKR_FFMPEG_INCLUDE_DIR:-/sources/ffmpeg}" \
 KRKR_BUILD_DIR="$BUILD_ROOT/krkrsdl2" KRKR_BUILD_JOBS="$BUILD_JOBS" KRKR_BUILD_MODE="$KRKRSDL2_MODE" \
-KRKR_USE_CCACHE=Off KRKR_CONFIRM_HEAVY_BUILD=1 \
+KRKR_USE_CCACHE=Auto KRKR_CONFIRM_HEAVY_BUILD=1 \
   "$SELF_DIR/build_krkr.sh"
 "$SELF_DIR/verify_glibc_compat.sh" "$DIST_ROOT/ROCgalgame/cores/krkr/krkrsdl2"
 

@@ -347,6 +347,8 @@ void ReadGameIni(const fs::path &dir, GameEntry &game) {
       if (threads == "auto" || threads == "1" || threads == "2" || threads == "4") game.overrides.draw_threads = threads;
     } else if (key == "graphic_cache_mb") {
       try { game.overrides.graphic_cache_mb = std::clamp(std::stoi(value), 16, 512); } catch (...) {}
+    } else if (key == "compat_flags") {
+      game.overrides.compat_flags = value;
     }
   }
 }
@@ -375,12 +377,9 @@ void ScanCoreBucket(std::vector<GameEntry> &out, const fs::path &bucket, CoreKin
       } else {
         game.entry_point = DetectKrkrEntryPoint(dir);
       }
-      const fs::path standard_data_archive = dir / "data.xp3";
-      if (game.overrides.krkr_runtime == KrkrRuntime::Auto &&
-          ((game.entry_point != dir && HasXp3Signature(game.entry_point)) ||
-           HasXp3Signature(standard_data_archive))) {
-        game.overrides.krkr_runtime = KrkrRuntime::Krkr2;
-      }
+      // Auto deliberately remains on the stable SDL2 backend. Native KRKR2
+      // is opt-in through game.ini (runtime=krkr2) until its rendering and
+      // compatibility acceptance gate is met.
     }
     game.save_path = saves_root / CoreKindName(game.core) / dir.filename();
     out.push_back(std::move(game));

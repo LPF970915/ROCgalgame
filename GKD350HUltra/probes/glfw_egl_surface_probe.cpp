@@ -5,11 +5,21 @@
 #include <GLES2/gl2.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 int main() {
 #if defined(GLFW_PLATFORM) && defined(GLFW_PLATFORM_WAYLAND)
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
-    glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
+    const char *backend = std::getenv("ROCGALGAME_PROBE_BACKEND");
+    if (backend && std::strcmp(backend, "wayland") == 0) {
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+        glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
+    }
+#ifdef GLFW_PLATFORM_X11
+    else if (backend && std::strcmp(backend, "x11") == 0) {
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+    }
+#endif
 #endif
     if (!glfwInit()) {
         std::fprintf(stderr, "glfwInit failed\n");
@@ -37,25 +47,61 @@ int main() {
     }
 
     glfwMakeContextCurrent(window);
+    const char *vendor = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+    const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+    const char *version = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+    if (!vendor || !renderer || !version) {
+        std::fprintf(stderr, "GL context unavailable egl_error=0x%04X\n",
+                     eglGetError());
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 3;
+    }
     glfwSwapInterval(1);
-    std::fprintf(stderr, "renderer=%s\n", glGetString(GL_RENDERER));
+    std::fprintf(stderr, "vendor=%s\nrenderer=%s\nversion=%s\n",
+                 vendor, renderer, version);
     for (int frame = 0; frame < 600 && !glfwWindowShouldClose(window); ++frame) {
         int width = 0;
         int height = 0;
         glfwGetFramebufferSize(window, &width, &height);
+        if (width <= 0 || height <= 0) {
+            std::fprintf(stderr, "invalid framebuffer=%dx%d egl_error=0x%04X\n",
+                         width, height, eglGetError());
+            glfwDestroyWindow(window);
+            glfwTerminate();
+            return 4;
+        }
         const float phase = (frame / 120) % 2 ? 0.12f : 0.88f;
         glViewport(0, 0, width, height);
         glDisable(GL_SCISSOR_TEST);
         glClearColor(phase, 0.08f, 1.0f - phase, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         if (frame == 0) {
+            const GLenum framebuffer_status =
+                glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
+                std::fprintf(stderr,
+                             "incomplete framebuffer=0x%04X gl_error=0x%04X\n",
+                             framebuffer_status, glGetError());
+                glfwDestroyWindow(window);
+                glfwTerminate();
+                return 6;
+            }
             unsigned char pixel[4] = {};
             glReadPixels(width / 2, height / 2, 1, 1, GL_RGBA,
                          GL_UNSIGNED_BYTE, pixel);
+            const GLenum read_error = glGetError();
+            if (read_error != GL_NO_ERROR) {
+                std::fprintf(stderr, "glReadPixels failed error=0x%04X\n",
+                             read_error);
+                glfwDestroyWindow(window);
+                glfwTerminate();
+                return 5;
+            }
             std::fprintf(stderr,
-                         "framebuffer=%dx%d pixel=%u,%u,%u,%u error=0x%04X\n",
-                         width, height, pixel[0], pixel[1], pixel[2], pixel[3],
-                         glGetError());
+                         "framebuffer=%dx%d fbo=0x%04X pixel=%u,%u,%u,%u error=0x%04X\n",
+                         width, height, framebuffer_status, pixel[0], pixel[1],
+                         pixel[2], pixel[3], read_error);
         }
         glfwSwapBuffers(window);
         glfwPollEvents();

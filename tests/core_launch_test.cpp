@@ -88,6 +88,12 @@ int main() {
 #if defined(__linux__)
   const std::string project_view_root = (root / "project_views").u8string();
   setenv("ROCGALGAME_KRKR_PROJECT_VIEW_ROOT", project_view_root.c_str(), 1);
+  unsetenv("ROCGALGAME_KRKR_DISPLAY_BACKEND");
+  unsetenv("ROCGALGAME_KRKR_XWAYLAND");
+  unsetenv("XDG_RUNTIME_DIR");
+  unsetenv("WAYLAND_DISPLAY");
+  unsetenv("SWAYSOCK");
+  unsetenv("DISPLAY");
 #endif
   fs::create_directories(root / "games/krkr/directory_game");
   fs::create_directories(root / "games/krkr/archive_game");
@@ -109,7 +115,8 @@ int main() {
       << "entry=custom.xp3\nruntime=krkrsdl2\nframe_limit=30\ndraw_threads=2\ngraphic_cache_mb=128\n";
   std::ofstream(root / "games/krkr/native_game/startup.tjs") << "Debug.message('test');";
   std::ofstream(root / "games/krkr/native_game/data.xp3") << "test";
-  std::ofstream(root / "games/krkr/native_game/game.ini") << "runtime=krkr2\n";
+  std::ofstream(root / "games/krkr/native_game/game.ini")
+      << "runtime=krkr2\ncompat_flags=mali_xr24,legacy_transition\n";
   WriteXp3Archive(root / "games/krkr/standard_data_game/data.xp3");
   WriteXp3Archive(root / "games/renamed_archive_game/data.bin");
   WriteXp3Archive(root / "games/renamed_archive_game/patch.xp3");
@@ -196,6 +203,8 @@ int main() {
       assert(spec.arguments.size() == 2);
       assert(fs::u8path(spec.arguments[1]).filename() == "data.xp3");
       assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_COMPAT_FLAGS") ==
+             "mali_xr24,legacy_transition");
       assert(spec.environment.at("ROCGALGAME_KRKR_DISPLAY_BACKEND") ==
              "wayland");
       assert(spec.environment.at("ROCGALGAME_KRKR_XWAYLAND") == "0");
@@ -261,22 +270,22 @@ int main() {
     } else if (game.path.filename() == "standard_data_game") {
       saw_standard_data = true;
       assert(game.entry_point == game.path);
-      assert(game.overrides.krkr_runtime == KrkrRuntime::Krkr2);
-      assert(spec.executable.filename() == "krkr2");
-      assert(spec.arguments.size() == 2);
-      assert(fs::u8path(spec.arguments[1]).filename() == "data.xp3");
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
+      assert(spec.executable.filename() == "krkrsdl2");
+      assert(spec.arguments.size() > 2);
+      assert(fs::u8path(spec.arguments[1]) == game.path);
     } else if (game.path.filename() == "renamed_archive_game") {
       saw_renamed_archive = true;
       assert(game.entry_point.filename() == "data.bin");
-      assert(game.overrides.krkr_runtime == KrkrRuntime::Krkr2);
-      assert(spec.executable.filename() == "krkr2");
-      assert(spec.arguments.size() == 2);
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
+      assert(spec.executable.filename() == "krkrsdl2");
+      assert(spec.arguments.size() > 2);
       assert(fs::u8path(spec.arguments[1]).filename() == "data.bin");
     } else if (game.path.filename() == "custom_archive_game") {
       saw_custom_archive = true;
       assert(game.entry_point.filename() == "project.dat");
-      assert(game.overrides.krkr_runtime == KrkrRuntime::Krkr2);
-      assert(spec.executable.filename() == "krkr2");
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
+      assert(spec.executable.filename() == "krkrsdl2");
     } else if (game.path.filename() == "ambiguous_archive_game") {
       saw_ambiguous_archive = true;
       assert(game.entry_point == game.path);
@@ -285,8 +294,8 @@ int main() {
     } else if (game.path.filename() == "indexed_archive_game") {
       saw_indexed_archive = true;
       assert(game.entry_point.filename() == "launcher.xp3");
-      assert(game.overrides.krkr_runtime == KrkrRuntime::Krkr2);
-      assert(spec.executable.filename() == "krkr2");
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
+      assert(spec.executable.filename() == "krkrsdl2");
       assert(fs::u8path(spec.arguments[1]).filename() == "launcher.xp3");
     } else if (game.path.filename() == "fake_archive_game") {
       saw_fake_archive = true;

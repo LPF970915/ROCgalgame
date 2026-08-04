@@ -32,7 +32,10 @@ test -f "$SYSROOT/rocgalgame_glibc234_baseline.txt" || {
 }
 
 export ROCGALGAME_GLIBC_BASELINE=2.34 MAX_GLIBC=2.34
-export VCPKG_BINARY_SOURCES=clear VCPKG_MAX_CONCURRENCY="$BUILD_JOBS" CMAKE_BUILD_PARALLEL_LEVEL="$BUILD_JOBS"
+VCPKG_BINARY_CACHE="${VCPKG_BINARY_CACHE:-$VCPKG_ROOT/binary-cache}"
+mkdir -p "$VCPKG_BINARY_CACHE"
+export VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES:-clear;files,$VCPKG_BINARY_CACHE,readwrite}"
+export VCPKG_MAX_CONCURRENCY="$BUILD_JOBS" CMAKE_BUILD_PARALLEL_LEVEL="$BUILD_JOBS"
 export VCPKG_DOWNLOADS="$VCPKG_ROOT/downloads" VCPKG_DISABLE_METRICS=1
 export MAKEFLAGS="-j$BUILD_JOBS" NINJAFLAGS="-j$BUILD_JOBS" OMP_NUM_THREADS="$BUILD_JOBS" OMP_THREAD_LIMIT="$BUILD_JOBS"
 export SYSROOT DIST_ROOT ROC_NATIVE_LOG_DIR="$LOG_DIR"
@@ -54,7 +57,7 @@ build_krkrsdl2() {
   KRKR_ROOT="${KRKR_ROOT:-/sources/krkrsdl2}" \
   KRKR_FFMPEG_INCLUDE_DIR="${KRKR_FFMPEG_INCLUDE_DIR:-/sources/ffmpeg}" \
   KRKR_BUILD_DIR="$BUILD_ROOT/krkrsdl2" KRKR_BUILD_JOBS="$BUILD_JOBS" KRKR_BUILD_MODE=Fast \
-  KRKR_USE_CCACHE=Off KRKR_CONFIRM_HEAVY_BUILD=1 \
+  KRKR_USE_CCACHE=Auto KRKR_CONFIRM_HEAVY_BUILD=1 \
     "$SELF_DIR/build_krkr.sh"
   "$SELF_DIR/verify_glibc_compat.sh" "$DIST_ROOT/ROCgalgame/cores/krkr/krkrsdl2"
 }
@@ -83,12 +86,27 @@ build_krkr2() {
     echo "[incremental] Refusing to configure or rebuild the dependency graph automatically."
     exit 1
   }
+  bash "$SELF_DIR/verify_source_provenance.sh" "$krkr2_root" krkr2
   grep -Fq 'VCPKG_TARGET_TRIPLET:STRING=arm64-linux-gkd-glibc234' \
     "$krkr2_build/CMakeCache.txt" || {
       echo "[incremental] ERROR: cached KRKR2 triplet is not the glibc 2.34 baseline"; exit 1;
     }
+  cached_build_dir="$(sed -n 's/^CMAKE_CACHEFILE_DIR:INTERNAL=//p' "$krkr2_build/CMakeCache.txt" | head -n 1)"
+  cached_source_dir="$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$krkr2_build/CMakeCache.txt" | head -n 1)"
+  if [ "$cached_build_dir" != "$krkr2_build" ]; then
+    echo "[incremental] ERROR: KRKR2 CMake cache belongs to $cached_build_dir, expected $krkr2_build"
+    echo "[incremental] Configure in the fixed container workspace before using FastBuild."
+    exit 1
+  fi
+  if [ "$cached_source_dir" != "$krkr2_root" ]; then
+    echo "[incremental] ERROR: KRKR2 CMake cache source is $cached_source_dir, expected $krkr2_root"
+    exit 1
+  fi
   while IFS= read -r dependency; do
     case "$dependency" in
+      */compat/fmod_stub/libfmod_stub.a|*/compat/fmod_stub/glibc234_math_abi.o)
+        continue
+        ;;
       /*) ;;
       *) dependency="$krkr2_build/$dependency" ;;
     esac
@@ -112,7 +130,7 @@ build_krkr2() {
   KRKR2_BUILD_DIR="$BUILD_ROOT/krkr2" KRKR2_PROBE_BUILD_DIR="$BUILD_ROOT/krkr2-toolchain-probe" \
   KRKR2_TARGET_TRIPLET=arm64-linux-gkd-glibc234 KRKR2_BUILD_MODE="$krkr2_mode" \
   KRKR2_BUILD_JOBS="$BUILD_JOBS" KRKR2_CONFIRM_HEAVY_BUILD=1 KRKR2_SAFE_CPU_SET="$SAFE_CPU_SET" \
-  KRKR2_PERIODIC_COOLING=1 KRKR2_WORK_SECONDS="${KRKR2_WORK_SECONDS:-300}" \
+  KRKR2_PERIODIC_COOLING=0 KRKR2_WORK_SECONDS="${KRKR2_WORK_SECONDS:-300}" \
   KRKR2_COOL_SECONDS="${KRKR2_COOL_SECONDS:-240}" \
     "$SELF_DIR/build_krkr2.sh"
   "$SELF_DIR/verify_glibc_compat.sh" "$DIST_ROOT/ROCgalgame/cores/krkr/krkr2"

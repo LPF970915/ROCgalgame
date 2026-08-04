@@ -87,9 +87,11 @@ diff --git a/cpp/core/environ/cocos2d/MainScene.cpp b/cpp/core/environ/cocos2d/M
 +        const GLubyte *value = glGetString(name);
 +        return value ? reinterpret_cast<const char *>(value) : "unavailable";
 +    };
-+    const char *displayBackend = std::getenv("ROCGALGAME_KRKR_XWAYLAND")
-+        ? "x11/xwayland"
-+        : (std::getenv("WAYLAND_DISPLAY") ? "wayland" : "x11");
++    const char *xwaylandEnv = std::getenv("ROCGALGAME_KRKR_XWAYLAND");
++    const char *displayBackend =
++        xwaylandEnv && std::strcmp(xwaylandEnv, "1") == 0
++            ? "x11/xwayland"
++            : (std::getenv("WAYLAND_DISPLAY") ? "wayland" : "x11");
 +    if(auto logger = spdlog::get("tjs2")) {
 +        logger->info("[rocgalgame] display backend={} display={} "
 +                     "window={:.0f}x{:.0f} framebuffer={}x{} "
