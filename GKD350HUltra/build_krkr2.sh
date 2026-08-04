@@ -513,6 +513,7 @@ prepare_fmod_stub() {
       -e 's# -lmf# -lm#g' \
       -e 's# -lSDL2##g' \
       -e 's# -lmali##g' \
+      -e 's# -lGL##g' \
       -e "s# -fuse-ld=gold##g" \
       -e '/^[[:space:]]*$/d' \
       "$link_file" > "$patched_link_file"

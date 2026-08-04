@@ -43,8 +43,11 @@ rm -f "`$incoming"
 echo "deployed=`$expected"
 echo "backup=`$backup_dir/krkr2"
 file "`$target"
-readelf -l "`$target" | grep 'Requesting program interpreter' || true
-if ldd "`$target" 2>&1 | grep -q 'not found'; then
+if command -v readelf >/dev/null 2>&1; then
+  readelf -l "`$target" | grep 'Requesting program interpreter' || true
+fi
+runtime_ld="`$app/cores/krkr/lib_krkr2:`$app/lib_system_sdl:`$app/lib:/usr/lib:/lib"
+if LD_LIBRARY_PATH="`$runtime_ld" ldd "`$target" 2>&1 | grep -q 'not found'; then
   echo 'runtime dependency missing' >&2
   exit 21
 fi
