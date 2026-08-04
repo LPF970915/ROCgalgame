@@ -13,6 +13,7 @@ SYSTEM_RUNTIME_TEST_TARGET ?= build/system_runtime_test$(TEST_EXEEXT)
 MENU_RUNTIME_TEST_TARGET ?= build/menu_runtime_test$(TEST_EXEEXT)
 GAME_DOMAIN_TEST_TARGET ?= build/game_domain_runtime_test$(TEST_EXEEXT)
 CORE_INPUT_PROTOCOL_TEST_TARGET ?= build/core_input_protocol_test$(TEST_EXEEXT)
+GLIBC_COMPAT_TEST_TARGET ?= build/glibc_compat_test$(TEST_EXEEXT)
 
 APP_SRCS := \
   src/main.cpp \
@@ -26,6 +27,7 @@ APP_SRCS := \
   src/app_layout.cpp \
   src/app_runtime.cpp \
   src/app_stores.cpp \
+  src/glibc_compat.cpp \
   src/animation.cpp \
   src/scene_manager.cpp \
   src/app_language.cpp \
@@ -181,6 +183,8 @@ clean:
 
 test:
 	@mkdir -p build
+	$(CXX) -O2 -std=c++17 -Wall -Wextra tests/glibc_compat_test.cpp src/glibc_compat.cpp -o $(GLIBC_COMPAT_TEST_TARGET)
+	./$(GLIBC_COMPAT_TEST_TARGET)
 	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src tests/core_launch_test.cpp src/game_library.cpp src/game_scanner.cpp src/cover_resolver.cpp src/config.cpp src/game_core_adapter.cpp src/game_core_registry.cpp src/ons_core_adapter.cpp src/krkr_core_adapter.cpp src/core_process_runner.cpp src/game_launch_service.cpp -o $(TEST_TARGET)
 	./$(TEST_TARGET)
 	$(CXX) -O2 -std=c++17 -Wall -Wextra -I./src $(SDL_CFLAGS) -DSDL_MAIN_HANDLED -Umain tests/app_foundation_test.cpp src/app_layout.cpp src/screen_profile.cpp src/input_manager.cpp src/app_environment.cpp src/scene_manager.cpp src/app_composition.cpp src/app_context.cpp -o $(FOUNDATION_TEST_TARGET) $(SDL_LIBS)
