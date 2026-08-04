@@ -23,6 +23,17 @@ for binary in "$RUNTIME/rocgalgame_sdl" \
   fi
 done
 
+# These libraries come from compatibility overlays that are not in the
+# device loader's default search path, so resolving them in the sysroot is not
+# sufficient evidence that the release will start on-device.
+for library in libwebp.so.6 libmali.so.0; do
+  if ! find "$RUNTIME" -name "$library" \( -type f -o -type l \) -size +0c \
+      -print -quit 2>/dev/null | grep -q .; then
+    echo "[deps] ERROR: required runtime compatibility library is missing: $library"
+    failed=1
+  fi
+done
+
 declare -A library_index=()
 index_library_tree() {
   local root="$1" max_depth="$2" candidate name
@@ -65,6 +76,17 @@ while path="$(sed -n "${index}p" "$queue_file")" && [ -n "$path" ]; do
       echo "[deps] ERROR: unresolved $lib required by $path"
       failed=1
     else
+      case "$resolved" in
+        "$SYSROOT"/lib/compat/*|"$SYSROOT"/usr/lib/compat/*)
+          bundled="$(find "$RUNTIME" -name "$lib" \( -type f -o -type l \) -print -quit 2>/dev/null)"
+          if [ -z "$bundled" ]; then
+            echo "[deps] ERROR: compatibility library must be bundled: $lib required by $path"
+            failed=1
+          else
+            resolved="$bundled"
+          fi
+          ;;
+      esac
       printf '%s\n' "$resolved" >>"$queue_file"
     fi
   done < <(readelf -d "$path" 2>/dev/null | sed -n 's/.*Shared library: \[*\([^]]*\)\].*/\1/p')

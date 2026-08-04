@@ -27,12 +27,18 @@ $ons = (Resolve-Path -LiteralPath (Join-Path $dist "cores\ons\onsyuri")).Path
 $krkr = (Resolve-Path -LiteralPath (Join-Path $dist "cores\krkr\krkrsdl2")).Path
 $krkr2 = (Resolve-Path -LiteralPath (Join-Path $dist "cores\krkr\krkr2")).Path
 $krkr2Gl = (Resolve-Path -LiteralPath (Join-Path $dist "cores\krkr\lib_krkr2\libGL.so.1")).Path
+$krkrMeta = (Resolve-Path -LiteralPath (Join-Path $dist "cores\krkr\krkrsdl2.build-meta")).Path
+$maliCompat = (Resolve-Path -LiteralPath (Join-Path $dist "lib\libmali.so.0")).Path
+$webpCompat = (Resolve-Path -LiteralPath (Join-Path $dist "lib\libwebp.so.6")).Path
 $packageHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $package).Hash.ToLowerInvariant()
 $frontendHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $frontend).Hash.ToLowerInvariant()
 $onsHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ons).Hash.ToLowerInvariant()
 $krkrHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $krkr).Hash.ToLowerInvariant()
 $krkr2Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $krkr2).Hash.ToLowerInvariant()
 $krkr2GlHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $krkr2Gl).Hash.ToLowerInvariant()
+$krkrMetaHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $krkrMeta).Hash.ToLowerInvariant()
+$maliCompatHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $maliCompat).Hash.ToLowerInvariant()
+$webpCompatHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $webpCompat).Hash.ToLowerInvariant()
 $remotePackage = "/tmp/rocgalgame-release-$Version-$packageHash.zip"
 
 & ssh -o BatchMode=yes -o ConnectTimeout=8 $DeviceHost "test -d '$AppDir' && command -v unzip >/dev/null 2>&1"
@@ -53,6 +59,9 @@ ons_expected='$onsHash'
 krkr_expected='$krkrHash'
 krkr2_expected='$krkr2Hash'
 krkr2_gl_expected='$krkr2GlHash'
+krkr_meta_expected='$krkrMetaHash'
+mali_compat_expected='$maliCompatHash'
+webp_compat_expected='$webpCompatHash'
 stage="`$storage/.rocgalgame-release-`$version-`$$"
 archive="`$stage/archive"
 new="`$archive/app/ROCgalgame"
@@ -106,6 +115,9 @@ test -x "`$new/cores/krkr/krkrsdl2"
 test -x "`$new/cores/krkr/krkr2"
 test -d "`$new/cores/krkr/Resources"
 test -f "`$new/cores/krkr/lib_krkr2/libGL.so.1"
+test -f "`$new/cores/krkr/krkrsdl2.build-meta"
+test -f "`$new/lib/libmali.so.0"
+test -f "`$new/lib/libwebp.so.6"
 test -x "`$new_launcher"
 test -x "`$new_es_launcher"
 test -f "`$new/ui.pack"
@@ -116,6 +128,9 @@ set -- `$(sha256sum "`$new/cores/ons/onsyuri"); test "`$1" = "`$ons_expected"
 set -- `$(sha256sum "`$new/cores/krkr/krkrsdl2"); test "`$1" = "`$krkr_expected"
 set -- `$(sha256sum "`$new/cores/krkr/krkr2"); test "`$1" = "`$krkr2_expected"
 set -- `$(sha256sum "`$new/cores/krkr/lib_krkr2/libGL.so.1"); test "`$1" = "`$krkr2_gl_expected"
+set -- `$(sha256sum "`$new/cores/krkr/krkrsdl2.build-meta"); test "`$1" = "`$krkr_meta_expected"
+set -- `$(sha256sum "`$new/lib/libmali.so.0"); test "`$1" = "`$mali_compat_expected"
+set -- `$(sha256sum "`$new/lib/libwebp.so.6"); test "`$1" = "`$webp_compat_expected"
 
 stamp=`$(date +%Y%m%d-%H%M%S)
 backup="`$storage/.rocgalgame-backups/release-`$version-`$stamp"
@@ -150,6 +165,9 @@ set -- `$(sha256sum "`$app/cores/ons/onsyuri"); test "`$1" = "`$ons_expected"
 set -- `$(sha256sum "`$app/cores/krkr/krkrsdl2"); test "`$1" = "`$krkr_expected"
 set -- `$(sha256sum "`$app/cores/krkr/krkr2"); test "`$1" = "`$krkr2_expected"
 set -- `$(sha256sum "`$app/cores/krkr/lib_krkr2/libGL.so.1"); test "`$1" = "`$krkr2_gl_expected"
+set -- `$(sha256sum "`$app/cores/krkr/krkrsdl2.build-meta"); test "`$1" = "`$krkr_meta_expected"
+set -- `$(sha256sum "`$app/lib/libmali.so.0"); test "`$1" = "`$mali_compat_expected"
+set -- `$(sha256sum "`$app/lib/libwebp.so.6"); test "`$1" = "`$webp_compat_expected"
 
 state=3
 rm -rf "`$stage"
@@ -161,6 +179,9 @@ echo "ons=`$ons_expected"
 echo "krkr=`$krkr_expected"
 echo "krkr2=`$krkr2_expected"
 echo "krkr2_gl=`$krkr2_gl_expected"
+echo "krkr_meta=`$krkr_meta_expected"
+echo "mali_compat=`$mali_compat_expected"
+echo "webp_compat=`$webp_compat_expected"
 echo "backup=`$backup"
 for d in games covers game_covers saves cache logs; do
   if [ -e "`$app/`$d" ]; then printf '%s:' "`$d"; stat -c %i:%s:%Y "`$app/`$d"; fi
