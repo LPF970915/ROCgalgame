@@ -73,11 +73,14 @@ fi
 
 # UI/config changes must reach dist even when all binaries are reused.
 bash "$SELF_DIR/sync_runtime_assets.sh"
+KRKR_ROOT="${KRKR_ROOT:-/mnt/d/Works/Tyranor/krkrsdl2}" \
+  DIST_ROOT="$DIST_ROOT" bash "$SELF_DIR/write_krkrsdl2_metadata.sh"
 
 check_executable "$DIST_ROOT/ROCgalgame.sh"
 check_executable "$RUNTIME_DIR/rocgalgame_sdl"
 check_executable "$RUNTIME_DIR/cores/ons/onsyuri"
 check_executable "$RUNTIME_DIR/cores/krkr/krkrsdl2"
+check_file "$RUNTIME_DIR/cores/krkr/krkrsdl2.build-meta"
 check_executable "$RUNTIME_DIR/cores/krkr/krkr2"
 check_file "$RUNTIME_DIR/cores/krkr/Resources"
 check_file "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1"

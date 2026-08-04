@@ -9,6 +9,7 @@ SYSROOT="${SYSROOT:-$BUILD_ROOT/sysroot}"
 BUILD_DIR="${KRKR_BUILD_DIR:-$BUILD_ROOT/krkrsdl2}"
 DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME_CORE_DIR="$DIST_ROOT/ROCgalgame/cores/krkr"
+KRKR_PORT_LOCK="${KRKR_PORT_LOCK:-$SELF_DIR/krkrsdl2-port.lock}"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 LOG_FILE="$LOG_DIR/build_krkr_$(date +%Y%m%d_%H%M%S).log"
 TOOLCHAIN="$SELF_DIR/toolchain/aarch64-gkd.cmake"
@@ -51,7 +52,7 @@ if [ -z "$CMAKE_BIN" ]; then
 fi
 command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 || { echo "[krkr_build] ERROR: aarch64-linux-gnu-g++ is required"; exit 1; }
 test -f "$KRKR_ROOT/CMakeLists.txt" || { echo "[krkr_build] ERROR: invalid KRKR_ROOT: $KRKR_ROOT"; exit 1; }
-bash "$SELF_DIR/verify_source_provenance.sh" "$KRKR_ROOT" krkrsdl2
+bash "$SELF_DIR/verify_source_provenance.sh" "$KRKR_ROOT" krkrsdl2 "$KRKR_PORT_LOCK"
 grep -q 'OPTION_USE_SYSTEM_SDL2' "$KRKR_ROOT/CMakeLists.txt" || {
   echo "[krkr_build] ERROR: KRKR source patch missing. See $SELF_DIR/patches/README.md"
   exit 1
@@ -250,7 +251,10 @@ fi
   cp "$BUILD_DIR/krkrsdl2" "$RUNTIME_CORE_DIR/krkrsdl2"
   chmod +x "$RUNTIME_CORE_DIR/krkrsdl2"
   mkdir -p "$DIST_ROOT/ROCgalgame/lib"
-  cp -L "$WEBP_LIBRARY" "$DIST_ROOT/ROCgalgame/lib/$(basename "$WEBP_LIBRARY")"
+  cp -L "$WEBP_LIBRARY" "$DIST_ROOT/ROCgalgame/lib/libwebp.so.6"
+  cp -L "$WEBP_LIBRARY" "$DIST_ROOT/ROCgalgame/lib/libwebp.so"
+  KRKR_ROOT="$KRKR_ROOT" DIST_ROOT="$DIST_ROOT" KRKR_PORT_LOCK="$KRKR_PORT_LOCK" \
+    bash "$SELF_DIR/write_krkrsdl2_metadata.sh"
   echo "[krkr_build] installed=$RUNTIME_CORE_DIR/krkrsdl2"
   readelf -d "$RUNTIME_CORE_DIR/krkrsdl2" | grep -E 'NEEDED|RUNPATH|RPATH' || true
 } 2>&1 | tee "$LOG_FILE"

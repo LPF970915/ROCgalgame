@@ -1,0 +1,13 @@
+# Machine-readable krkrsdl2 port provenance for the GKD release build.
+repository=https://github.com/LPF970915/ROCgalgame-krkrsdl2-port.git
+source_commit=4b09570420be9846bb04d33021d26c190e729bd0
+krkrz_repository=https://github.com/LPF970915/ROCgalgame-krkrz-port.git
+krkrz_commit=ed37b407ced089f86fa062c1e8b7c4f202cde39d
+baseline_tag=rocgalgame-0.28-baseline
+baseline_package=GKD350HUltra/Downloads/ROCgalgame ver0.28 for GKD350H Ultra.zip
+baseline_package_sha256=5db38b1d4bbf504bda5979cb7c09d885a4a0c14a46ef919e6fc43c9116503495
+baseline_package_created_at=2026-08-03T16:36:09+08:00
+baseline_core_sha256=cfff05da86ced8e8530f2cc08c478418dd2b2cd7a746e6ed161a15c6352efc3f
+upstream_repository=https://github.com/krkrsdl2/krkrsdl2.git
+upstream_commit=ecfd1979d202088540f606098603d159d267aca4
+policy=no-push-to-upstream

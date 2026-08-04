@@ -35,13 +35,14 @@ if [ -n "$LOCK_FILE" ]; then
     echo "[provenance] ERROR: lock file has no repository entry" >&2
     exit 1
   }
-  remote_urls="$(git -c safe.directory="$ROOT" -C "$ROOT" remote get-url --all 2>/dev/null || true)"
-  case "$remote_urls" in
-    *2468785842/krkr2.git*)
-      echo "[provenance] ERROR: $LABEL still has the upstream KRKR2 remote; remove it before building" >&2
-      exit 1
-      ;;
-  esac
+  origin_url="$(git -c safe.directory="$ROOT" -C "$ROOT" remote get-url origin 2>/dev/null || true)"
+  normalize_repository() {
+    printf '%s' "$1" | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##'
+  }
+  if [ "$(normalize_repository "$origin_url")" != "$(normalize_repository "$expected_repository")" ]; then
+    echo "[provenance] ERROR: $LABEL origin $origin_url does not match lock $expected_repository" >&2
+    exit 1
+  fi
 fi
 # These sources are checked out by Windows Git with core.autocrlf=true and
 # built through WSL. Match that checkout policy so line endings do not turn a
