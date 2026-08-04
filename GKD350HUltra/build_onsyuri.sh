@@ -62,6 +62,8 @@ elif [ ! -x "$TARGET" ]; then
   # successfully compiled objects and continue with only the missing sources.
   NEEDS_REBUILD=1
 elif [ "$SYSROOT/target_info.txt" -nt "$TARGET" ] || \
+     [ "$SELF_DIR/build_onsyuri.sh" -nt "$TARGET" ] || \
+     [ "$SELF_DIR/patch_onsyuri.py" -nt "$TARGET" ] || \
      [ -n "$(find "$FILTER_OVERLAY" -type f -newer "$TARGET" -print -quit 2>/dev/null)" ]; then
   FULL_RECOMPILE=1
   NEEDS_REBUILD=1
@@ -117,6 +119,7 @@ ScriptParser.cpp
 ScriptParser_command.cpp
 sjis2utf16.cpp
 renderer/gles_renderer.cpp
+glibc234_compat.cpp
 builtin_dll/layer_oldmovie.cpp
 builtin_dll/layer_snow.cpp
 builtin_dll/ONScripter_effect_cascade.cpp
@@ -124,6 +127,7 @@ builtin_dll/ONScripter_effect_trig.cpp
 "
 
 CXXFLAGS="-O2 -std=c++11 -Wall -Wno-deprecated-declarations -Wno-unused-result -Wno-write-strings --sysroot=$SYSROOT"
+CXXFLAGS="$CXXFLAGS -ffile-prefix-map=$ONS_ROOT=/src/onsyuri -ffile-prefix-map=$REPO_ROOT=/workspace/ROCgalgame"
 CXXFLAGS="$CXXFLAGS -DLINUX -DUSE_PARALLEL -DUSE_GLES -DUSE_FILELOG -DUSE_LUA -DUSE_BUILTIN_LAYER_EFFECTS -DENABLE_1BYTE_CHAR"
 CXXFLAGS="$CXXFLAGS -I$INCLUDE_OVERLAY -I$PATCHED_SRC_DIR -I$ONS_ROOT/src/onsyuri -I$ONS_ROOT/src/onsyuri_libretro/deps -I$ONS_ROOT/src/onsyuri_libretro/deps/SDL_mixer/include -I$SYSROOT/usr/include -I$SYSROOT/usr/include/SDL2"
 # GKD's libGLESv2 is a loader shim with no GL exports; ONS reaches GL through
@@ -143,7 +147,7 @@ LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -ljpeg -lbz2 -ldl -lpthread -l
     exit 1
   fi
   mkdir -p "$LUA_BUILD_DIR"
-  rsync -a --delete --exclude='*.o' --exclude='liblua.a' \
+  rsync -a --no-owner --no-group --delete --exclude='*.o' --exclude='liblua.a' \
     "$LUA_SOURCE_DIR/" "$LUA_BUILD_DIR/"
   echo "[ons_build] build static Lua"
   if [ "$CLEAN_BUILD" = "1" ]; then
@@ -198,7 +202,14 @@ LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -ljpeg -lbz2 -ldl -lpthread -l
     mkdir -p "$(dirname "$obj")"
     if [ "$FULL_RECOMPILE" = "1" ] || [ ! -f "$obj" ] || [ "$source_path" -nt "$obj" ]; then
       echo "[ons_build] compile $src"
-      nice -n 15 ionice -c 2 -n 7 "$CXX_CMD" $CXXFLAGS -c "$source_path" -o "$obj"
+      SOURCE_CXXFLAGS="$CXXFLAGS"
+      if grep -q '#include "ONScripter.h"' "$source_path"; then
+        # The generated header changes ONScripter's class layout. Force every
+        # translation unit that uses the class to see that exact header; quote
+        # includes otherwise prefer the source tree's unpatched sibling.
+        SOURCE_CXXFLAGS="$SOURCE_CXXFLAGS -include $PATCHED_SRC_DIR/ONScripter.h"
+      fi
+      nice -n 15 ionice -c 2 -n 7 "$CXX_CMD" $SOURCE_CXXFLAGS -c "$source_path" -o "$obj"
       COMPILED_OBJECTS=$((COMPILED_OBJECTS + 1))
     else
       echo "[ons_build] reuse object $src"
