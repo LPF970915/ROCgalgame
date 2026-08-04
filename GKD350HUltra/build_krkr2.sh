@@ -280,10 +280,16 @@ prepare_sysroot_x11_pkgconfig_shims
 
 verify_rocgalgame_source_patches() {
   local app_delegate="$KRKR2_ROOT/cpp/core/environ/cocos2d/AppDelegate.cpp"
-  grep -Fq 'GLContextAttrs glContextAttrs = { 8, 8, 8, 0, 24, 0 };' "$app_delegate" || {
-    echo "[krkr2_build] ERROR: KRKR2 Mali XR24 surface patch is missing"
+  grep -Fq 'GLContextAttrs glContextAttrs = { 8, 8, 8, 8, 24, 0 };' "$app_delegate" || {
+    echo "[krkr2_build] ERROR: KRKR2 Mali ARGB surface patch is missing"
     exit 1
   }
+  local wayland_surface_patch="$KRKR2_ROOT/vcpkg/ports/cocos2dx/patch/rocgalgame-wayland-transparent-framebuffer.patch"
+  test -f "$wayland_surface_patch" &&
+    grep -Fq 'GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE' "$wayland_surface_patch" || {
+      echo "[krkr2_build] ERROR: KRKR2 Wayland transparent framebuffer patch is missing"
+      exit 1
+    }
   local scene="$KRKR2_ROOT/cpp/core/environ/cocos2d/MainScene.cpp"
   local transport="$KRKR2_ROOT/cpp/core/environ/cocos2d/RocgalgameInputTransport.cpp"
   local render_utils="$KRKR2_ROOT/cpp/core/environ/RenderUtils.h"
@@ -513,7 +519,7 @@ prepare_fmod_stub() {
       -e 's# -lmf# -lm#g' \
       -e 's# -lSDL2##g' \
       -e 's# -lmali##g' \
-      -e 's# -lGL##g' \
+      -e 's# -lGL\([[:space:]]\|$\)#\1#g' \
       -e "s# -fuse-ld=gold##g" \
       -e '/^[[:space:]]*$/d' \
       "$link_file" > "$patched_link_file"

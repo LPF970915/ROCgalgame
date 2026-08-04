@@ -1,7 +1,7 @@
 # Machine-readable KRKR2 port provenance. Keep this file in sync with the
 # source commit used for release builds.
 repository=https://github.com/LPF970915/ROCgalgame-krkr2-port.git
-source_commit=a73949ce236e02b477574245bff4484c1f0efefd
+source_commit=d77600c6bb26af4c70715b3c3e39aacc84368128
 baseline_tag=rocgalgame-0.28-baseline
 baseline_package=GKD350HUltra/Downloads/ROCgalgame ver0.28 for GKD350H Ultra.zip
 baseline_package_sha256=5db38b1d4bbf504bda5979cb7c09d885a4a0c14a46ef919e6fc43c9116503495
