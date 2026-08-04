@@ -65,6 +65,7 @@ command -v make >/dev/null 2>&1 || { echo "[krkr2_build] ERROR: make is required
 command -v taskset >/dev/null 2>&1 || { echo "[krkr2_build] ERROR: taskset is required"; exit 1; }
 command -v ionice >/dev/null 2>&1 || { echo "[krkr2_build] ERROR: ionice is required"; exit 1; }
 command -v setsid >/dev/null 2>&1 || { echo "[krkr2_build] ERROR: setsid is required for cooling pauses"; exit 1; }
+command -v flock >/dev/null 2>&1 || { echo "[krkr2_build] ERROR: flock is required to serialize build-tree access"; exit 1; }
 test -f "$TOOLCHAIN" || { echo "[krkr2_build] ERROR: toolchain is missing: $TOOLCHAIN"; exit 1; }
 test -d "$SYSROOT/usr/include" || { echo "[krkr2_build] ERROR: invalid sysroot: $SYSROOT"; exit 1; }
 test -f "$WAYLAND_PKG_CONFIG_DIR/wayland-client.pc" || {
@@ -144,6 +145,17 @@ run_low_load() {
 
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/build_krkr2_${MODE}_$(date +%Y%m%d_%H%M%S).log"
+
+if [ "$MODE" != "Probe" ]; then
+  mkdir -p "$BUILD_ROOT"
+  BUILD_LOCK="$BUILD_ROOT/.krkr2-build.lock"
+  exec 9>"$BUILD_LOCK"
+  if ! flock -n 9; then
+    echo "[krkr2_build] ERROR: another KRKR2 build already owns $BUILD_LOCK"
+    echo "[krkr2_build] Wait for it to finish or inspect the owning WSL process before retrying."
+    exit 4
+  fi
+fi
 
 run_probe() {
   mkdir -p "$PROBE_BUILD_DIR"
