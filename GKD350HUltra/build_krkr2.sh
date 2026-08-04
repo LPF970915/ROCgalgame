@@ -519,6 +519,7 @@ prepare_fmod_stub() {
       -e 's# -lmf# -lm#g' \
       -e 's# -lSDL2##g' \
       -e 's# -lmali##g' \
+      -e 's#libz\.aESv2#libz.a -lGLESv2#g' \
       -e 's# -lGL\([[:space:]]\|$\)#\1#g' \
       -e "s# -fuse-ld=gold##g" \
       -e '/^[[:space:]]*$/d' \
@@ -599,6 +600,43 @@ configure_krkr2() {
     "${CMAKE_ACCEL_ARGS[@]}"
 }
 
+verify_fast_build_tree() {
+  local installed="$BUILD_DIR/vcpkg_installed/$TRIPLET"
+  local link_file="$BUILD_DIR/CMakeFiles/krkr2.dir/link.txt"
+  local missing_file dependency missing_count
+  missing_file="$(mktemp)"
+
+  for dependency in \
+    "$installed/include/spdlog/spdlog.h" \
+    "$installed/include/fmt/format.h" \
+    "$installed/lib/libcocos2d.a" \
+    "$installed/lib/libspdlog.a" \
+    "$installed/lib/libfmt.a"; do
+    [ -f "$dependency" ] || printf '%s\n' "$dependency" >>"$missing_file"
+  done
+
+  if [ -f "$link_file" ]; then
+    tr ' ' '\n' <"$link_file" |
+      sed -n "s#^vcpkg_installed/#$BUILD_DIR/vcpkg_installed/#p" |
+      sort -u |
+      while IFS= read -r dependency; do
+        [ -f "$dependency" ] || printf '%s\n' "$dependency"
+      done >>"$missing_file"
+  else
+    printf '%s\n' "$link_file" >>"$missing_file"
+  fi
+
+  missing_count="$(sort -u "$missing_file" | sed '/^$/d' | wc -l | tr -d ' ')"
+  if [ "$missing_count" -ne 0 ]; then
+    echo "[krkr2_build] ERROR: FastBuild cache is incomplete ($missing_count missing dependency files)"
+    sort -u "$missing_file" | sed '/^$/d' | head -n 20
+    echo "[krkr2_build] Restore or rebuild vcpkg_installed before using FastBuild."
+    rm -f "$missing_file"
+    exit 1
+  fi
+  rm -f "$missing_file"
+}
+
 {
   echo "[krkr2_build] mode=$MODE"
   echo "[krkr2_build] root=$KRKR2_ROOT"
@@ -622,6 +660,7 @@ configure_krkr2() {
       echo "[krkr2_build] Run Configure once after CMake, triplet, or vcpkg changes."
       exit 1
     }
+    verify_fast_build_tree
     echo "[krkr2_build] fast incremental mode: skipping probe, Configure, and vcpkg checks"
     if [ -n "$CCACHE_BIN" ] &&
        ! grep -q '^CMAKE_CXX_COMPILER_LAUNCHER:.*ccache' "$BUILD_DIR/CMakeCache.txt"; then
