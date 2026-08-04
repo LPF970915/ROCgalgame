@@ -20,7 +20,7 @@
 - `ui/`、`fonts/`、`sounds/`、`shaders/`：运行时资产。
 
 KRKR2、KRKRSDL2 和 ONS 的活动源码分别位于
-`D:\Works\Tyranor\krkr2`、`D:\Works\Tyranor\krkrsdl2` 和
+`D:\Works\ROCgalgame-krkr2-port`、`D:\Works\Tyranor\krkrsdl2` 和
 `D:\Works\Tyranor\OnscripterYuri`。这些外部工作树当前都有未提交修改；
 清理 ROCgalgame 时不能触碰它们。
 

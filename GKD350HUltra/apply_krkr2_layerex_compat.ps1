@@ -1,5 +1,5 @@
 param(
-  [string]$Krkr2Root = "D:\Works\Tyranor\krkr2",
+  [string]$Krkr2Root = "D:\Works\ROCgalgame-krkr2-port",
   [string]$CompatSource = "$PSScriptRoot\patches\krkr2-layerex-compat"
 )
 

@@ -4,7 +4,7 @@ set -euo pipefail
 SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SELF_DIR/.." && pwd)"
 BUILD_ROOT="${KRKR2_BUILD_ROOT:-$REPO_ROOT/build/gkd350h-glibc234}"
-KRKR2_ROOT="${KRKR2_ROOT:-/mnt/d/Works/Tyranor/krkr2}"
+KRKR2_ROOT="${KRKR2_ROOT:-/mnt/d/Works/ROCgalgame-krkr2-port}"
 SYSROOT="${SYSROOT:-$BUILD_ROOT/sysroot}"
 TOOLCHAIN="$SELF_DIR/toolchain/aarch64-gkd-krkr2.cmake"
 TRIPLET_DIR="$SELF_DIR/vcpkg-triplets"
@@ -15,6 +15,7 @@ PROBE_BUILD_DIR="${KRKR2_PROBE_BUILD_DIR:-$BUILD_ROOT/krkr2-toolchain-probe}"
 BUILD_DIR="${KRKR2_BUILD_DIR:-$BUILD_ROOT/krkr2}"
 DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME_CORE_DIR="$DIST_ROOT/ROCgalgame/cores/krkr"
+KRKR2_PORT_LOCK="${KRKR2_PORT_LOCK:-$REPO_ROOT/GKD350HUltra/krkr2-port.lock}"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 FMOD_STUB_SOURCE="$SELF_DIR/compat/fmod_stub.cpp"
 FMOD_STUB_BUILD_DIR="$BUILD_DIR/compat/fmod_stub"
@@ -28,6 +29,9 @@ NICE_LEVEL="${KRKR2_NICE_LEVEL:-15}"
 IO_PRIORITY="${KRKR2_IO_PRIORITY:-7}"
 CMAKE_BIN="${CMAKE_BIN:-$SELF_DIR/tools/cmake/bin/cmake}"
 WAYLAND_PKG_CONFIG_DIR="$SELF_DIR/pkgconfig-wayland"
+USE_CCACHE="${KRKR2_USE_CCACHE:-Auto}"
+LINKER="${KRKR2_LINKER:-Auto}"
+CCACHE_DIR="${KRKR2_CCACHE_DIR:-$BUILD_ROOT/ccache/krkr2}"
 
 export GKD_SYSROOT="$SYSROOT"
 export PKG_CONFIG_SYSROOT_DIR="$SYSROOT"
@@ -44,6 +48,12 @@ fi
 case "$MODE" in
   Probe|Configure|Build|FastBuild|Full) ;;
   *) echo "[krkr2_build] ERROR: KRKR2_BUILD_MODE must be Probe, Configure, Build, FastBuild, or Full"; exit 2 ;;
+esac
+case "$USE_CCACHE" in Auto|On|Off) ;; *)
+  echo "[krkr2_build] ERROR: KRKR2_USE_CCACHE must be Auto, On, or Off"; exit 2 ;;
+esac
+case "$LINKER" in Auto|mold|lld|bfd) ;; *)
+  echo "[krkr2_build] ERROR: KRKR2_LINKER must be Auto, mold, lld, or bfd"; exit 2 ;;
 esac
 
 test -x "$CMAKE_BIN" || { echo "[krkr2_build] ERROR: bundled CMake is missing: $CMAKE_BIN"; exit 1; }
@@ -166,7 +176,12 @@ if [ "${KRKR2_CONFIRM_HEAVY_BUILD:-0}" != "1" ]; then
 fi
 
 test -f "$KRKR2_ROOT/CMakeLists.txt" || { echo "[krkr2_build] ERROR: invalid KRKR2_ROOT: $KRKR2_ROOT"; exit 1; }
+bash "$SELF_DIR/verify_source_provenance.sh" "$KRKR2_ROOT" krkr2 "$KRKR2_PORT_LOCK"
+KRKR2_SOURCE_COMMIT="$(git -c safe.directory="$KRKR2_ROOT" -C "$KRKR2_ROOT" rev-parse HEAD)"
 VCPKG_ROOT="${VCPKG_ROOT:-$BUILD_ROOT/vcpkg}"
+VCPKG_BINARY_CACHE="${VCPKG_BINARY_CACHE:-$VCPKG_ROOT/binary-cache}"
+mkdir -p "$VCPKG_BINARY_CACHE"
+export VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES:-clear;files,$VCPKG_BINARY_CACHE,readwrite}"
 VCPKG_TOOLCHAIN="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 test -f "$VCPKG_TOOLCHAIN" || {
   echo "[krkr2_build] ERROR: vcpkg is missing: $VCPKG_TOOLCHAIN"
@@ -194,6 +209,39 @@ export OMP_THREAD_LIMIT="$BUILD_JOBS"
 export OPENBLAS_NUM_THREADS="$BUILD_JOBS"
 export MKL_NUM_THREADS="$BUILD_JOBS"
 export NUMEXPR_NUM_THREADS="$BUILD_JOBS"
+
+CMAKE_ACCEL_ARGS=()
+CCACHE_BIN=""
+if [ "$USE_CCACHE" != "Off" ]; then
+  CCACHE_BIN="$(command -v ccache 2>/dev/null || true)"
+  if [ -n "$CCACHE_BIN" ]; then
+    mkdir -p "$CCACHE_DIR"
+    export CCACHE_DIR CCACHE_BASEDIR="$KRKR2_ROOT"
+    export CCACHE_COMPILERCHECK=content
+    CMAKE_ACCEL_ARGS+=(
+      "-DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_BIN"
+      "-DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_BIN"
+    )
+  elif [ "$USE_CCACHE" = "On" ]; then
+    echo "[krkr2_build] ERROR: KRKR2_USE_CCACHE=On but ccache is unavailable"
+    exit 1
+  fi
+fi
+
+LINKER_FLAG=""
+case "$LINKER" in
+  Auto)
+    if command -v mold >/dev/null 2>&1; then LINKER=mold
+    elif command -v ld.lld >/dev/null 2>&1; then LINKER=lld
+    else LINKER=bfd
+    fi
+    ;;
+esac
+case "$LINKER" in
+  mold) LINKER_FLAG="-fuse-ld=mold" ;;
+  lld) LINKER_FLAG="-fuse-ld=lld" ;;
+  bfd) LINKER_FLAG="" ;;
+esac
 
 prepare_sysroot_x11_pkgconfig_shims() {
   local installed="$BUILD_DIR/vcpkg_installed/$TRIPLET"
@@ -455,6 +503,8 @@ prepare_fmod_stub() {
       -e "s#:$BUILD_DIR/vcpkg_installed/$TRIPLET/lib/pkgconfig/../../lib##g" \
       -e "s# $stub_archive##g" \
       -e "s# $math_abi_object##g" \
+      -e 's# [^ ]*/compat/fmod_stub/libfmod_stub\.a##g' \
+      -e 's# [^ ]*/compat/fmod_stub/glibc234_math_abi\.o##g' \
       -e 's# -Wl,--wrap=hypot##g' \
       -e 's# -Wl,--wrap=hypotf##g' \
       -e "s# $SYSROOT/lib/aarch64-linux-gnu/libpthread.a# -lpthread#g" \
@@ -522,6 +572,8 @@ build_krkr2_target() {
 }
 
 configure_krkr2() {
+  local linker_flags="${ROCGALGAME_GLIBC_BASELINE:+-Wl,--allow-shlib-undefined}"
+  linker_flags="${linker_flags}${LINKER_FLAG:+ $LINKER_FLAG}"
   run_low_load "$CMAKE_BIN" --fresh -S "$KRKR2_ROOT" -B "$BUILD_DIR" -G "Unix Makefiles" \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN" \
     -DGKD_SYSROOT="$SYSROOT" \
@@ -534,9 +586,10 @@ configure_krkr2() {
     -DENABLE_TESTS=OFF \
     -DBUILD_TOOLS=OFF \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_EXE_LINKER_FLAGS="${ROCGALGAME_GLIBC_BASELINE:+-Wl,--allow-shlib-undefined}" \
+    -DCMAKE_EXE_LINKER_FLAGS="$linker_flags" \
     -DCMAKE_BUILD_RPATH='$ORIGIN/../../lib_system_sdl;$ORIGIN/../../lib' \
-    -DCMAKE_INSTALL_RPATH='$ORIGIN/../../lib_system_sdl;$ORIGIN/../../lib'
+    -DCMAKE_INSTALL_RPATH='$ORIGIN/../../lib_system_sdl;$ORIGIN/../../lib' \
+    "${CMAKE_ACCEL_ARGS[@]}"
 }
 
 {
@@ -554,6 +607,8 @@ configure_krkr2() {
     echo "[krkr2_build] cooling_policy=continuous"
   fi
   echo "[krkr2_build] scheduler=nice:${NICE_LEVEL} ionice:best-effort:${IO_PRIORITY}"
+  echo "[krkr2_build] ccache=${CCACHE_BIN:-disabled} dir=${CCACHE_DIR}"
+  echo "[krkr2_build] linker=$LINKER"
   if [ "$MODE" = "FastBuild" ]; then
     test -f "$BUILD_DIR/CMakeCache.txt" && test -f "$BUILD_DIR/Makefile" || {
       echo "[krkr2_build] ERROR: FastBuild requires an existing configured build tree"
@@ -561,6 +616,14 @@ configure_krkr2() {
       exit 1
     }
     echo "[krkr2_build] fast incremental mode: skipping probe, Configure, and vcpkg checks"
+    if [ -n "$CCACHE_BIN" ] &&
+       ! grep -q '^CMAKE_CXX_COMPILER_LAUNCHER:.*ccache' "$BUILD_DIR/CMakeCache.txt"; then
+      echo "[krkr2_build] WARN: this cache predates ccache; run Configure once to enable it"
+    fi
+    if [ -n "$LINKER_FLAG" ] &&
+       ! grep -Fq -- "$LINKER_FLAG" "$BUILD_DIR/CMakeCache.txt"; then
+      echo "[krkr2_build] WARN: this cache predates $LINKER; run Configure once to enable it"
+    fi
   else
     run_probe
   fi
@@ -610,8 +673,21 @@ configure_krkr2() {
   cp -a "$KRKR2_RESOURCES" "$RUNTIME_CORE_DIR/Resources"
   file "$RUNTIME_CORE_DIR/krkr2"
   readelf -d "$RUNTIME_CORE_DIR/krkr2" | grep -E 'NEEDED|RUNPATH|RPATH' || true
+  meta_tmp="$RUNTIME_CORE_DIR/krkr2.build-meta.tmp.$$"
+  {
+    printf 'schema=1\n'
+    printf 'source=krkr2\n'
+    printf 'source_commit=%s\n' "$KRKR2_SOURCE_COMMIT"
+    printf 'port_lock=%s\n' "$KRKR2_PORT_LOCK"
+    printf 'port_repository=https://github.com/LPF970915/ROCgalgame-krkr2-port.git\n'
+    printf 'source_dirty=%s\n' "$(git -c safe.directory="$KRKR2_ROOT" -c core.autocrlf=true -C "$KRKR2_ROOT" status --porcelain=v1 | wc -l | tr -d ' ')"
+    printf 'build_root=%s\n' "$BUILD_ROOT"
+    printf 'triplet=%s\n' "$TRIPLET"
+  } >"$meta_tmp"
+  mv "$meta_tmp" "$RUNTIME_CORE_DIR/krkr2.build-meta"
   echo "[krkr2_build] installed=$RUNTIME_CORE_DIR/krkr2"
   echo "[krkr2_build] resources=$RUNTIME_CORE_DIR/Resources"
+  [ -z "$CCACHE_BIN" ] || ccache --show-stats || true
 } 2>&1 | tee "$LOG_FILE"
 
 echo "[krkr2_build] log=$LOG_FILE"

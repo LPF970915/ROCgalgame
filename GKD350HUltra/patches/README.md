@@ -1,8 +1,10 @@
 # KRKR Source Patches
 
-These patches reproduce the changes currently applied to
-`D:\Works\Tyranor\krkrsdl2` and its `external/krkrz` submodule. Apply them
-only to clean source at the commits recorded in the porting plan.
+These patches reproduce the changes used by ROCgalgame's KRKRSDL2 and KRKR2
+integrations. The KRKR2 changes are now committed in the independent
+`LPF970915/ROCgalgame-krkr2-port` repository; do not apply them to the old
+`D:\Works\Tyranor\krkr2` checkout. Use that repository's history for new
+builds and use this file only for legacy patch reconstruction.
 
 From PowerShell:
 
@@ -11,38 +13,38 @@ git -C D:\Works\Tyranor\krkrsdl2 apply --recount D:\Works\ROCgalgame\GKD350HUltr
 git -C D:\Works\Tyranor\krkrsdl2\external\krkrz apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkrz-default-font-file.patch
 git -C D:\Works\Tyranor\krkrsdl2\external\krkrz apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkrz-xp3-project-automount.patch
 git -C D:\Works\Tyranor\krkrsdl2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkrsdl2-xp3-project-automount.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-input.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-display-input.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-input-continuous.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-resolution.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-frontend-input-bridge.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-console-throttle.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-performance-pointer-incremental.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-refactor.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-pointer-engine-delta.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-hup-backoff.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-reconnect-sequence.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-gles2.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-messagebox.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-empty-string.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-bytecode-bounds.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-regexp-legacy-hex.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-text-stream-cipher-header.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-command-line.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-kag-emb-escape.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-psb-load-safety.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-fstat-delete-missing.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gpu-presentation.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-shared-post-update-fbo-restore.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-mali-safe-render.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-presentation-capture.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-pointer-request.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-source-metadata.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-texture-cache.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-texture-cpu-release.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-parameter-cycle-guard.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-camera-psbv4-compat.patch
-git -C D:\Works\Tyranor\krkr2 apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-opengl-default.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-input.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-display-input.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-input-continuous.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gkd-resolution.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-frontend-input-bridge.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-console-throttle.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-performance-pointer-incremental.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-refactor.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-pointer-engine-delta.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-hup-backoff.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-input-transport-reconnect-sequence.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-gles2.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-wayland-messagebox.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-empty-string.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-bytecode-bounds.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-tjs-regexp-legacy-hex.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-text-stream-cipher-header.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-linux-command-line.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-kag-emb-escape.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-psb-load-safety.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-fstat-delete-missing.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-gpu-presentation.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-shared-post-update-fbo-restore.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-mali-safe-render.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-presentation-capture.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-pointer-request.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-source-metadata.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-texture-cache.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-texture-cpu-release.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-parameter-cycle-guard.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-motion-camera-psbv4-compat.patch
+git -C D:\Works\ROCgalgame-krkr2-port apply --recount D:\Works\ROCgalgame\GKD350HUltra\patches\krkr2-rocgalgame-opengl-default.patch
 & D:\Works\ROCgalgame\GKD350HUltra\apply_krkr2_layerex_compat.ps1
 ```
 

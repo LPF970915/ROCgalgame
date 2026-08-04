@@ -1,6 +1,6 @@
 param(
   [string]$KrkrRoot = "D:\Works\Tyranor\krkrsdl2",
-  [string]$Krkr2Root = "D:\Works\Tyranor\krkr2",
+  [string]$Krkr2Root = "D:\Works\ROCgalgame-krkr2-port",
   [string]$OutputPath = "$PSScriptRoot\..\build\gkd350h-glibc234\build_checkpoint.json"
 )
 
@@ -37,15 +37,18 @@ function Get-GitState([string]$Path) {
 
 $buildRoot = Join-Path $repoRoot "build\gkd350h-glibc234"
 $distRoot = Join-Path $PSScriptRoot "dist_glibc234\ROCgalgame"
+$frontendSource = Get-GitState $repoRoot
+$krkrSource = Get-GitState $KrkrRoot
+$krkr2Source = Get-GitState $Krkr2Root
 $cmakeCache = Join-Path $buildRoot "krkrsdl2\CMakeCache.txt"
 $krkr2CmakeCache = Join-Path $buildRoot "krkr2\CMakeCache.txt"
 $checkpoint = [ordered]@{
-  schema = 1
+  schema = 2
   generated_at = (Get-Date).ToUniversalTime().ToString("o")
   source = [ordered]@{
-    frontend = Get-GitState $repoRoot
-    krkr = Get-GitState $KrkrRoot
-    krkr2 = Get-GitState $Krkr2Root
+    frontend = $frontendSource
+    krkr = $krkrSource
+    krkr2 = $krkr2Source
   }
   cache = [ordered]@{
     frontend_objects = Test-Path -LiteralPath (Join-Path $buildRoot "frontend\obj")
@@ -61,12 +64,20 @@ $checkpoint = [ordered]@{
     krkr_sha256 = Get-HashOrNull (Join-Path $distRoot "cores\krkr\krkrsdl2")
     krkr2_sha256 = Get-HashOrNull (Join-Path $distRoot "cores\krkr\krkr2")
     krkr2_gl_sha256 = Get-HashOrNull (Join-Path $distRoot "cores\krkr\lib_krkr2\libGL.so.1")
+    krkr_source_commit = if ($krkrSource) { $krkrSource.commit } else { $null }
+    krkr2_source_commit = if ($krkr2Source) { $krkr2Source.commit } else { $null }
+    krkr2_build_meta = Test-Path -LiteralPath (Join-Path $distRoot "cores\krkr\krkr2.build-meta")
   }
   build_policy = [ordered]@{
     default_krkr_mode = "Fast"
     jobs = 1
     priority = "nice 10"
     full_rebuild_only_for = @("toolchain or ABI change", "incompatible CMake option change", "corrupt build cache", "major KRKR source restructuring")
+    require_clean_external_sources = $true
+    fixed_container_root = "/workspace"
+    compiler_cache = "ccache"
+    dependency_cache = "vcpkg files binary cache"
+    preferred_linker = "mold, then lld, then bfd"
   }
 }
 

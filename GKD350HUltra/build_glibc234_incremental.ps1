@@ -25,11 +25,11 @@ $sources = switch ($Target) {
       "/sources/krkrsdl2" = "D:\Works\Tyranor\krkrsdl2"
       "/sources/ffmpeg" = "D:\Works\Tyranor\FFmpeg-n6.0"
     } }
-  "KRKR2" { @{ "/sources/krkr2" = "D:\Works\Tyranor\krkr2" } }
+  "KRKR2" { @{ "/sources/krkr2" = "D:\Works\ROCgalgame-krkr2-port" } }
   "All" { @{
       "/sources/ons" = "D:\Works\Tyranor\OnscripterYuri"
       "/sources/krkrsdl2" = "D:\Works\Tyranor\krkrsdl2"
-      "/sources/krkr2" = "D:\Works\Tyranor\krkr2"
+      "/sources/krkr2" = "D:\Works\ROCgalgame-krkr2-port"
       "/sources/ffmpeg" = "D:\Works\Tyranor\FFmpeg-n6.0"
     } }
 }
@@ -44,6 +44,8 @@ foreach ($entry in $sources.GetEnumerator()) {
   $args += @("--volume", "$(Convert-ToWslPath $source):$($entry.Key):ro")
 }
 $args += @(
+  "--volume", "rocgalgame-vcpkg-binary-cache:/workspace/build/gkd350h-glibc234/vcpkg/binary-cache",
+  "--volume", "rocgalgame-krkr2-ccache:/workspace/build/gkd350h-glibc234/ccache/krkr2",
   "--volume", "rocgalgame-egl-registry-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/egl-registry",
   "--volume", "rocgalgame-boost-config-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/boost-config",
   "--volume", "rocgalgame-opengl-registry-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/opengl-registry"

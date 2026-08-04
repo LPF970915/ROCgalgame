@@ -14,7 +14,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $h700 = (Resolve-Path "D:\Works\ROCreader\H700\sysroot_device").Path
 $ons = (Resolve-Path "D:\Works\Tyranor\OnscripterYuri").Path
 $krkrsdl2 = (Resolve-Path "D:\Works\Tyranor\krkrsdl2").Path
-$krkr2 = (Resolve-Path "D:\Works\Tyranor\krkr2").Path
+$krkr2 = (Resolve-Path "D:\Works\ROCgalgame-krkr2-port").Path
 $ffmpeg = (Resolve-Path "D:\Works\Tyranor\FFmpeg-n6.0").Path
 
 function Convert-ToWslPath([string]$Path) {
@@ -45,6 +45,8 @@ $args = @("-d", $Distro, "--", "docker", "run", "--rm",
   "--env", "KRKR2_WORK_SECONDS=$WorkSeconds", "--env", "KRKR2_COOL_SECONDS=$CoolSeconds")
 foreach ($mount in $mounts) { $args += @("--volume", $mount) }
 $args += @(
+  "--volume", "rocgalgame-vcpkg-binary-cache:/workspace/build/gkd350h-glibc234/vcpkg/binary-cache",
+  "--volume", "rocgalgame-krkr2-ccache:/workspace/build/gkd350h-glibc234/ccache/krkr2",
   "--volume", "rocgalgame-egl-registry-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/egl-registry",
   "--volume", "rocgalgame-boost-config-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/boost-config",
   "--volume", "rocgalgame-opengl-registry-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/opengl-registry"
