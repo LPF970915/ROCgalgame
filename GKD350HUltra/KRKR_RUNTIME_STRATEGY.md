@@ -92,8 +92,9 @@ The 2026-08-05 device sweep forced KRKR2 for the remaining KRKR library. Of 27
 games, 26 remained alive for the complete test window with valid GL/FBO/swap
 telemetry and a non-black final frame. `TIME TO STAR II` exceeded the memory
 limit and also failed under KRKRSDL2, so it is not evidence in favor of the
-fallback runtime. `7 days with Death` remains an explicit KRKRSDL2-compatible
-exception. `Criss Cross` remains isolated backlog.
+fallback runtime. `Criss Cross` remains isolated backlog. KRKRSDL2 fallback is
+validated with a minimal explicit-runtime fixture; games are assigned to it
+only after they pass a real-game compatibility sweep with the locked core.
 
 This evidence is sufficient to prefer KRKR2 globally while preserving explicit
 per-game fallback. Future compatibility work must be based on repeated failure

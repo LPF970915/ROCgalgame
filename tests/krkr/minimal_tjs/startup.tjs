@@ -12,7 +12,9 @@ global.smokeLayer.fillRect(0, 0, 1280, 720, 0xff20252b);
 global.smokeLayer.font.height = 42;
 global.smokeLayer.drawText(96, 260, "KRKR SDL2 smoke test", 0x00f3f5f7);
 global.smokeLayer.font.height = 24;
-global.smokeLayer.drawText(96, 330, "中文字体测试：点击画面退出。", 0x00a8d8b9);
-global.smokeLayer.onClick = function() { System.exit(0); };
+global.smokeLayer.drawText(96, 330, "Click input keeps the runtime alive", 0x00a8d8b9);
+global.smokeLayer.onClick = function() {
+    global.smokeLayer.fillRect(96, 390, 360, 8, 0x00a8d8b9);
+};
 global.smokeLayer.visible = true;
 global.smokeWindow.visible = true;

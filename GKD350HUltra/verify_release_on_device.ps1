@@ -39,11 +39,33 @@ function Copy-ToDevice([string]$LocalPath, [string]$RemotePath) {
   if ($LASTEXITCODE -ne 0) { throw "Failed to upload $LocalPath" }
 }
 
-function Run-SweepCase([string]$Id, [string]$ExpectedRuntime, [string]$Label) {
+function Run-SweepCase(
+  [string]$Id,
+  [string]$ExpectedRuntime,
+  [string]$Label,
+  [string]$ForceKrkrRuntime = "",
+  [string]$GamesDir = "",
+  [string]$TitleRegex = ""
+) {
   $caseLog = "$remoteLogRoot/$Label"
+  $forceRuntimeEnv = if ([string]::IsNullOrWhiteSpace($ForceKrkrRuntime)) {
+    ""
+  } else {
+    " FORCE_KRKR_RUNTIME='$ForceKrkrRuntime'"
+  }
+  $gamesDirEnv = if ([string]::IsNullOrWhiteSpace($GamesDir)) {
+    ""
+  } else {
+    " GAMES_DIR='$GamesDir'"
+  }
+  $caseSelector = if ([string]::IsNullOrWhiteSpace($Id)) {
+    "TITLE_REGEX='$TitleRegex'"
+  } else {
+    "CASE_FILTER=',$Id,'"
+  }
   $command = "set -eu; rm -rf '$caseLog'; " +
-    "if APP_DIR='$AppDir' HELPER='$remoteRoot/gkd_uinput_sequence.py' CORE_FILTER=all " +
-    "CASE_FILTER=',$Id,' MAX_CASES=1 RUN_SECONDS='$RunSeconds' " +
+    "if APP_DIR='$AppDir' HELPER='$remoteRoot/gkd_uinput_sequence.py' CORE_FILTER=all$forceRuntimeEnv$gamesDirEnv " +
+    "$caseSelector MAX_CASES=1 RUN_SECONDS='$RunSeconds' " +
     "CAPTURE_SECONDS='3 12 24 36' REQUIRE_FRAME_DIFF=0 REQUIRE_SWAP_FRAME=1 " +
     "LOG_DIR='$caseLog' TEST_ROOT='$remoteRoot/$Label-test' " +
     "sh '$remoteRoot/frontend_sweep.sh' >'$remoteRoot/$Label.out' 2>&1; " +
@@ -87,6 +109,9 @@ try {
   Copy-ToDevice (Join-Path $PSScriptRoot "run_krkr2_minimal_test.sh") "$remoteRoot/run_krkr2_minimal_test.sh"
   Copy-ToDevice (Join-Path $PSScriptRoot "krkr2_minimal_test\startup.tjs") "$remoteRoot/startup.tjs"
   Copy-ToDevice (Join-Path $PSScriptRoot "krkr2_minimal_test\game.ini") "$remoteRoot/game.ini"
+  Invoke-Ssh "mkdir -p '$remoteRoot/fallback-games/krkrsdl2-minimal'" | Out-Null
+  Copy-ToDevice (Join-Path $repoRoot "tests\krkr\minimal_tjs\startup.tjs") "$remoteRoot/fallback-games/krkrsdl2-minimal/startup.tjs"
+  Copy-ToDevice (Join-Path $repoRoot "tests\krkr\minimal_tjs\game.ini") "$remoteRoot/fallback-games/krkrsdl2-minimal/game.ini"
 
   $hardware = "set -eu; chmod 755 '$remoteRoot/'*.sh '$remoteRoot/'*.py; " +
     "APP_DIR='$AppDir' PROJECT='$remoteRoot' LOG_DIR='$remoteLogRoot/krkr2-hardware' " +
@@ -95,7 +120,7 @@ try {
   Invoke-Ssh $hardware | Out-File -LiteralPath (Join-Path $localReport "krkr2-hardware.out") -Encoding utf8
 
   Run-SweepCase "game-98a71a832a1d" "onsyuri" "ons-moon-princess"
-  Run-SweepCase "game-e509cab0c761" "krkrsdl2" "krkrsdl2-senren-banka"
+  Run-SweepCase "" "krkrsdl2" "krkrsdl2-minimal" "krkrsdl2" "$remoteRoot/fallback-games" "^krkrsdl2-minimal$"
   Run-SweepCase "game-6eb87c1dda4b" "krkr2" "krkr2-nekopara-vol2"
 
   Invoke-Ssh "rm -rf '$remoteRoot'" | Out-Null

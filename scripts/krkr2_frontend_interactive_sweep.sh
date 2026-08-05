@@ -215,7 +215,8 @@ expected_krkr_runtime() {
     runtime="$(ini_value "$candidate_dir/game.ini" krkr_runtime | tr '[:upper:]' '[:lower:]')"
   case "$runtime" in
     krkr2|kirikiroid2|native) printf 'krkr2\n' ;;
-    *) printf 'krkrsdl2\n' ;;
+    krkrsdl2|sdl2|fast) printf 'krkrsdl2\n' ;;
+    *) printf 'krkr2\n' ;;
   esac
 }
 
