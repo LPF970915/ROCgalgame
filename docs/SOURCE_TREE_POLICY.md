@@ -21,9 +21,8 @@ patch target, or recovery source.
 2. ONS changes are committed in `ROCgalgame-onsyuri-port`, KRKR2 changes in
    `ROCgalgame-krkr2-port`, and KRKRSDL2 changes in `ROCgalgame-krkrsdl2-port`. The main repository stores build
    scripts, locks, tests, and package metadata, not copied engine source.
-3. `GKD350HUltra/patches/` is retained only as legacy reconstruction material.
-   Do not apply those patches to the active KRKR2 or KRKRSDL2 trees unless a
-   recovery procedure explicitly says so.
+3. Historical patch bundles and dirty source snapshots are not build inputs.
+   Reconstruct or bisect changes from the locked private-fork history instead.
 4. CMake build directories are caches, never source-of-truth. The expected
    container paths are `/sources/ons`, `/sources/krkr2`, `/sources/krkrsdl2`,
    `/sources/ffmpeg`, and `/workspace`.

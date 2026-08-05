@@ -21,13 +21,9 @@
 
 KRKR2、KRKRSDL2 和 ONS 的活动源码分别位于
 `D:\Works\ROCgalgame-krkr2-port`、`D:\Works\Tyranor\krkrsdl2` 和
-`D:\Works\Tyranor\OnscripterYuri`。这些外部工作树当前都有未提交修改；
-清理 ROCgalgame 时不能触碰它们。
-
-这是当前最大的源码治理风险：KRKR2 有 44 个已修改文件和 10 个未跟踪文件，
-KRKRSDL2 还有 194 个未跟踪文件。`.local/recovery/20260731-glibc234` 只是旧恢复点，
-不能代替 2026-08-03 的活动源码。下一轮 KRKR2 修改前应先在三个外部仓库建立可回滚
-提交或完整快照；该操作不需要编译。
+`D:\Works\Tyranor\OnscripterYuri`。FFmpeg 头文件来自
+`D:\Works\ROCgalgame-ffmpeg-n6-headers`。四个外部工作树必须保持在各自 lock
+文件记录的干净提交；清理 ROCgalgame 时不能触碰它们。
 
 ## 必须保留
 
@@ -47,8 +43,8 @@ KRKRSDL2 还有 194 个未跟踪文件。`.local/recovery/20260731-glibc234` 只
 `games/`、`game_covers/`、`saves/` 和运行时 `cache/` 是本机用户数据，
 构建、打包和日常清理都不得覆盖。发布脚本只创建空目录，不会把这些内容打包。
 
-`.local/recovery/` 保存外部脏工作树的少量恢复快照。只有在外部核心改动已经
-提交或完整转成可重放补丁后才能删除。
+`.local/` 只保留当前基线的真机验收证据和最新源码状态报告。源码恢复依赖私有
+fork 的提交历史和 lock 文件，不保留脏工作树副本。
 
 ## 可清理内容
 
@@ -62,9 +58,8 @@ KRKRSDL2 还有 194 个未跟踪文件。`.local/recovery/20260731-glibc234` 只
 - `_tmp_*`、Python `__pycache__`、旧测试可执行文件和重复清理归档；
 - H700 `Downloads/` 中已经被更高版本替代的本地 ZIP。
 
-GKD `Downloads/` 是应用内公开更新通道。Git 只允许其中的顶层 `.zip` 和
-`.zip.sha256`，隐藏 staging 和内部临时文件始终忽略。历史已跟踪版本不能作为
-普通垃圾删除。
+GKD `Downloads/` 是本地应用更新通道，不进入 Git。只保留 lock 文件引用的基线
+包、当前已验收包及其 `.sha256`；隐藏 staging、旧版本和失败包可直接删除。
 
 ## 打包矩阵
 
@@ -91,7 +86,7 @@ GKD `Downloads/` 是应用内公开更新通道。Git 只允许其中的顶层 `
 ## KRKR2 实机循环
 
 1. 在真机上用现有核心和最小测试项目稳定复现问题，保存必要日志即可。
-2. 在外部 `krkr2` 工作树做单一能力修复，并同步维护仓库中的可重放补丁。
+2. 在锁定的 KRKR2 私有 fork 做单一能力修复，一个修复一个提交，不维护重复 patch。
 3. 用户明确批准后，仅运行 `build_krkr2.ps1 -Mode FastBuild -Jobs 1`，复用现有
    CMake/vcpkg/sysroot，不重新配置依赖图。
 4. 使用 `deploy_krkr2.ps1` 原子替换真机 KRKR2；脚本会校验 SHA-256 并保留回滚副本。

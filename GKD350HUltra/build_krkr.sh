@@ -55,19 +55,19 @@ command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 || { echo "[krkr_build] ERROR: 
 test -f "$KRKR_ROOT/CMakeLists.txt" || { echo "[krkr_build] ERROR: invalid KRKR_ROOT: $KRKR_ROOT"; exit 1; }
 bash "$SELF_DIR/verify_source_provenance.sh" "$KRKR_ROOT" krkrsdl2 "$KRKR_PORT_LOCK"
 grep -q 'OPTION_USE_SYSTEM_SDL2' "$KRKR_ROOT/CMakeLists.txt" || {
-  echo "[krkr_build] ERROR: KRKR source patch missing. See $SELF_DIR/patches/README.md"
+  echo "[krkr_build] ERROR: locked KRKRSDL2 source is missing system SDL2 support"
   exit 1
 }
 grep -q 'configured.length() > 4' "$KRKR_ROOT/external/krkrz/visual/FontSystem.cpp" || {
-  echo "[krkr_build] ERROR: font patch missing. See $SELF_DIR/patches/README.md"
+  echo "[krkr_build] ERROR: locked KRKRSDL2 source is missing font-path compatibility"
   exit 1
 }
 grep -q 'TVPAutoMountProjectXP3Archives' "$KRKR_ROOT/external/krkrz/base/StorageIntf.cpp" || {
-  echo "[krkr_build] ERROR: XP3 auto-mount patch missing. See $SELF_DIR/patches/README.md"
+  echo "[krkr_build] ERROR: locked KRKRSDL2 source is missing XP3 auto-mount support"
   exit 1
 }
 grep -q 'return TVPProjectDir' "$KRKR_ROOT/src/core/base/sdl2/StorageImpl.cpp" || {
-  echo "[krkr_build] ERROR: project app-path patch missing. See $SELF_DIR/patches/README.md"
+  echo "[krkr_build] ERROR: locked KRKRSDL2 source is missing project app-path support"
   exit 1
 }
 if [ ! -d "$SYSROOT/usr/include" ] || [ ! -d "$SYSROOT/usr/lib" ]; then
