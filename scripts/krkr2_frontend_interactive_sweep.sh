@@ -4,10 +4,12 @@ set -u
 APP_DIR="${APP_DIR:-/storage/games-external/app/ROCgalgame}"
 GAMES_DIR="${GAMES_DIR:-$APP_DIR/games}"
 HELPER="${HELPER:-/tmp/gkd_uinput_sequence.py}"
+POINTER_HELPER="${POINTER_HELPER:-/tmp/gkd_uinput_click.py}"
 RUN_SECONDS="${RUN_SECONDS:-70}"
 RSS_LIMIT_KB="${RSS_LIMIT_KB:-950000}"
 CAPTURE_SECONDS="${CAPTURE_SECONDS:-3 12 22 36 55}"
 CORE_FILTER="${CORE_FILTER:-krkr}"
+FORCE_KRKR_RUNTIME="${FORCE_KRKR_RUNTIME:-}"
 MIN_NONBLACK_RATIO="${MIN_NONBLACK_RATIO:-0.01}"
 REQUIRE_FRAME_DIFF="${REQUIRE_FRAME_DIFF:-1}"
 REQUIRE_SWAP_FRAME="${REQUIRE_SWAP_FRAME:-1}"
@@ -22,8 +24,8 @@ DISCOVER_ONLY="${DISCOVER_ONLY:-0}"
 UNLOCK_BEFORE_CASE="${UNLOCK_BEFORE_CASE:-1}"
 HIDE_IUX_BEFORE_CASE="${HIDE_IUX_BEFORE_CASE:-0}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-TEST_ROOT="${TEST_ROOT:-/tmp/rocgalgame-krkr2-frontend-sweep-$STAMP}"
 LOG_DIR="${LOG_DIR:-$APP_DIR/logs/krkr2-frontend-sweep-$STAMP}"
+TEST_ROOT="${TEST_ROOT:-/tmp/rocgalgame-krkr2-frontend-sweep-$STAMP}"
 SUMMARY="$LOG_DIR/summary.tsv"
 ALLOW_GAME_COPY="${ALLOW_GAME_COPY:-0}"
 DISCOVERED=0
@@ -32,6 +34,7 @@ FAILED_COUNT=0
 CURRENT_FRONTEND_PID=""
 CURRENT_UINPUT_PID=""
 CURRENT_GAME_MOUNT=""
+CURRENT_GAME_MOUNT_LIST=""
 
 kill_pid_list() {
   signal="$1"
@@ -83,6 +86,20 @@ kill_stale_uinput_helpers() {
   fi
 }
 
+unmount_current_game_view() {
+  if [ -n "$CURRENT_GAME_MOUNT_LIST" ] && [ -f "$CURRENT_GAME_MOUNT_LIST" ]; then
+    while IFS= read -r mounted_item; do
+      [ -n "$mounted_item" ] && umount "$mounted_item" 2>/dev/null || true
+    done <"$CURRENT_GAME_MOUNT_LIST"
+    rm -f "$CURRENT_GAME_MOUNT_LIST"
+    CURRENT_GAME_MOUNT_LIST=""
+  fi
+  if [ -n "$CURRENT_GAME_MOUNT" ]; then
+    umount "$CURRENT_GAME_MOUNT" 2>/dev/null || true
+    CURRENT_GAME_MOUNT=""
+  fi
+}
+
 cleanup() {
   if [ -n "$CURRENT_FRONTEND_PID" ] && kill -0 "$CURRENT_FRONTEND_PID" 2>/dev/null; then
     kill -TERM "$CURRENT_FRONTEND_PID" 2>/dev/null || true
@@ -92,11 +109,8 @@ cleanup() {
   if [ -n "$CURRENT_UINPUT_PID" ] && kill -0 "$CURRENT_UINPUT_PID" 2>/dev/null; then
     kill -TERM "$CURRENT_UINPUT_PID" 2>/dev/null || true
   fi
-  if [ -n "$CURRENT_GAME_MOUNT" ]; then
-    umount "$CURRENT_GAME_MOUNT" 2>/dev/null || true
-    CURRENT_GAME_MOUNT=""
-  fi
   kill_runtime_processes
+  unmount_current_game_view
 }
 trap cleanup EXIT INT TERM
 
@@ -108,6 +122,10 @@ test -f "$HELPER" || { echo "[frontend_sweep] missing helper: $HELPER"; exit 2; 
 case "$CORE_FILTER" in
   all|ons|krkr) ;;
   *) echo "[frontend_sweep] CORE_FILTER must be all, ons, or krkr"; exit 2 ;;
+esac
+case "$FORCE_KRKR_RUNTIME" in
+  ""|krkr2|krkrsdl2) ;;
+  *) echo "[frontend_sweep] FORCE_KRKR_RUNTIME must be krkr2 or krkrsdl2"; exit 2 ;;
 esac
 mkdir -p "$TEST_ROOT" "$LOG_DIR"
 printf 'id\ttitle\tsource\tstatus\tcore_seen\tcore_early_exit\tfrontend_exit\tcore_log\tfrontend_log\tcaptures\tmax_core_rss_kb\tmax_frontend_rss_kb\tsave_files\tnotes\n' >"$SUMMARY"
@@ -187,6 +205,11 @@ detect_game_core() {
 
 expected_krkr_runtime() {
   candidate_dir="$1"
+  case "$FORCE_KRKR_RUNTIME" in
+    krkr2|krkrsdl2) printf '%s\n' "$FORCE_KRKR_RUNTIME"; return ;;
+    "") ;;
+    *) echo "[frontend_sweep] invalid FORCE_KRKR_RUNTIME=$FORCE_KRKR_RUNTIME" >&2; return 1 ;;
+  esac
   runtime="$(ini_value "$candidate_dir/game.ini" runtime | tr '[:upper:]' '[:lower:]')"
   [ -n "$runtime" ] ||
     runtime="$(ini_value "$candidate_dir/game.ini" krkr_runtime | tr '[:upper:]' '[:lower:]')"
@@ -212,13 +235,65 @@ make_front_root() {
   front_root="$1"
   source_dir="$2"
   title="$3"
+  core_kind="$4"
   mkdir -p "$front_root/games" "$front_root/covers" "$front_root/saves" "$front_root/cache" "$front_root/logs"
-  for name in rocgalgame_sdl cores fonts sounds lib lib_system_sdl ui.pack native_keymap.ini rocgalgame.png icon.png; do
+  for name in rocgalgame_sdl cores fonts sounds lib lib_system_sdl ui.pack mali_platform.config native_keymap.ini rocgalgame.png icon.png; do
     [ -e "$APP_DIR/$name" ] || continue
     ln -s "$APP_DIR/$name" "$front_root/$name" 2>/dev/null || true
   done
-  game_target="$front_root/games/$title"
+  game_dir_name="$title"
+  if [ "$core_kind" = "krkr" ] && [ -n "$FORCE_KRKR_RUNTIME" ]; then
+    # KRKRSDL2 canonicalizes the project path to lowercase on Linux.
+    game_dir_name="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')"
+  fi
+  game_target="$front_root/games/$game_dir_name"
   mkdir -p "$game_target"
+  if [ "$core_kind" = "krkr" ] && [ -n "$FORCE_KRKR_RUNTIME" ]; then
+    for source_item in "$source_dir"/*; do
+      [ -e "$source_item" ] || continue
+      source_name="$(basename "$source_item")"
+      [ "$source_name" = "game.ini" ] && continue
+      target_item="$game_target/$source_name"
+      source_name_lower="$(printf '%s' "$source_name" | tr '[:upper:]' '[:lower:]')"
+      if [ -d "$source_item" ]; then
+        case "$source_name_lower" in
+          *save*)
+            mkdir -p "$target_item"
+            continue
+            ;;
+        esac
+      fi
+      if [ -f "$source_item" ]; then
+        : >"$target_item"
+      else
+        mkdir -p "$target_item"
+      fi
+      if mount --bind "$source_item" "$target_item" 2>/dev/null ||
+         mount -o bind "$source_item" "$target_item" 2>/dev/null; then
+        mount -o remount,bind,ro "$target_item" 2>/dev/null || true
+        printf '%s\n' "$target_item" >>"$CURRENT_GAME_MOUNT_LIST"
+      else
+        if [ -f "$source_item" ]; then
+          rm -f "$target_item"
+        else
+          rmdir "$target_item" 2>/dev/null || true
+        fi
+        ln -s "$source_item" "$target_item" 2>/dev/null || true
+      fi
+    done
+    if [ -f "$source_dir/game.ini" ]; then
+      awk -F= '
+        {
+          key=$1
+          gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+          key=tolower(key)
+          if (key != "core" && key != "runtime" && key != "krkr_runtime") print
+        }
+      ' "$source_dir/game.ini" >"$game_target/game.ini"
+    fi
+    printf 'core=krkr\nruntime=%s\n' "$FORCE_KRKR_RUNTIME" >>"$game_target/game.ini"
+    return 0
+  fi
   if mount --bind "$source_dir" "$game_target" 2>/dev/null ||
      mount -o bind "$source_dir" "$game_target" 2>/dev/null; then
     CURRENT_GAME_MOUNT="$game_target"
@@ -358,12 +433,28 @@ print(f"{ratio:.8f} {hashlib.sha256(pixels).hexdigest()}")
 PY
 }
 
+has_terminal_error() {
+  for candidate_log in "$@"; do
+    [ -f "$candidate_log" ] || continue
+    if tr -d '\000' <"$candidate_log" | grep -Eqi \
+      'Unhandled exception|Segmentation fault|SIGSEGV|std::terminate|core dumped|Script exception raised|Cannot load Plugin|PSBArray bad'; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 validate_render_captures() {
   capture_ok=0
   nonblack_ok=0
   frame_diff_ok=0
-  first_hash=""
+  late_hash=""
   final_hash=""
+  final_ratio="0"
+  last_capture_second=""
+  for capture_second in $CAPTURE_SECONDS; do
+    last_capture_second="$capture_second"
+  done
   for capture in "$capture_dir"/screen-*.ppm; do
     [ -s "$capture" ] || continue
     metrics="$(capture_metrics "$capture" 2>/dev/null || true)"
@@ -371,16 +462,16 @@ validate_render_captures() {
     ratio="${metrics%% *}"
     hash="${metrics#* }"
     capture_ok=1
-    if awk -v value="$ratio" -v minimum="$MIN_NONBLACK_RATIO" \
-      'BEGIN { exit !(value >= minimum) }'; then
-      nonblack_ok=1
-    fi
     case "$capture" in
-      *final.ppm) final_hash="$hash" ;;
-      *) [ -n "$first_hash" ] || first_hash="$hash" ;;
+      *final.ppm) final_hash="$hash"; final_ratio="$ratio" ;;
+      *"screen-${last_capture_second}s.ppm") late_hash="$hash" ;;
     esac
   done
-  if [ -n "$first_hash" ] && [ -n "$final_hash" ] && [ "$first_hash" != "$final_hash" ]; then
+  if awk -v value="$final_ratio" -v minimum="$MIN_NONBLACK_RATIO" \
+    'BEGIN { exit !(value >= minimum) }'; then
+    nonblack_ok=1
+  fi
+  if [ -n "$late_hash" ] && [ -n "$final_hash" ] && [ "$late_hash" != "$final_hash" ]; then
     frame_diff_ok=1
   fi
 }
@@ -425,6 +516,18 @@ write_pointer_request_if_due() {
     rest="${rest#*:}"
     y="${rest%%:*}"
     [ "$elapsed" = "$second" ] || continue
+    if [ "${expected_runtime:-}" = "krkrsdl2" ] &&
+       command -v swaymsg >/dev/null 2>&1 && [ -S "$SWAYSOCK" ]; then
+      swaymsg -q -s "$SWAYSOCK" "seat seat0 cursor set $x $y" >/dev/null 2>&1 || true
+      if [ -f "$POINTER_HELPER" ]; then
+        python3 "$POINTER_HELPER" >/dev/null 2>&1 || true
+      else
+        swaymsg -q -s "$SWAYSOCK" "seat seat0 cursor press button1" >/dev/null 2>&1 || true
+        sleep 0.15
+        swaymsg -q -s "$SWAYSOCK" "seat seat0 cursor release button1" >/dev/null 2>&1 || true
+      fi
+      continue
+    fi
     tmp="$request.tmp"
     printf '%s %s 1\n' "$x" "$y" >"$tmp"
     mv "$tmp" "$request"
@@ -463,6 +566,7 @@ run_case() {
 
   kill_stale_uinput_helpers
   kill_runtime_processes
+  unmount_current_game_view
   hide_iux_if_needed
   unlock_device_if_needed
 
@@ -478,8 +582,11 @@ run_case() {
   mkdir -p "$case_dir" "$capture_dir"
   : >"$core_capture_request"
   : >"$pointer_request"
-  make_front_root "$front_root" "$source_dir" "$title"
+  CURRENT_GAME_MOUNT_LIST="$case_dir/game-view-mounts.list"
+  : >"$CURRENT_GAME_MOUNT_LIST"
+  make_front_root "$front_root" "$source_dir" "$title" "$core_kind"
   if [ "$?" -ne 0 ]; then
+    unmount_current_game_view
     FAILED_COUNT=$((FAILED_COUNT + 1))
     printf '%s\t%s\t%s\t%s\t0\t0\t0\t\t%s\t%s\t0\t0\t0\t%s\n' \
       "$id" "$title" "$source_dir" "setup_failed" "$frontend_log" \
@@ -519,6 +626,8 @@ run_case() {
     ROCGALGAME_KRKR_PRESENTATION_PROBE="${ROCGALGAME_KRKR_PRESENTATION_PROBE:-1}" \
     ROCGALGAME_KRKR_SWAP_PROBE="${ROCGALGAME_KRKR_SWAP_PROBE:-1}" \
     ROCGALGAME_KRKR_EGL_PROBE="${ROCGALGAME_KRKR_EGL_PROBE:-1}" \
+    MALI_PLATFORM_CONFIG="${MALI_PLATFORM_CONFIG:-$front_root/mali_platform.config}" \
+    MALI_WAYLAND_DMABUF_PROTOCOL="${MALI_WAYLAND_DMABUF_PROTOCOL:-1}" \
     LD_LIBRARY_PATH="$APP_DIR/lib_system_sdl:$APP_DIR/lib:/usr/lib32:/usr/lib:/lib:/mnt/vendor/lib" \
     "$APP_DIR/rocgalgame_sdl" >"$frontend_log" 2>&1 &
   CURRENT_FRONTEND_PID=$!
@@ -606,12 +715,10 @@ run_case() {
   wait "$CURRENT_UINPUT_PID" 2>/dev/null || true
   CURRENT_UINPUT_PID=""
   kill_runtime_processes
-  if [ -n "$CURRENT_GAME_MOUNT" ]; then
-    umount "$CURRENT_GAME_MOUNT" 2>/dev/null || true
-    CURRENT_GAME_MOUNT=""
-  fi
+  unmount_current_game_view
 
   core_log="$(find "$front_root/logs/$core_kind" -type f -name '*.log' 2>/dev/null | sort | tail -n 1)"
+  console_log="$(find "$front_root/saves/krkr" -type f -name 'krkr.console.log' 2>/dev/null | sort | tail -n 1)"
   save_files="$(find "$front_root/saves" -type f -print 2>/dev/null | wc -l | tr -d ' ')"
   notes="core=${core_kind};runtime=${expected_runtime};last_core_seen=${last_core_seen};frontend_early_exit=${frontend_early_exit}"
   status=pass
@@ -621,7 +728,7 @@ run_case() {
     status=frontend_early_exit
   elif [ "$core_early_exit" -eq 1 ]; then
     status=core_early_exit
-  elif grep -Eqi 'An exception occurred|Unhandled exception|Segmentation fault|SIGSEGV|std::terminate|core dumped' "$core_log" "$frontend_log" 2>/dev/null; then
+  elif has_terminal_error "$core_log" "$console_log" "$frontend_log"; then
     status=exception_in_log
   elif [ "$max_core_rss" -gt "$RSS_LIMIT_KB" ] && [ "$RSS_LIMIT_KB" -gt 0 ]; then
     status=rss_limit
@@ -645,7 +752,7 @@ run_case() {
     fi
   fi
   validate_render_captures
-  notes="${notes};gl_ok=${gl_ok};fbo_ok=${fbo_ok};swap_ok=${swap_ok};capture_ok=${capture_ok};nonblack_ok=${nonblack_ok};frame_diff_ok=${frame_diff_ok}"
+  notes="${notes};gl_ok=${gl_ok};fbo_ok=${fbo_ok};swap_ok=${swap_ok};capture_ok=${capture_ok};nonblack_ok=${nonblack_ok};frame_diff_ok=${frame_diff_ok};final_nonblack_ratio=${final_ratio};console_log=${console_log}"
   if [ "$status" = "pass" ] && [ "$gl_ok" -ne 1 ]; then
     status=gl_context_invalid
   elif [ "$status" = "pass" ] && [ "$fbo_ok" -ne 1 ]; then
