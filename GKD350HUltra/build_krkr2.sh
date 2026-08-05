@@ -20,11 +20,11 @@ LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 FMOD_STUB_SOURCE="$SELF_DIR/compat/fmod_stub.cpp"
 FMOD_STUB_BUILD_DIR="$BUILD_DIR/compat/fmod_stub"
 MODE="${KRKR2_BUILD_MODE:-Probe}"
-BUILD_JOBS="${KRKR2_BUILD_JOBS:-1}"
-SAFE_CPU_SET="${KRKR2_SAFE_CPU_SET:-0}"
+BUILD_JOBS="${KRKR2_BUILD_JOBS:-3}"
+SAFE_CPU_SET="${KRKR2_SAFE_CPU_SET:-0-2}"
 WORK_SECONDS="${KRKR2_WORK_SECONDS:-300}"
-COOL_SECONDS="${KRKR2_COOL_SECONDS:-60}"
-PERIODIC_COOLING="${KRKR2_PERIODIC_COOLING:-0}"
+COOL_SECONDS="${KRKR2_COOL_SECONDS:-240}"
+PERIODIC_COOLING="${KRKR2_PERIODIC_COOLING:-1}"
 NICE_LEVEL="${KRKR2_NICE_LEVEL:-15}"
 IO_PRIORITY="${KRKR2_IO_PRIORITY:-7}"
 CMAKE_BIN="${CMAKE_BIN:-$SELF_DIR/tools/cmake/bin/cmake}"
@@ -32,6 +32,11 @@ WAYLAND_PKG_CONFIG_DIR="$SELF_DIR/pkgconfig-wayland"
 USE_CCACHE="${KRKR2_USE_CCACHE:-Auto}"
 LINKER="${KRKR2_LINKER:-Auto}"
 CCACHE_DIR="${KRKR2_CCACHE_DIR:-$BUILD_ROOT/ccache/krkr2}"
+BINARY_CACHE_ONLY="${KRKR2_BINARY_CACHE_ONLY:-0}"
+MANIFEST_INSTALL="${KRKR2_MANIFEST_INSTALL:-1}"
+DEPENDENCY_LOCK="${KRKR2_DEPENDENCY_LOCK:-$REPO_ROOT/GKD350HUltra/krkr2-vcpkg-dependencies.lock.json}"
+MAX_RECOMPILE="${KRKR2_MAX_RECOMPILE:-20}"
+CHECK_ONLY="${KRKR2_CHECK_ONLY:-0}"
 
 export GKD_SYSROOT="$SYSROOT"
 export PKG_CONFIG_SYSROOT_DIR="$SYSROOT"
@@ -54,6 +59,18 @@ case "$USE_CCACHE" in Auto|On|Off) ;; *)
 esac
 case "$LINKER" in Auto|mold|lld|bfd) ;; *)
   echo "[krkr2_build] ERROR: KRKR2_LINKER must be Auto, mold, lld, or bfd"; exit 2 ;;
+esac
+case "$BINARY_CACHE_ONLY" in 0|1) ;; *)
+  echo "[krkr2_build] ERROR: KRKR2_BINARY_CACHE_ONLY must be 0 or 1"; exit 2 ;;
+esac
+case "$MANIFEST_INSTALL" in 0|1) ;; *)
+  echo "[krkr2_build] ERROR: KRKR2_MANIFEST_INSTALL must be 0 or 1"; exit 2 ;;
+esac
+case "$MAX_RECOMPILE" in
+  ''|*[!0-9]*) echo "[krkr2_build] ERROR: KRKR2_MAX_RECOMPILE must be a non-negative integer"; exit 2 ;;
+esac
+case "$CHECK_ONLY" in 0|1) ;; *)
+  echo "[krkr2_build] ERROR: KRKR2_CHECK_ONLY must be 0 or 1"; exit 2 ;;
 esac
 
 test -x "$CMAKE_BIN" || { echo "[krkr2_build] ERROR: bundled CMake is missing: $CMAKE_BIN"; exit 1; }
@@ -250,8 +267,18 @@ case "$LINKER" in
     ;;
 esac
 case "$LINKER" in
-  mold) LINKER_FLAG="-fuse-ld=mold" ;;
-  lld) LINKER_FLAG="-fuse-ld=lld" ;;
+  mold)
+    if ! command -v aarch64-linux-gnu-ld.mold >/dev/null 2>&1; then
+      ln -sf "$(command -v mold)" /usr/local/bin/aarch64-linux-gnu-ld.mold
+    fi
+    LINKER_FLAG="-fuse-ld=mold"
+    ;;
+  lld)
+    if ! command -v aarch64-linux-gnu-ld.lld >/dev/null 2>&1; then
+      ln -sf "$(command -v ld.lld)" /usr/local/bin/aarch64-linux-gnu-ld.lld
+    fi
+    LINKER_FLAG="-fuse-ld=lld"
+    ;;
   bfd) LINKER_FLAG="" ;;
 esac
 
@@ -482,6 +509,7 @@ prepare_fmod_stub() {
   local stub_archive="$FMOD_STUB_BUILD_DIR/libfmod_stub.a"
   local math_abi_source="$FMOD_STUB_BUILD_DIR/glibc234_math_abi.c"
   local math_abi_object="$FMOD_STUB_BUILD_DIR/glibc234_math_abi.o"
+  local systemd_link_library="$SYSROOT/lib/aarch64-linux-gnu/libsystemd.so.0.32.0"
   local mali_link_library="$SYSROOT/lib/libmali.so"
   local link_file="$BUILD_DIR/CMakeFiles/krkr2.dir/link.txt"
   local patched_link_file="$link_file.rocgalgame.tmp"
@@ -496,6 +524,35 @@ prepare_fmod_stub() {
     echo "[krkr2_build] ERROR: Mali GLES implementation is missing: $mali_link_library"
     exit 1
   }
+  if [ "$CHECK_ONLY" = "1" ]; then
+    test -f "$stub_archive" && [ ! "$FMOD_STUB_SOURCE" -nt "$stub_archive" ] || {
+      echo "[krkr2_build] ERROR: cached FMOD compatibility stub is missing or stale"
+      exit 1
+    }
+    test -f "$math_abi_object" || {
+      echo "[krkr2_build] ERROR: cached glibc compatibility object is missing"
+      exit 1
+    }
+    test -f "$alpha_movie_object_path" || {
+      echo "[krkr2_build] ERROR: cached AlphaMovie object is missing"
+      exit 1
+    }
+    test -f "$systemd_link_library" || {
+      echo "[krkr2_build] ERROR: systemd compatibility library is missing"
+      exit 1
+    }
+    test -f "$link_file" &&
+      grep -Fq "$stub_archive" "$link_file" &&
+      grep -Fq "$math_abi_object" "$link_file" &&
+      grep -Fq "$systemd_link_library" "$link_file" &&
+      grep -Fq "$alpha_movie_object" "$link_file" &&
+      grep -Fq -- '-lSDL2 -lmali' "$link_file" || {
+        echo "[krkr2_build] ERROR: cached KRKR2 link command is not fully patched"
+        exit 1
+      }
+    echo "[krkr2_build] verified cached compatibility objects and link command"
+    return
+  fi
 
   mkdir -p "$FMOD_STUB_BUILD_DIR"
   if [ ! -f "$stub_archive" ] || [ "$FMOD_STUB_SOURCE" -nt "$stub_archive" ]; then
@@ -523,6 +580,7 @@ prepare_fmod_stub() {
       -e "s# $math_abi_object##g" \
       -e 's# [^ ]*/compat/fmod_stub/libfmod_stub\.a##g' \
       -e 's# [^ ]*/compat/fmod_stub/glibc234_math_abi\.o##g' \
+      -e 's# [^ ]*/libsystemd\.so\.0\.32\.0##g' \
       -e 's# -Wl,--wrap=hypot##g' \
       -e 's# -Wl,--wrap=hypotf##g' \
       -e "s# $SYSROOT/lib/aarch64-linux-gnu/libpthread.a# -lpthread#g" \
@@ -562,14 +620,24 @@ prepare_fmod_stub() {
       cat >"$math_abi_source" <<'EOF'
 extern double rocgalgame_hypot_glibc217(double, double);
 extern float rocgalgame_hypotf_glibc217(float, float);
+extern long rocgalgame_strtol_glibc217(const char *, char **, int);
 __asm__(".symver rocgalgame_hypot_glibc217,hypot@GLIBC_2.17");
 __asm__(".symver rocgalgame_hypotf_glibc217,hypotf@GLIBC_2.17");
+__asm__(".symver rocgalgame_strtol_glibc217,strtol@GLIBC_2.17");
 double __wrap_hypot(double x, double y) { return rocgalgame_hypot_glibc217(x, y); }
 float __wrap_hypotf(float x, float y) { return rocgalgame_hypotf_glibc217(x, y); }
+long __isoc23_strtol(const char *text, char **end, int base) {
+  return rocgalgame_strtol_glibc217(text, end, base);
+}
 EOF
       aarch64-linux-gnu-gcc --sysroot="$SYSROOT" -O2 -fPIC \
         -c "$math_abi_source" -o "$math_abi_object"
-      sed -i "\$ s#\$# -Wl,--wrap=hypot -Wl,--wrap=hypotf $math_abi_object -lm#" "$patched_link_file"
+      test -f "$systemd_link_library" || {
+        echo "[krkr2_build] ERROR: systemd compatibility library is missing: $systemd_link_library"
+        rm -f "$patched_link_file"
+        exit 1
+      }
+      sed -i "\$ s#\$# -Wl,--wrap=hypot -Wl,--wrap=hypotf $math_abi_object $systemd_link_library -lm#" "$patched_link_file"
     fi
     sed -i "\$ s#\$# -lSDL2 -lmali $stub_archive#" "$patched_link_file"
     if cmp -s "$link_file" "$patched_link_file"; then
@@ -591,10 +659,99 @@ build_krkr2_target() {
   fi
 }
 
+verify_recompile_budget() {
+  local initial_preview preview_file previous_preview previous_compiles current_compiles
+  local compile_count depend_command round converged compile_pattern
+  initial_preview="$(mktemp)"
+  preview_file="$(mktemp)"
+  previous_preview="$(mktemp)"
+  previous_compiles="$(mktemp)"
+  current_compiles="$(mktemp)"
+  compile_pattern='(ccache[[:space:]]+)?[^ ]*aarch64-linux-gnu-(gcc|g\+\+).* -c '
+  set +e
+  "$CMAKE_BIN" --build "$BUILD_DIR" --target krkr2 --parallel "$BUILD_JOBS" -- -n \
+    >"$initial_preview" 2>&1
+  local preview_status=$?
+  set -e
+  if [ "$preview_status" -ne 0 ]; then
+    cat "$initial_preview"
+    rm -f "$initial_preview" "$preview_file" "$previous_preview" \
+      "$previous_compiles" "$current_compiles"
+    echo "[krkr2_build] ERROR: incremental dry-run failed"
+    exit "$preview_status"
+  fi
+  cp "$initial_preview" "$previous_preview"
+  grep -E "$compile_pattern" "$initial_preview" | sort -u >"$previous_compiles" || true
+  converged=0
+  for round in 1 2 3 4 5 6 7 8; do
+    while IFS= read -r depend_command; do
+      (cd "$BUILD_DIR" && bash -c "$depend_command")
+    done < <(grep -E '(^|[[:space:]])gmake .*CMakeFiles/.+\.dir/depend$' "$previous_preview" | sort -u)
+    set +e
+    "$CMAKE_BIN" --build "$BUILD_DIR" --target krkr2 --parallel "$BUILD_JOBS" -- -n \
+      >"$preview_file" 2>&1
+    preview_status=$?
+    set -e
+    if [ "$preview_status" -ne 0 ]; then
+      cat "$preview_file"
+      rm -f "$initial_preview" "$preview_file" "$previous_preview" \
+        "$previous_compiles" "$current_compiles"
+      echo "[krkr2_build] ERROR: post-dependency incremental dry-run failed"
+      exit "$preview_status"
+    fi
+    grep -E "$compile_pattern" "$preview_file" | sort -u >"$current_compiles" || true
+    if cmp -s "$previous_compiles" "$current_compiles"; then
+      converged=1
+      break
+    fi
+    cp "$preview_file" "$previous_preview"
+    cp "$current_compiles" "$previous_compiles"
+  done
+  if [ "$converged" -ne 1 ]; then
+    rm -f "$initial_preview" "$preview_file" "$previous_preview" \
+      "$previous_compiles" "$current_compiles"
+    echo "[krkr2_build] ERROR: dependency dry-run did not converge"
+    exit 5
+  fi
+  compile_count="$(wc -l <"$current_compiles")"
+  compile_count="${compile_count//[[:space:]]/}"
+  echo "[krkr2_build] incremental dry-run compile_count=$compile_count limit=$MAX_RECOMPILE"
+  if [ "$compile_count" -gt "$MAX_RECOMPILE" ]; then
+    head -n 20 "$current_compiles"
+    rm -f "$initial_preview" "$preview_file" "$previous_preview" \
+      "$previous_compiles" "$current_compiles"
+    echo "[krkr2_build] REFUSED: incremental compile exceeds KRKR2_MAX_RECOMPILE"
+    exit 5
+  fi
+  rm -f "$initial_preview" "$preview_file" "$previous_preview" \
+    "$previous_compiles" "$current_compiles"
+}
+
 configure_krkr2() {
   local linker_flags="${ROCGALGAME_GLIBC_BASELINE:+-Wl,--allow-shlib-undefined}"
   linker_flags="${linker_flags}${LINKER_FLAG:+ $LINKER_FLAG}"
-  run_low_load "$CMAKE_BIN" --fresh -S "$KRKR2_ROOT" -B "$BUILD_DIR" -G "Unix Makefiles" \
+  local vcpkg_install_options=""
+  if [ "$BINARY_CACHE_ONLY" = "1" ]; then
+    vcpkg_install_options="--only-binarycaching"
+  fi
+  local manifest_install=ON
+  [ "$MANIFEST_INSTALL" = "0" ] && manifest_install=OFF
+  if [ "$MANIFEST_INSTALL" = "0" ]; then
+    test -f "$DEPENDENCY_LOCK" || {
+      echo "[krkr2_build] ERROR: dependency lock is missing: $DEPENDENCY_LOCK"; exit 1;
+    }
+    test -f "$BUILD_DIR/vcpkg_installed/.rocgalgame-dependency-lock.sha256" || {
+      echo "[krkr2_build] ERROR: clean materialized dependency tree marker is missing"; exit 1;
+    }
+    expected_lock_hash="$(sha256sum "$DEPENDENCY_LOCK" | awk '{print $1}')"
+    grep -Fq "$expected_lock_hash  $(basename "$DEPENDENCY_LOCK")" \
+      "$BUILD_DIR/vcpkg_installed/.rocgalgame-dependency-lock.sha256" || {
+      echo "[krkr2_build] ERROR: materialized dependency tree does not match lock"; exit 1;
+    }
+  fi
+  local cmake_mode=()
+  [ -f "$BUILD_DIR/CMakeCache.txt" ] || cmake_mode=(--fresh)
+  run_low_load "$CMAKE_BIN" "${cmake_mode[@]}" -S "$KRKR2_ROOT" -B "$BUILD_DIR" -G "Unix Makefiles" \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN" \
     -DGKD_SYSROOT="$SYSROOT" \
     -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$TOOLCHAIN" \
@@ -602,6 +759,9 @@ configure_krkr2() {
     -DVCPKG_OVERLAY_PORTS="$OVERLAY_PORTS" \
     -DVCPKG_TARGET_TRIPLET="$TRIPLET" \
     -DVCPKG_HOST_TRIPLET=x64-linux \
+    -DVCPKG_MANIFEST_INSTALL="$manifest_install" \
+    -DVCPKG_INSTALL_OPTIONS="$vcpkg_install_options" \
+    -DCMAKE_FIND_PACKAGE_TARGETS_GLOBAL=FALSE \
     -DLINUX=ON \
     -DENABLE_TESTS=OFF \
     -DBUILD_TOOLS=OFF \
@@ -697,6 +857,11 @@ verify_fast_build_tree() {
   fi
   verify_rocgalgame_source_patches
   prepare_fmod_stub
+  verify_recompile_budget
+  if [ "$CHECK_ONLY" = "1" ]; then
+    echo "[krkr2_build] check-only completed; no compile or link command was run"
+    exit 0
+  fi
   echo "[krkr2_build] jobs=$BUILD_JOBS"
   set +e
   build_krkr2_target
@@ -726,6 +891,7 @@ verify_fast_build_tree() {
   aarch64-linux-gnu-strip --strip-unneeded "$RUNTIME_CORE_DIR/krkr2"
   if command -v perl >/dev/null 2>&1; then
     perl -0777 -pi -e 's#/workspace/#/srcroot__/#g' "$RUNTIME_CORE_DIR/krkr2"
+    perl -0777 -pi -e 's#/sources/#/srcroot/#g' "$RUNTIME_CORE_DIR/krkr2"
   fi
   rm -rf "$RUNTIME_CORE_DIR/Resources"
   cp -a "$KRKR2_RESOURCES" "$RUNTIME_CORE_DIR/Resources"
@@ -739,6 +905,7 @@ verify_fast_build_tree() {
     printf 'port_lock=%s\n' "$KRKR2_PORT_LOCK"
     printf 'port_repository=https://github.com/LPF970915/ROCgalgame-krkr2-port.git\n'
     printf 'source_dirty=%s\n' "$(git -c safe.directory="$KRKR2_ROOT" -c core.autocrlf=true -C "$KRKR2_ROOT" status --porcelain=v1 | wc -l | tr -d ' ')"
+    printf 'artifact_sha256=%s\n' "$(sha256sum "$RUNTIME_CORE_DIR/krkr2" | awk '{print $1}')"
     printf 'build_root=%s\n' "$BUILD_ROOT"
     printf 'triplet=%s\n' "$TRIPLET"
   } >"$meta_tmp"

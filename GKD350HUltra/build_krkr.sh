@@ -10,6 +10,7 @@ BUILD_DIR="${KRKR_BUILD_DIR:-$BUILD_ROOT/krkrsdl2}"
 DIST_ROOT="${DIST_ROOT:-$SELF_DIR/dist_glibc234}"
 RUNTIME_CORE_DIR="$DIST_ROOT/ROCgalgame/cores/krkr"
 KRKR_PORT_LOCK="${KRKR_PORT_LOCK:-$SELF_DIR/krkrsdl2-port.lock}"
+FFMPEG_HEADERS_LOCK="${FFMPEG_HEADERS_LOCK:-$SELF_DIR/ffmpeg-headers.lock}"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 LOG_FILE="$LOG_DIR/build_krkr_$(date +%Y%m%d_%H%M%S).log"
 TOOLCHAIN="$SELF_DIR/toolchain/aarch64-gkd.cmake"
@@ -105,8 +106,9 @@ if [ "$WEBP_LIBRARY" != "$WEBP_LINK_LIBRARY" ]; then
 fi
 WEBP_LIBRARY="$WEBP_LINK_LIBRARY"
 
-FFMPEG_INCLUDE_DIR="${KRKR_FFMPEG_INCLUDE_DIR:-/mnt/d/Works/Tyranor/FFmpeg-n6.0}"
+FFMPEG_INCLUDE_DIR="${KRKR_FFMPEG_INCLUDE_DIR:-/mnt/d/Works/ROCgalgame-ffmpeg-n6-headers}"
 FFMPEG_CONFIG_INCLUDE_DIR="${KRKR_FFMPEG_CONFIG_INCLUDE_DIR:-$SELF_DIR/ffmpeg_headers_overlay}"
+bash "$SELF_DIR/verify_source_provenance.sh" "$FFMPEG_INCLUDE_DIR" ffmpeg-headers "$FFMPEG_HEADERS_LOCK"
 if [ ! -f "$FFMPEG_INCLUDE_DIR/libavcodec/avcodec.h" ] || \
    [ ! -f "$FFMPEG_INCLUDE_DIR/libavformat/avformat.h" ] || \
    [ ! -f "$FFMPEG_CONFIG_INCLUDE_DIR/libavutil/avconfig.h" ]; then
@@ -250,10 +252,15 @@ fi
   nice -n 15 ionice -c 2 -n 7 "$CMAKE_BIN" --build "$BUILD_DIR" --config Release --parallel "$BUILD_JOBS"
   cp "$BUILD_DIR/krkrsdl2" "$RUNTIME_CORE_DIR/krkrsdl2"
   chmod +x "$RUNTIME_CORE_DIR/krkrsdl2"
+  if command -v perl >/dev/null 2>&1; then
+    perl -0777 -pi -e 's#/sources/#/srcroot/#g' "$RUNTIME_CORE_DIR/krkrsdl2"
+  fi
   mkdir -p "$DIST_ROOT/ROCgalgame/lib"
   cp -L "$WEBP_LIBRARY" "$DIST_ROOT/ROCgalgame/lib/libwebp.so.6"
   cp -L "$WEBP_LIBRARY" "$DIST_ROOT/ROCgalgame/lib/libwebp.so"
-  KRKR_ROOT="$KRKR_ROOT" DIST_ROOT="$DIST_ROOT" KRKR_PORT_LOCK="$KRKR_PORT_LOCK" \
+  KRKR_ROOT="$KRKR_ROOT" KRKR_FFMPEG_INCLUDE_DIR="$FFMPEG_INCLUDE_DIR" \
+    DIST_ROOT="$DIST_ROOT" KRKR_PORT_LOCK="$KRKR_PORT_LOCK" \
+    FFMPEG_HEADERS_LOCK="$FFMPEG_HEADERS_LOCK" \
     bash "$SELF_DIR/write_krkrsdl2_metadata.sh"
   echo "[krkr_build] installed=$RUNTIME_CORE_DIR/krkrsdl2"
   readelf -d "$RUNTIME_CORE_DIR/krkrsdl2" | grep -E 'NEEDED|RUNPATH|RPATH' || true

@@ -11,4 +11,7 @@ RUN apt-get update \
         xz-utils zip \
     && rm -rf /var/lib/apt/lists/*
 
+RUN ln -s /usr/bin/mold /usr/local/bin/aarch64-linux-gnu-ld.mold \
+    && ln -s /usr/bin/ld.lld /usr/local/bin/aarch64-linux-gnu-ld.lld
+
 WORKDIR /workspace

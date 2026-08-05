@@ -1,7 +1,9 @@
 param(
   [string]$ProjectRoot = "D:\Works\ROCgalgame",
+  [string]$OnsRoot = "D:\Works\Tyranor\OnscripterYuri",
   [string]$Krkr2Root = "D:\Works\ROCgalgame-krkr2-port",
   [string]$KrkrSdl2Root = "D:\Works\Tyranor\krkrsdl2",
+  [string]$FfmpegRoot = "D:\Works\ROCgalgame-ffmpeg-n6-headers",
   [switch]$RequireClean,
   [string]$ReportPath = ""
 )
@@ -21,7 +23,7 @@ function Get-RepoState([string]$Name, [string]$Path, [string]$LockPath, [string]
   }
   $head = (& git -C $Path rev-parse HEAD).Trim()
   $remote = (& git -C $Path config --get remote.origin.url 2>$null).Trim()
-  $dirty = @(& git -C $Path status --porcelain=v1)
+  $dirty = @(& git -c core.autocrlf=true -C $Path status --porcelain=v1)
   $locked = if ([string]::IsNullOrWhiteSpace($LockPath)) { $head } else { Get-LockValue $LockPath "source_commit" }
   $remoteOk = $remote -eq $ExpectedRemote -or $remote -eq ($ExpectedRemote + ".git")
   $commitOk = $head -eq $locked
@@ -42,10 +44,14 @@ function Get-RepoState([string]$Name, [string]$Path, [string]$LockPath, [string]
 
 $krkr2Lock = Join-Path $ProjectRoot "GKD350HUltra\krkr2-port.lock"
 $krkrSdl2Lock = Join-Path $ProjectRoot "GKD350HUltra\krkrsdl2-port.lock"
+$onsLock = Join-Path $ProjectRoot "GKD350HUltra\onsyuri-port.lock"
+$ffmpegLock = Join-Path $ProjectRoot "GKD350HUltra\ffmpeg-headers.lock"
 $states = @(
   Get-RepoState "rocgalgame" $ProjectRoot "" "https://github.com/LPF970915/ROCgalgame"
+  Get-RepoState "onsyuri" $OnsRoot $onsLock "https://github.com/LPF970915/ROCgalgame-onsyuri-port"
   Get-RepoState "krkr2" $Krkr2Root $krkr2Lock "https://github.com/LPF970915/ROCgalgame-krkr2-port"
   Get-RepoState "krkrsdl2" $KrkrSdl2Root $krkrSdl2Lock "https://github.com/LPF970915/ROCgalgame-krkrsdl2-port"
+  Get-RepoState "ffmpeg-headers" $FfmpegRoot $ffmpegLock "https://github.com/FFmpeg/FFmpeg"
 )
 
 $legacy = Join-Path (Split-Path $KrkrSdl2Root -Parent) "krkr2"

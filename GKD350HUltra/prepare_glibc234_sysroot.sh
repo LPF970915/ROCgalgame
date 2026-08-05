@@ -125,6 +125,21 @@ repair_windows_links() {
 }
 repair_windows_links
 
+# Absolute links copied from the device resolve against the build host instead
+# of the sysroot. Prefer an existing same-directory payload with the same name.
+repair_absolute_links() {
+  local link absolute_target local_target
+  while IFS= read -r -d '' link; do
+    absolute_target="$(readlink "$link")"
+    case "$absolute_target" in /*) ;; *) continue ;; esac
+    local_target="$(dirname "$link")/$(basename "$absolute_target")"
+    [ -f "$local_target" ] || continue
+    ln -sfn "$(basename "$local_target")" "$link"
+  done < <(find "$OUTPUT_SYSROOT/lib" "$OUTPUT_SYSROOT/usr/lib" \
+    -type l -name '*.so*' -print0 2>/dev/null)
+}
+repair_absolute_links
+
 mkdir -p "$OUTPUT_SYSROOT/usr/lib/pkgconfig"
 cat >"$OUTPUT_SYSROOT/usr/lib/pkgconfig/sdl2.pc" <<'EOF'
 prefix=/usr

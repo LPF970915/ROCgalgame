@@ -1,6 +1,7 @@
 param(
   [string]$Distro = "Ubuntu",
   [string]$KrkrRoot = "D:\Works\Tyranor\krkrsdl2",
+  [string]$FfmpegRoot = "D:\Works\ROCgalgame-ffmpeg-n6-headers",
   [ValidateRange(1, 2)]
   [int]$Jobs = 1,
   [ValidateSet("Fast", "Configure", "Full")]
@@ -23,10 +24,12 @@ if ($Clean) {
 }
 $scriptRoot = (Convert-Path $PSScriptRoot) -replace '\\', '/'
 $krkrRootPath = (Convert-Path $KrkrRoot) -replace '\\', '/'
+$ffmpegRootPath = (Convert-Path $FfmpegRoot) -replace '\\', '/'
 $wslDir = (wsl -d $Distro -- wslpath -a "$scriptRoot").Trim()
 $wslKrkrRoot = (wsl -d $Distro -- wslpath -a "$krkrRootPath").Trim()
-$cmd = "cd '$wslDir' && chmod +x ./build_krkr.sh && KRKR_ROOT='$wslKrkrRoot' KRKR_BUILD_JOBS='$Jobs' KRKR_BUILD_MODE='$Mode' KRKR_USE_CCACHE='$Ccache' KRKR_CONFIRM_HEAVY_BUILD=1 ./build_krkr.sh"
+$wslFfmpegRoot = (wsl -d $Distro -- wslpath -a "$ffmpegRootPath").Trim()
+$cmd = "cd '$wslDir' && chmod +x ./build_krkr.sh && KRKR_ROOT='$wslKrkrRoot' KRKR_FFMPEG_INCLUDE_DIR='$wslFfmpegRoot' KRKR_BUILD_JOBS='$Jobs' KRKR_BUILD_MODE='$Mode' KRKR_USE_CCACHE='$Ccache' KRKR_CONFIRM_HEAVY_BUILD=1 ./build_krkr.sh"
 wsl -d $Distro -u root -- bash -lc $cmd
 if ($LASTEXITCODE -ne 0) { throw "KRKR cross-build failed with exit code $LASTEXITCODE" }
 
-& (Join-Path $PSScriptRoot "write_build_checkpoint.ps1") -KrkrRoot $KrkrRoot
+& (Join-Path $PSScriptRoot "write_build_checkpoint.ps1") -KrkrRoot $KrkrRoot -FfmpegRoot $FfmpegRoot

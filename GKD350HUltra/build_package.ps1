@@ -50,7 +50,7 @@ $cmd = "cd '$wslDir' && chmod +x ./build_package.sh ./build_low_glibc.sh ./build
 wsl -d $Distro -u root -- bash -lc $cmd
 if ($LASTEXITCODE -ne 0) { throw "Package build failed with exit code $LASTEXITCODE" }
 
-& (Join-Path $PSScriptRoot "write_build_checkpoint.ps1") -KrkrRoot $KrkrRoot
+& (Join-Path $PSScriptRoot "write_build_checkpoint.ps1") -OnsRoot $OnsRoot -KrkrRoot $KrkrRoot
 
 $downloads = Join-Path $PSScriptRoot "Downloads"
 $packageName = "ROCgalgame ver$Version for GKD350H Ultra"

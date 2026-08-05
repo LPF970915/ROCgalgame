@@ -12,6 +12,7 @@ VCPKG_ROOT="$BUILD_ROOT/vcpkg"
 BUILD_JOBS="${GLIBC234_BUILD_JOBS:-3}"
 SAFE_CPU_SET="${GLIBC234_SAFE_CPU_SET:-0-2}"
 CHECK_ONLY="${GLIBC234_CHECK_ONLY:-0}"
+CONFIGURE_KRKR2="${GLIBC234_CONFIGURE_KRKR2:-0}"
 
 case "$BUILD_JOBS" in
   ''|*[!0-9]*) echo "[incremental] ERROR: GLIBC234_BUILD_JOBS must be an integer from 1 to 4"; exit 2 ;;
@@ -26,6 +27,9 @@ case "$TARGET" in Frontend|ONS|KRKRSDL2|KRKR2|All) ;; *)
 esac
 case "$CHECK_ONLY" in 0|1) ;; *)
   echo "[incremental] ERROR: GLIBC234_CHECK_ONLY must be 0 or 1"; exit 2 ;;
+esac
+case "$CONFIGURE_KRKR2" in 0|1) ;; *)
+  echo "[incremental] ERROR: GLIBC234_CONFIGURE_KRKR2 must be 0 or 1"; exit 2 ;;
 esac
 test -f "$SYSROOT/rocgalgame_glibc234_baseline.txt" || {
   echo "[incremental] ERROR: run the full glibc 2.34 baseline build first"; exit 1;
@@ -66,6 +70,20 @@ build_krkr2() {
   local krkr2_root="${KRKR2_ROOT:-/sources/krkr2}"
   local link_file="$krkr2_build/CMakeFiles/krkr2.dir/link.txt"
   local required dependency missing=0
+  if [ "$CONFIGURE_KRKR2" = "1" ]; then
+    [ "$TARGET" = "KRKR2" ] || {
+      echo "[incremental] ERROR: KRKR2 configure is only valid with Target=KRKR2"; exit 2;
+    }
+    echo "[incremental] rebuilding KRKR2 CMake metadata from binary cache only"
+    KRKR2_ROOT="$krkr2_root" \
+    KRKR2_BUILD_DIR="$BUILD_ROOT/krkr2" KRKR2_PROBE_BUILD_DIR="$BUILD_ROOT/krkr2-toolchain-probe" \
+    KRKR2_TARGET_TRIPLET=arm64-linux-gkd-glibc234 KRKR2_BUILD_MODE=Configure \
+    KRKR2_BUILD_JOBS="$BUILD_JOBS" KRKR2_CONFIRM_HEAVY_BUILD=1 KRKR2_SAFE_CPU_SET="$SAFE_CPU_SET" \
+    KRKR2_BINARY_CACHE_ONLY=0 KRKR2_MANIFEST_INSTALL=0 KRKR2_USE_CCACHE=On KRKR2_LINKER=mold \
+    KRKR2_PERIODIC_COOLING="${KRKR2_PERIODIC_COOLING:-1}" \
+      "$SELF_DIR/build_krkr2.sh"
+    return
+  fi
   for required in \
     "$VCPKG_ROOT/vcpkg" \
     "$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
@@ -108,7 +126,7 @@ build_krkr2() {
         continue
         ;;
       /*) ;;
-      *) dependency="$krkr2_build/$dependency" ;;
+      *) continue ;;
     esac
     if [ ! -f "$dependency" ]; then
       echo "[incremental] ERROR: cached KRKR2 link dependency is missing: $dependency"
@@ -120,17 +138,14 @@ build_krkr2() {
     exit 1
   }
   echo "[incremental] KRKR2 glibc 2.34 fast-build cache is complete"
-  if [ "$CHECK_ONLY" = "1" ]; then
-    echo "[incremental] check-only requested; no compile or link command was run"
-    return
-  fi
   local krkr2_mode
   krkr2_mode=FastBuild
   KRKR2_ROOT="$krkr2_root" \
   KRKR2_BUILD_DIR="$BUILD_ROOT/krkr2" KRKR2_PROBE_BUILD_DIR="$BUILD_ROOT/krkr2-toolchain-probe" \
   KRKR2_TARGET_TRIPLET=arm64-linux-gkd-glibc234 KRKR2_BUILD_MODE="$krkr2_mode" \
   KRKR2_BUILD_JOBS="$BUILD_JOBS" KRKR2_CONFIRM_HEAVY_BUILD=1 KRKR2_SAFE_CPU_SET="$SAFE_CPU_SET" \
-  KRKR2_PERIODIC_COOLING=0 KRKR2_WORK_SECONDS="${KRKR2_WORK_SECONDS:-300}" \
+  KRKR2_CHECK_ONLY="$CHECK_ONLY" \
+  KRKR2_PERIODIC_COOLING="${KRKR2_PERIODIC_COOLING:-1}" KRKR2_WORK_SECONDS="${KRKR2_WORK_SECONDS:-300}" \
   KRKR2_COOL_SECONDS="${KRKR2_COOL_SECONDS:-240}" \
     "$SELF_DIR/build_krkr2.sh"
   "$SELF_DIR/verify_glibc_compat.sh" "$DIST_ROOT/ROCgalgame/cores/krkr/krkr2"

@@ -1,6 +1,9 @@
 param(
+  [string]$OnsRoot = "D:\Works\Tyranor\OnscripterYuri",
   [string]$KrkrRoot = "D:\Works\Tyranor\krkrsdl2",
   [string]$Krkr2Root = "D:\Works\ROCgalgame-krkr2-port",
+  [string]$FfmpegRoot = "D:\Works\ROCgalgame-ffmpeg-n6-headers",
+  [string]$DockerImage = "rocgalgame-gkd350h-glibc234:22.04",
   [string]$OutputPath = "$PSScriptRoot\..\build\gkd350h-glibc234\build_checkpoint.json"
 )
 
@@ -35,20 +38,65 @@ function Get-GitState([string]$Path) {
   }
 }
 
+function Get-Metadata([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+  $fields = [ordered]@{}
+  foreach ($line in Get-Content -LiteralPath $Path) {
+    if ($line -match '^([^#=]+)=(.*)$') { $fields[$Matches[1]] = $Matches[2] }
+  }
+  return $fields
+}
+
+function Get-DockerImageState([string]$Image) {
+  $oldPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  $raw = & docker image inspect $Image --format '{{json .}}' 2>$null
+  $exitCode = $LASTEXITCODE
+  $ErrorActionPreference = $oldPreference
+  if ($exitCode -ne 0 -or -not $raw) { return $null }
+  $imageInfo = $raw | ConvertFrom-Json
+  return [ordered]@{
+    reference = $Image
+    id = $imageInfo.Id
+    repo_digests = @($imageInfo.RepoDigests)
+    created = $imageInfo.Created
+  }
+}
+
 $buildRoot = Join-Path $repoRoot "build\gkd350h-glibc234"
 $distRoot = Join-Path $PSScriptRoot "dist_glibc234\ROCgalgame"
 $frontendSource = Get-GitState $repoRoot
+$onsSource = Get-GitState $OnsRoot
 $krkrSource = Get-GitState $KrkrRoot
 $krkr2Source = Get-GitState $Krkr2Root
+$ffmpegSource = Get-GitState $FfmpegRoot
 $cmakeCache = Join-Path $buildRoot "krkrsdl2\CMakeCache.txt"
 $krkr2CmakeCache = Join-Path $buildRoot "krkr2\CMakeCache.txt"
+$onsMetadata = Join-Path $distRoot "cores\ons\onsyuri.build-meta"
+$krkrMetadata = Join-Path $distRoot "cores\krkr\krkrsdl2.build-meta"
+$krkr2Metadata = Join-Path $distRoot "cores\krkr\krkr2.build-meta"
 $checkpoint = [ordered]@{
-  schema = 2
+  schema = 3
   generated_at = (Get-Date).ToUniversalTime().ToString("o")
   source = [ordered]@{
     frontend = $frontendSource
+    ons = $onsSource
     krkr = $krkrSource
     krkr2 = $krkr2Source
+    ffmpeg_headers = $ffmpegSource
+  }
+  build_environment = [ordered]@{
+    container_root = "/workspace"
+    docker_image = Get-DockerImageState $DockerImage
+    target_triplet = "arm64-linux-gkd-glibc234"
+    glibc_baseline = "2.34"
+  }
+  locks = [ordered]@{
+    ons_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "onsyuri-port.lock")
+    krkrsdl2_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "krkrsdl2-port.lock")
+    krkr2_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "krkr2-port.lock")
+    ffmpeg_headers_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "ffmpeg-headers.lock")
+    krkr2_vcpkg_sha256 = Get-HashOrNull (Join-Path $PSScriptRoot "krkr2-vcpkg-dependencies.lock.json")
   }
   cache = [ordered]@{
     frontend_objects = Test-Path -LiteralPath (Join-Path $buildRoot "frontend\obj")
@@ -64,15 +112,16 @@ $checkpoint = [ordered]@{
     krkr_sha256 = Get-HashOrNull (Join-Path $distRoot "cores\krkr\krkrsdl2")
     krkr2_sha256 = Get-HashOrNull (Join-Path $distRoot "cores\krkr\krkr2")
     krkr2_gl_sha256 = Get-HashOrNull (Join-Path $distRoot "cores\krkr\lib_krkr2\libGL.so.1")
-    krkr_source_commit = if ($krkrSource) { $krkrSource.commit } else { $null }
-    krkr2_source_commit = if ($krkr2Source) { $krkr2Source.commit } else { $null }
-    krkr2_build_meta = Test-Path -LiteralPath (Join-Path $distRoot "cores\krkr\krkr2.build-meta")
+    ons_build_meta = Get-Metadata $onsMetadata
+    krkr_build_meta = Get-Metadata $krkrMetadata
+    krkr2_build_meta = Get-Metadata $krkr2Metadata
   }
   build_policy = [ordered]@{
     default_krkr_mode = "Fast"
-    jobs = 1
-    priority = "nice 10"
-    full_rebuild_only_for = @("toolchain or ABI change", "incompatible CMake option change", "corrupt build cache", "major KRKR source restructuring")
+    jobs = 3
+    cpu_set = "0-2"
+    cooling_policy = "work 300s, cool 240s"
+    krkr2_max_recompile = 20
     require_clean_external_sources = $true
     fixed_container_root = "/workspace"
     compiler_cache = "ccache"
@@ -82,5 +131,5 @@ $checkpoint = [ordered]@{
 }
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputFullPath) | Out-Null
-$checkpoint | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $outputFullPath -Encoding UTF8
+$checkpoint | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $outputFullPath -Encoding UTF8
 Write-Host "[checkpoint] wrote $outputFullPath"

@@ -1,0 +1,4 @@
+# Machine-readable provenance for the FFmpeg 6 headers used by KRKRSDL2.
+repository=https://github.com/FFmpeg/FFmpeg.git
+source_commit=ea3d24bbe3c58b171e55fe2151fc7ffaca3ab3d2
+policy=read-only-header-input

@@ -1,0 +1,11 @@
+# Machine-readable ONScripterYuri port provenance for GKD release builds.
+repository=https://github.com/LPF970915/ROCgalgame-onsyuri-port.git
+source_commit=b51f0a771967f62e8c420dbc31cade7dba662f2a
+baseline_tag=rocgalgame-0.28-baseline
+baseline_package=GKD350HUltra/Downloads/ROCgalgame ver0.28 for GKD350H Ultra.zip
+baseline_package_sha256=5db38b1d4bbf504bda5979cb7c09d885a4a0c14a46ef919e6fc43c9116503495
+baseline_package_created_at=2026-08-03T16:36:09+08:00
+baseline_core_sha256=3a72475e595bbd6c9060d394a4e468252d1816ef654acf89cd888afd7ce9970c
+upstream_repository=https://github.com/YuriSizuku/OnscripterYuri.git
+upstream_commit=08f744b31cc1907b66a15f0402e62321a131ed81
+policy=no-push-to-upstream

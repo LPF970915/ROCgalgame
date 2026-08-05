@@ -1,0 +1,1595 @@
+{
+  "package_count": 153,
+  "packages": [
+    {
+      "abi": "9aa5edaa08691483cc74deb3009718549f96bbbb02952bbf44ce84c363d68112",
+      "archive": "9a/9aa5edaa08691483cc74deb3009718549f96bbbb02952bbf44ce84c363d68112.zip",
+      "archive_sha256": "3884f6a7a2a92dc0bc683d76c19530c278d24717f12210b16f3deed53f6ab25e",
+      "features": [],
+      "file_count": 495,
+      "name": "7zip",
+      "port_version": 1,
+      "version": "24.09"
+    },
+    {
+      "abi": "eb6bfa190b907fcb4875e59dd8d474f546a320eebf87abcc212b408740ae24e3",
+      "archive": "eb/eb6bfa190b907fcb4875e59dd8d474f546a320eebf87abcc212b408740ae24e3.zip",
+      "archive_sha256": "02df0cdde06ef06f5c69104671fa86a38123cfa731b43408aef70aa65c292658",
+      "features": [],
+      "file_count": 59,
+      "name": "alsa",
+      "port_version": 1,
+      "version": "1.2.15.3"
+    },
+    {
+      "abi": "a8a77607b8ac5de8edd9567cb01cbba79a1cd0d1e4d0ab17c67bbbfecd5ab9fa",
+      "archive": "a8/a8a77607b8ac5de8edd9567cb01cbba79a1cd0d1e4d0ab17c67bbbfecd5ab9fa.zip",
+      "archive_sha256": "ea5bade9876a23ff9ace00b76f8f74cfd97af6d24186e87ee61593718100fcac",
+      "features": [],
+      "file_count": 6,
+      "name": "argparse",
+      "port_version": 0,
+      "version": "3.2"
+    },
+    {
+      "abi": "b399384720ea60a43881879f42e54384bd530cda1e9b3b064278ccf6c44ae9e3",
+      "archive": "b3/b399384720ea60a43881879f42e54384bd530cda1e9b3b064278ccf6c44ae9e3.zip",
+      "archive_sha256": "364dd22550af2eeee1bc6b4dad65ebf93d18eaa614d37a798b581007c1bdaa90",
+      "features": [],
+      "file_count": 65,
+      "name": "asmjit",
+      "port_version": 0,
+      "version": "2025-10-13"
+    },
+    {
+      "abi": "8a1de83a8cc34e7494c84291583c24c07c1c6d9ce3ca765abd7cb1baa49a1647",
+      "archive": "8a/8a1de83a8cc34e7494c84291583c24c07c1c6d9ce3ca765abd7cb1baa49a1647.zip",
+      "archive_sha256": "e223dd3b867458ad9d5456798116a8d106ec37e34d95855d05c3235265871e42",
+      "features": [],
+      "file_count": 1,
+      "name": "at-spi2-atk",
+      "port_version": 2,
+      "version": "2.38.0"
+    },
+    {
+      "abi": "c7280abdf8fdfb5f8bac710032dca8927fa8e7bcae07af5053a8bc195bdca289",
+      "archive": "c7/c7280abdf8fdfb5f8bac710032dca8927fa8e7bcae07af5053a8bc195bdca289.zip",
+      "archive_sha256": "d914867c9efd66e2e0417a2adccdb706c5736dbdbfbd9b40174db0f311b2c554",
+      "features": [],
+      "file_count": 1,
+      "name": "at-spi2-core",
+      "port_version": 5,
+      "version": "2.44.1"
+    },
+    {
+      "abi": "5559343800e958722c72ddb99ef8f49bc0d1bb4cca90305afd2b62106dc5ed01",
+      "archive": "55/5559343800e958722c72ddb99ef8f49bc0d1bb4cca90305afd2b62106dc5ed01.zip",
+      "archive_sha256": "73c34033fbe975b4ae6cb7c2651494feb3561aa14464a809314ab1a292155803",
+      "features": [],
+      "file_count": 1,
+      "name": "atk",
+      "port_version": 11,
+      "version": "2.38.0"
+    },
+    {
+      "abi": "b5b3284fd7ff39316268ac5069b58e6c69558d0dc84db029bc9aa326554cda93",
+      "archive": "b5/b5b3284fd7ff39316268ac5069b58e6c69558d0dc84db029bc9aa326554cda93.zip",
+      "archive_sha256": "1d886efeb65f4b1593794f5b68b4d0c049cc6e3c12116d18e23283d4492fd097",
+      "features": [
+        "jit"
+      ],
+      "file_count": 45,
+      "name": "blend2d",
+      "port_version": 2,
+      "version": "2025-03-08"
+    },
+    {
+      "abi": "0c5c1490a71eda8e2c192adeda1e3da4fc609f29f099280947da235f744f9f12",
+      "archive": "0c/0c5c1490a71eda8e2c192adeda1e3da4fc609f29f099280947da235f744f9f12.zip",
+      "archive_sha256": "6d658fdc771c7c70975d0beff6586463ff4aa4143da97e8262a1361140a7b4b7",
+      "features": [],
+      "file_count": 91,
+      "name": "boost-algorithm",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "ffebb68122a7a3517b42536c2dbf462fa1d5e582a6dd87782311e7c73b99b15d",
+      "archive": "ff/ffebb68122a7a3517b42536c2dbf462fa1d5e582a6dd87782311e7c73b99b15d.zip",
+      "archive_sha256": "7ed1ae8c6f1b35ae2b8adfe7f9a23552bcbb02f3220a93ab83c760f150e4ecd1",
+      "features": [],
+      "file_count": 54,
+      "name": "boost-align",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "619895ae4dd36d1d9ba8da8fdde5d5bfb253f15ca9d0a3f70882fb7a999018d3",
+      "archive": "61/619895ae4dd36d1d9ba8da8fdde5d5bfb253f15ca9d0a3f70882fb7a999018d3.zip",
+      "archive_sha256": "59cec139c8cb360152620443cc1cc0c12e4a56cc5d92844503d3c1efd66c4560",
+      "features": [],
+      "file_count": 5,
+      "name": "boost-array",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "92839a70b80a99ad8dcf7312e8dd755909fe6ec5382bbcb8a68c453510d6f0a6",
+      "archive": "92/92839a70b80a99ad8dcf7312e8dd755909fe6ec5382bbcb8a68c453510d6f0a6.zip",
+      "archive_sha256": "4b115d52b42e593bafdf333031802fce7915570cd018088153148c739314c785",
+      "features": [],
+      "file_count": 8,
+      "name": "boost-assert",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "93087bf259136d3dac51bac6d807747cd3a1df00064ccc137feb2b234c1d6348",
+      "archive": "93/93087bf259136d3dac51bac6d807747cd3a1df00064ccc137feb2b234c1d6348.zip",
+      "archive_sha256": "cdaf7f11c7ee4450ba026b2e64fdcf5472a522cfc843a5dd24ac254162fffc29",
+      "features": [],
+      "file_count": 149,
+      "name": "boost-atomic",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "4e93c8404992ad360dfe67bcaed0013f38613caee87252af773c3230adafc40d",
+      "archive": "4e/4e93c8404992ad360dfe67bcaed0013f38613caee87252af773c3230adafc40d.zip",
+      "archive_sha256": "0cdb7e560b2048a1aecfaa73e8319f2d8200e91cc853436590d7414d12663695",
+      "features": [],
+      "file_count": 20,
+      "name": "boost-bind",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "082e69aa8fa8bdf122144a00a22afacaa9fc9bb46dd121ec0e37c33a2b17d39a",
+      "archive": "08/082e69aa8fa8bdf122144a00a22afacaa9fc9bb46dd121ec0e37c33a2b17d39a.zip",
+      "archive_sha256": "66a3281376eda9ed7a4d0fd4f89d2902f8dcd7f9408b759157244b1756db83d6",
+      "features": [],
+      "file_count": 45,
+      "name": "boost-charconv",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "8b537adb6f3b4e9e244b56bdc62134dca39179394dee1cfe43d45c06152019cb",
+      "archive": "8b/8b537adb6f3b4e9e244b56bdc62134dca39179394dee1cfe43d45c06152019cb.zip",
+      "archive_sha256": "987d5fc7fe3b0b5597598d1bf557795251964648319f4d5fdaeae2fd041efe26",
+      "features": [],
+      "file_count": 55,
+      "name": "boost-chrono",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "d8b9579e6c987ca88faf515df7462b5a661453939ea3b4ef13d438335b783f3c",
+      "archive": "d8/d8b9579e6c987ca88faf515df7462b5a661453939ea3b4ef13d438335b783f3c.zip",
+      "archive_sha256": "4a130f51e5f06484ec1c874a39f3521e2d7a22e6b6724a4084e791dd23b0fd69",
+      "features": [],
+      "file_count": 13,
+      "name": "boost-cmake",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "9c76994a4cb55c2e4c4af5556931ac9d22a0ef1417d406fd03f45089fcfbbd83",
+      "archive": "9c/9c76994a4cb55c2e4c4af5556931ac9d22a0ef1417d406fd03f45089fcfbbd83.zip",
+      "archive_sha256": "118ed9fa48228283cefab20c43a3ccbb5a4b42362213fb9a86164e883426e36b",
+      "features": [],
+      "file_count": 19,
+      "name": "boost-compat",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "ccda4a40be633ba4bc7f2c2972e5cb5c413d3ca0d0f6089e586cf99e1eb76663",
+      "archive": "cc/ccda4a40be633ba4bc7f2c2972e5cb5c413d3ca0d0f6089e586cf99e1eb76663.zip",
+      "archive_sha256": "fa56247b972a54a387472927b51f528fdf7eb8f30af7a9c8352928d7ccdec616",
+      "features": [],
+      "file_count": 20,
+      "name": "boost-concept-check",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "dbbc29b045993ef78bba09549a29702a3af2ff170b39052df4446ec7ab937631",
+      "archive": "db/dbbc29b045993ef78bba09549a29702a3af2ff170b39052df4446ec7ab937631.zip",
+      "archive_sha256": "32240de66ec54ecc8c8f11f376b26462a999894174c81684d41eb4423e5b84a7",
+      "features": [],
+      "file_count": 268,
+      "name": "boost-config",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "cd497f9cc3452276d9a2d9a2aaa7a0faa3eb0c2ab43095afaa97816da80bc12d",
+      "archive": "cd/cd497f9cc3452276d9a2d9a2aaa7a0faa3eb0c2ab43095afaa97816da80bc12d.zip",
+      "archive_sha256": "ee116cbc62bbfebded8c387b715dbba01d8351795dbf0f884f672a3da27f73d1",
+      "features": [],
+      "file_count": 120,
+      "name": "boost-container",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "b7bd2e9034d31bc44cdb98a41fdf332698244816616575603f1f35bfe2d46356",
+      "archive": "b7/b7bd2e9034d31bc44cdb98a41fdf332698244816616575603f1f35bfe2d46356.zip",
+      "archive_sha256": "dfb33b8b742834887cc5241e5a2b038575332c519b29d7b3c27f63cfdb0e020e",
+      "features": [],
+      "file_count": 24,
+      "name": "boost-container-hash",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "d4e654ca399b7f0b741704f2c03f9fdc23fe82b1481f229d70f84c16d3b50f38",
+      "archive": "d4/d4e654ca399b7f0b741704f2c03f9fdc23fe82b1481f229d70f84c16d3b50f38.zip",
+      "archive_sha256": "4c205fffbfd11a4eae39a12b5049f428af43fde7457028c2a9836b558f146065",
+      "features": [],
+      "file_count": 7,
+      "name": "boost-conversion",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "fd583dc6892eee3afbd94095e0e30f18ef4679afdfe04190d7beb33584082e58",
+      "archive": "fd/fd583dc6892eee3afbd94095e0e30f18ef4679afdfe04190d7beb33584082e58.zip",
+      "archive_sha256": "200980cff3119b86f6f90ec8e1a6720a1c0a0da2acdec2e21644240907fe2fd0",
+      "features": [],
+      "file_count": 85,
+      "name": "boost-core",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "b79b1e8e75713735cb6ef6a106ebc6cb2e8ebc5c906596ed64b80c98393d4ab5",
+      "archive": "b7/b79b1e8e75713735cb6ef6a106ebc6cb2e8ebc5c906596ed64b80c98393d4ab5.zip",
+      "archive_sha256": "2c2fe5e47e98be343b03c7ff9510393610df26ee5ae35703850cf89ee1c9d2d2",
+      "features": [],
+      "file_count": 111,
+      "name": "boost-date-time",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "0fbe73cb29795106d1fab96adb1134fd3d60538e4fa5a04b7598825337597721",
+      "archive": "0f/0fbe73cb29795106d1fab96adb1134fd3d60538e4fa5a04b7598825337597721.zip",
+      "archive_sha256": "de13efc04aa868fcfa1ada8f78a3f7cae782a74bf364dd32377e10b8679b1dbb",
+      "features": [],
+      "file_count": 26,
+      "name": "boost-describe",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "31c97a27df6378b63a56e7e1c7f60272e4e216b21384ad8a9b3c390c3e9aaaae",
+      "archive": "31/31c97a27df6378b63a56e7e1c7f60272e4e216b21384ad8a9b3c390c3e9aaaae.zip",
+      "archive_sha256": "ef79b8b33ec8bb45158ca39964354a4d109503c774045e9427ae0a8b9942b1ae",
+      "features": [],
+      "file_count": 28,
+      "name": "boost-detail",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "1e973860915c6fcf92745fa6e20720244591d8210ed28797da5482f9b8d21cfa",
+      "archive": "1e/1e973860915c6fcf92745fa6e20720244591d8210ed28797da5482f9b8d21cfa.zip",
+      "archive_sha256": "5b2cdb6a3a89cd8ae6a8a83a013b351ed9c6b08413a2dea77cfffad60a7ddfa8",
+      "features": [],
+      "file_count": 12,
+      "name": "boost-dynamic-bitset",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "5c063367a23fbafac112ed02555a0e303720ca9aaea1f29d8569c986005bd6b0",
+      "archive": "5c/5c063367a23fbafac112ed02555a0e303720ca9aaea1f29d8569c986005bd6b0.zip",
+      "archive_sha256": "06e6a0c9d54d3489b53b08354391f7479fb44337df3254cd0fcf2c8c00556ae9",
+      "features": [],
+      "file_count": 21,
+      "name": "boost-endian",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "b1d65d37e60191f10df6fb506d5d4ea13073b58c100f4f34f400eb4ef0e60903",
+      "archive": "b1/b1d65d37e60191f10df6fb506d5d4ea13073b58c100f4f34f400eb4ef0e60903.zip",
+      "archive_sha256": "1af37b2b9eb819f9f7f7d876fa060e41a6d66219ecfbee87045a8245f1bbacbf",
+      "features": [],
+      "file_count": 35,
+      "name": "boost-exception",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "f542ae3f7a5da6379e949f208025820b8c34347d82fc168f967fc7a84b44e975",
+      "archive": "f5/f542ae3f7a5da6379e949f208025820b8c34347d82fc168f967fc7a84b44e975.zip",
+      "archive_sha256": "7b4783e3d40956dd520a814ec9a20bd9bc4147e28ab0d4c8dafa2e8bbcab16e3",
+      "features": [],
+      "file_count": 21,
+      "name": "boost-function",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "9b68e57fbe82d7c33a8198ef530dab97a2bd089951c6ab51eb2f1ac765c315ed",
+      "archive": "9b/9b68e57fbe82d7c33a8198ef530dab97a2bd089951c6ab51eb2f1ac765c315ed.zip",
+      "archive_sha256": "6a09a89112d42eeebc76fce7b5a8a1106d20233565f5d0d7ae37e07153e60d3d",
+      "features": [],
+      "file_count": 80,
+      "name": "boost-function-types",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "6674f774229f5209468d6e93bb9a2b9569383d817219048a85df61cdfad7d5cd",
+      "archive": "66/6674f774229f5209468d6e93bb9a2b9569383d817219048a85df61cdfad7d5cd.zip",
+      "archive_sha256": "94d4f948c808d244a1a814ee2d618bf24dcdc4def0382be2ba7ca4f7f2ae8003",
+      "features": [],
+      "file_count": 14,
+      "name": "boost-functional",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "0f11e10e052e8b8b6bf0ccbb35279f26392a2b3a17de6fe90ad5ab28c3aa7353",
+      "archive": "0f/0f11e10e052e8b8b6bf0ccbb35279f26392a2b3a17de6fe90ad5ab28c3aa7353.zip",
+      "archive_sha256": "d6340b07818d70ae1f807972489fec0d27889adee875deb35e0e95d293cb7b2e",
+      "features": [],
+      "file_count": 1025,
+      "name": "boost-fusion",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "89925fa6ce143edebd749c73fb05b218c2f3c911e724b0bf7651bf566be2c097",
+      "archive": "89/89925fa6ce143edebd749c73fb05b218c2f3c911e724b0bf7651bf566be2c097.zip",
+      "archive_sha256": "504934a7a3a92d70cf0ad102c725f9002e4692fdfb643a82235538630e47203b",
+      "features": [],
+      "file_count": 7,
+      "name": "boost-headers",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "5fcff3b6a07b71581dc329c76513148d3947d98d4084e4bb852a441967a2a4bc",
+      "archive": "5f/5fcff3b6a07b71581dc329c76513148d3947d98d4084e4bb852a441967a2a4bc.zip",
+      "archive_sha256": "30394b4eeb5f634864cc3008cd699e73f95a5ddc56ad4cabc9fe6dc31401a82b",
+      "features": [],
+      "file_count": 17,
+      "name": "boost-integer",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "2036e250a01d1f30f701a4f36e97c00366835ceabac44af448c26e801d687600",
+      "archive": "20/2036e250a01d1f30f701a4f36e97c00366835ceabac44af448c26e801d687600.zip",
+      "archive_sha256": "6aea8089e49b501e1b8849e132f4e61e8ed2aa47d9100165457c45cfbd81d3da",
+      "features": [],
+      "file_count": 102,
+      "name": "boost-intrusive",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "c0b1994047d6ed984e179ede4ef70d19adcdddf9d23dfb7d89cf6883ca18e8ef",
+      "archive": "c0/c0b1994047d6ed984e179ede4ef70d19adcdddf9d23dfb7d89cf6883ca18e8ef.zip",
+      "archive_sha256": "a935661c56b746729f77c36bd0db0c01a9471a1a8ba8a36bf7757a74fd98ba8c",
+      "features": [],
+      "file_count": 12,
+      "name": "boost-io",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "f6e6a0f1aba08d939cff3ce5e4a0f64d5b84561ccfb50d0b6e7e9680e65a64a3",
+      "archive": "f6/f6e6a0f1aba08d939cff3ce5e4a0f64d5b84561ccfb50d0b6e7e9680e65a64a3.zip",
+      "archive_sha256": "ee215b6aaf1336f8f212e69e9abd61649dd9e6ad2c6ac797be78e73809309634",
+      "features": [
+        "bzip2",
+        "lzma",
+        "zlib",
+        "zstd"
+      ],
+      "file_count": 133,
+      "name": "boost-iostreams",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "17e758d8297d513aca5bd719f18e22823b693521f4ae233112ec1328ca0f56de",
+      "archive": "17/17e758d8297d513aca5bd719f18e22823b693521f4ae233112ec1328ca0f56de.zip",
+      "archive_sha256": "ff4f619143524692cfa03f77ad598b28151549acc3a4f2d9a6fad52f3fd7ae20",
+      "features": [],
+      "file_count": 50,
+      "name": "boost-iterator",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "242c31202079a03573e6568b82b813cadf5ac733769f994bb99d099e85292eca",
+      "archive": "24/242c31202079a03573e6568b82b813cadf5ac733769f994bb99d099e85292eca.zip",
+      "archive_sha256": "3aa6e1fab80180a0e27c27af221cb600e336717fbf680237d102db37dfa58c82",
+      "features": [],
+      "file_count": 21,
+      "name": "boost-lexical-cast",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "7ec35d4f54bd317afbe266b5b5969304c61fe791a98d0960a04ebbca59c214f7",
+      "archive": "7e/7ec35d4f54bd317afbe266b5b5969304c61fe791a98d0960a04ebbca59c214f7.zip",
+      "archive_sha256": "74e6f09135f73487b5b17bf09968d79a26f668b3c1dd319d25efa65cb1840581",
+      "features": [],
+      "file_count": 41,
+      "name": "boost-locale",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "a1698871cb574aac424c4c7f1421f6d2d4d48b0e0f58cc37ff76604fd56c4507",
+      "archive": "a1/a1698871cb574aac424c4c7f1421f6d2d4d48b0e0f58cc37ff76604fd56c4507.zip",
+      "archive_sha256": "ba12cc57c3fc4eea3d3f093b04ceb358b25ca2b82ded47b9d61b11e8f5fca2aa",
+      "features": [],
+      "file_count": 52,
+      "name": "boost-move",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "62ce0669bb90e0da6a3fd9fa8b5186f4466efd5a6fade4f8c077f76326a56020",
+      "archive": "62/62ce0669bb90e0da6a3fd9fa8b5186f4466efd5a6fade4f8c077f76326a56020.zip",
+      "archive_sha256": "313650fdb6281a803c99eed3b69a36244b18ef3dbcddd2ef255f8a5a4c3ebc4a",
+      "features": [],
+      "file_count": 40,
+      "name": "boost-mp11",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "db66335941f0de4eedae184e811128264d6e3c609bdd523d1ee20db596639928",
+      "archive": "db/db66335941f0de4eedae184e811128264d6e3c609bdd523d1ee20db596639928.zip",
+      "archive_sha256": "4d60bf0ffe134dfd0f5948dc85d86e5545f77d30c289f22df48ab910f65cc831",
+      "features": [],
+      "file_count": 1049,
+      "name": "boost-mpl",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "5c352215abfa9cd97cbdea8b3f6fce13f9a439e376faa028a6d02c5f63e7f2fd",
+      "archive": "5c/5c352215abfa9cd97cbdea8b3f6fce13f9a439e376faa028a6d02c5f63e7f2fd.zip",
+      "archive_sha256": "e413956b83e3c030c1cdf06cc2abeefb84eb57d7a3e981c18fdcd7d877330b8c",
+      "features": [],
+      "file_count": 30,
+      "name": "boost-numeric-conversion",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "2bbc95c2b4a89224077efad04000775c33f31cbf809fc816b9684030f730f3f5",
+      "archive": "2b/2bbc95c2b4a89224077efad04000775c33f31cbf809fc816b9684030f730f3f5.zip",
+      "archive_sha256": "5231a26566a14e17d5abe3d35dc789caedaf9089a6171cd0c9d4f273f3d1c04a",
+      "features": [],
+      "file_count": 24,
+      "name": "boost-optional",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "9a5c64fabc8cce26a99a72a3d281faebf0ec8fae15a24b9b03f6a6eabfd404cb",
+      "archive": "9a/9a5c64fabc8cce26a99a72a3d281faebf0ec8fae15a24b9b03f6a6eabfd404cb.zip",
+      "archive_sha256": "f4148d4e25cd5133b44af62bac93817c1526587cc9ebee1b4e0ea5a188442086",
+      "features": [],
+      "file_count": 339,
+      "name": "boost-phoenix",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "5dfa67581b453ec5289a824e0c7b692fc9707e121d944ac1e2b933440b75bbc7",
+      "archive": "5d/5dfa67581b453ec5289a824e0c7b692fc9707e121d944ac1e2b933440b75bbc7.zip",
+      "archive_sha256": "ac4a726ea056d16c30832540eb028e602b353be50c7abfb00a46487f25d76c29",
+      "features": [],
+      "file_count": 21,
+      "name": "boost-pool",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "0473c061f222d7f1d18bc3ef018d504349ab9a204fc99c63c26a9b132010b61c",
+      "archive": "04/0473c061f222d7f1d18bc3ef018d504349ab9a204fc99c63c26a9b132010b61c.zip",
+      "archive_sha256": "b92242a020e619906833d8084b84c2796667346d012764a3245943e932820142",
+      "features": [],
+      "file_count": 147,
+      "name": "boost-predef",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "aac6ff69f08e2f2496e7783d4318b2e44bc4c25bbba1eff40959b5f04e04e313",
+      "archive": "aa/aac6ff69f08e2f2496e7783d4318b2e44bc4c25bbba1eff40959b5f04e04e313.zip",
+      "archive_sha256": "4849c740471dacf8a01b2fa87b583cd0b9a465775f2fbb628906db1a6b0f4ae2",
+      "features": [],
+      "file_count": 405,
+      "name": "boost-preprocessor",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "fdcd28eb54ab522c427a7bd445d07a35f0f3af9ee8b9ccefd6b82e6e50475dc4",
+      "archive": "fd/fdcd28eb54ab522c427a7bd445d07a35f0f3af9ee8b9ccefd6b82e6e50475dc4.zip",
+      "archive_sha256": "e43512e149008d6f0f0e404e14fcad2c19159edab6fa643e163aba6bf9749c21",
+      "features": [],
+      "file_count": 154,
+      "name": "boost-proto",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "af5f922425ea17c2005941e4ef3e201c0eba2857910bdbe1c2f434840334c6bf",
+      "archive": "af/af5f922425ea17c2005941e4ef3e201c0eba2857910bdbe1c2f434840334c6bf.zip",
+      "archive_sha256": "2a72a54580b04fc7c7d0fb451ef9f0bb6020ac4e166a6d2b182e43514325fbbf",
+      "features": [],
+      "file_count": 95,
+      "name": "boost-random",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "aa5b3f3ec72a7b46d1b4d5a6d9ae640cf42cee9c16a52d05f9a16fb3fbd27874",
+      "archive": "aa/aa5b3f3ec72a7b46d1b4d5a6d9ae640cf42cee9c16a52d05f9a16fb3fbd27874.zip",
+      "archive_sha256": "4e374026a391ed29da262a6055999656d440c91fac8b97e68d9d83b505b40122",
+      "features": [],
+      "file_count": 161,
+      "name": "boost-range",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "8fec75037c18139d256340a3370bd4d1bb86bb7aa72851786abdaa558bc36b0f",
+      "archive": "8f/8fec75037c18139d256340a3370bd4d1bb86bb7aa72851786abdaa558bc36b0f.zip",
+      "archive_sha256": "8d32b28b2fa7c8bfbc6d42577b206a0d617d8affd7a9f47b22f4f2d88b7d012f",
+      "features": [],
+      "file_count": 13,
+      "name": "boost-ratio",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "e8c3de38d07bee3ba854fbe4373b42813658de4eee54c387cc075a303f95e780",
+      "archive": "e8/e8c3de38d07bee3ba854fbe4373b42813658de4eee54c387cc075a303f95e780.zip",
+      "archive_sha256": "eda9bedb4c0880ee95627cb674de71226e924293c02945b0dc2e17658ba3a1fa",
+      "features": [],
+      "file_count": 60,
+      "name": "boost-regex",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "b426e2ef9594df2abdb66079e970206e33931a41cdb8a33e1e82445f7492471a",
+      "archive": "b4/b426e2ef9594df2abdb66079e970206e33931a41cdb8a33e1e82445f7492471a.zip",
+      "archive_sha256": "22aff4c9b9fcc315adf0b8dfbea85808bb15161f279002a5907d95cff892e682",
+      "features": [],
+      "file_count": 75,
+      "name": "boost-smart-ptr",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "12464fd96ec5ef789f51092ee38b4dcedfd99e6959b36161aa11ddc7fd0db256",
+      "archive": "12/12464fd96ec5ef789f51092ee38b4dcedfd99e6959b36161aa11ddc7fd0db256.zip",
+      "archive_sha256": "5640d92b230608c32d8ea9884f5e8e74101204bdfa3250a673465bd3142a4020",
+      "features": [],
+      "file_count": 1059,
+      "name": "boost-spirit",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "dbb2c938712282d84a8ffba27fc5f686be1db9714eb28ed228134c67d5d6fb55",
+      "archive": "db/dbb2c938712282d84a8ffba27fc5f686be1db9714eb28ed228134c67d5d6fb55.zip",
+      "archive_sha256": "e947759af0397a2b744566d67b91c4c162789b882fbb83630c0acad2f996abd4",
+      "features": [],
+      "file_count": 5,
+      "name": "boost-static-assert",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "8948ab790e562c27aafe8cc56ca991ce42b85a79abba152e236a6e837ceacf67",
+      "archive": "89/8948ab790e562c27aafe8cc56ca991ce42b85a79abba152e236a6e837ceacf67.zip",
+      "archive_sha256": "48a800dacc54dea0d7cfa45a489c4af5692a13f480189a7ecb1e947cbdc446df",
+      "features": [],
+      "file_count": 46,
+      "name": "boost-system",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "feced932f8e998ee19e3cecfb29d3130543593a1007b630eac51fe6a512cfd0a",
+      "archive": "fe/feced932f8e998ee19e3cecfb29d3130543593a1007b630eac51fe6a512cfd0a.zip",
+      "archive_sha256": "914d84f72d26eebce99b6745aedf7b29bae4205a0bb4baf5294410a87ede906f",
+      "features": [],
+      "file_count": 173,
+      "name": "boost-thread",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "d56a7030b6894bedefb9c73a2cc981a8858f742256c8c30ce0fd094a1a723229",
+      "archive": "d5/d56a7030b6894bedefb9c73a2cc981a8858f742256c8c30ce0fd094a1a723229.zip",
+      "archive_sha256": "ba7bd415df97ce33ba77d2945b47ade00083b7b3b6fdf5f4c8b77ca79b72d96a",
+      "features": [],
+      "file_count": 6,
+      "name": "boost-throw-exception",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "787d8114dd58edbc8321e0e563d490569948e8cad5358b0effe0c3d6eff18f83",
+      "archive": "78/787d8114dd58edbc8321e0e563d490569948e8cad5358b0effe0c3d6eff18f83.zip",
+      "archive_sha256": "cb5cbfd560de4e2530df2730af2166802d6c3ad8d23d7360aa7343a16618384d",
+      "features": [],
+      "file_count": 7,
+      "name": "boost-tokenizer",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "7a802b0050f73da2ec65a55931e9e855255f0730390c457e2d65d17f4773b4fe",
+      "archive": "7a/7a802b0050f73da2ec65a55931e9e855255f0730390c457e2d65d17f4773b4fe.zip",
+      "archive_sha256": "b0c73954ced4ec5070c7d0670ab87029bf10e638289cff83cd0d77901eace08e",
+      "features": [],
+      "file_count": 8,
+      "name": "boost-tuple",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "341f2639a34d9ccdb28108967cdb368f5b71a4cff512232e2d26feb59c3e0082",
+      "archive": "34/341f2639a34d9ccdb28108967cdb368f5b71a4cff512232e2d26feb59c3e0082.zip",
+      "archive_sha256": "7a1c75ed4f430ee01656dddaa9948ce02d273bcecd11a314573fb13201341975",
+      "features": [],
+      "file_count": 19,
+      "name": "boost-type-index",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "b02168a3701ad7ba9d4216dbdcee5bae0d8f8a48b3a99ae96f63938c05f52d7e",
+      "archive": "b0/b02168a3701ad7ba9d4216dbdcee5bae0d8f8a48b3a99ae96f63938c05f52d7e.zip",
+      "archive_sha256": "40a0ab541525ec2df2d024740b29b9d87c031b6d0b41f056a5a613ec9debca83",
+      "features": [],
+      "file_count": 204,
+      "name": "boost-type-traits",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "649caedbe89b4f4d194a33a49d4aed29ea4fb9f7317aad67f514a1f1a9fdf0a8",
+      "archive": "64/649caedbe89b4f4d194a33a49d4aed29ea4fb9f7317aad67f514a1f1a9fdf0a8.zip",
+      "archive_sha256": "d5ad5040aee02449b88dc7a1f0af07f68c4d6a1a05fba6f05c8c8271d13d2b04",
+      "features": [],
+      "file_count": 31,
+      "name": "boost-typeof",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "d1741997088c7bf171f8eceaeba944473f6d3d24c716d6d71875f260f0387061",
+      "archive": "d1/d1741997088c7bf171f8eceaeba944473f6d3d24c716d6d71875f260f0387061.zip",
+      "archive_sha256": "6bce1f46649e497dc93915f22968e0c57e852b9f9501dbfa13af5c56794e6b8b",
+      "features": [],
+      "file_count": 3,
+      "name": "boost-uninstall",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "ae6d2f6c3ca46603fe763773c473856483cbb016327575c1d33d89e740490bd8",
+      "archive": "ae/ae6d2f6c3ca46603fe763773c473856483cbb016327575c1d33d89e740490bd8.zip",
+      "archive_sha256": "7a5d593a7a7ebb6451aeebd7b34065b5e4e59b7210c1529e9645ed6de4a51523",
+      "features": [],
+      "file_count": 68,
+      "name": "boost-unordered",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "c468eb2d2b6b1f402e5393c39c5631f03c20782278c1616c0b8c5dd528bac282",
+      "archive": "c4/c468eb2d2b6b1f402e5393c39c5631f03c20782278c1616c0b8c5dd528bac282.zip",
+      "archive_sha256": "61e4bcf13c9d8b14feb8ffc59b443aa5b4b4194893ca6bbcca102496d4960943",
+      "features": [],
+      "file_count": 29,
+      "name": "boost-utility",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "8946ffea71a9945e51a65b386546f22d0d2c9c1a4a59dfe259582175cdeba712",
+      "archive": "89/8946ffea71a9945e51a65b386546f22d0d2c9c1a4a59dfe259582175cdeba712.zip",
+      "archive_sha256": "5f3b1e876e2acc63add3045f3e2b3f5340a6e86c2a91b7cd6756401a5bdfee4d",
+      "features": [],
+      "file_count": 40,
+      "name": "boost-variant",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "17264c8a62efbbcf687bcd05b12b681805e7dd102e67edb9ba2ba5b8b0840815",
+      "archive": "17/17264c8a62efbbcf687bcd05b12b681805e7dd102e67edb9ba2ba5b8b0840815.zip",
+      "archive_sha256": "5aa7c38db8ba713b781a1cdeeb1df9e905dd0bd0f02d272063b073521da3332e",
+      "features": [],
+      "file_count": 7,
+      "name": "boost-variant2",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "e9d8d397c40e97ff021afd9764dd66e66287bb77e1d3ef62f744d5e28268e6f8",
+      "archive": "e9/e9d8d397c40e97ff021afd9764dd66e66287bb77e1d3ef62f744d5e28268e6f8.zip",
+      "archive_sha256": "dc0c86b44042332b14be32387d9e56ec0623e5ddf158837204a3d6124464fb65",
+      "features": [],
+      "file_count": 124,
+      "name": "boost-winapi",
+      "port_version": 0,
+      "version": "1.91.0"
+    },
+    {
+      "abi": "92447ebbed450d5c01f43ce3f247ba5ecc4616c48f2bf58bd00af789024ec800",
+      "archive": "92/92447ebbed450d5c01f43ce3f247ba5ecc4616c48f2bf58bd00af789024ec800.zip",
+      "archive_sha256": "2f51bea6e7628a2e2a9826309738d1bc860758b20240108b18871b4133906dbc",
+      "features": [],
+      "file_count": 11,
+      "name": "box2d",
+      "port_version": 0,
+      "version": "3.1.1"
+    },
+    {
+      "abi": "f496c365ddbb5b96d369878f42e81737361c5cff90c86a4e5d5abedcac3fbc81",
+      "archive": "f4/f496c365ddbb5b96d369878f42e81737361c5cff90c86a4e5d5abedcac3fbc81.zip",
+      "archive_sha256": "04eacfb467bc477f55e510cf2abab7a93e1f64569f97aee5b74c2307d666fd47",
+      "features": [],
+      "file_count": 6,
+      "name": "brotli",
+      "port_version": 0,
+      "version": "1.2.0"
+    },
+    {
+      "abi": "1a0c134328fdde93ae5b97c0b597e0a89808c83af9a79aed16cd1ca236fb9907",
+      "archive": "1a/1a0c134328fdde93ae5b97c0b597e0a89808c83af9a79aed16cd1ca236fb9907.zip",
+      "archive_sha256": "e5cbfcc15b9214a4cecccd9221d0dc222fdb509b4c76f9808cef63675e1f26dc",
+      "features": [],
+      "file_count": 370,
+      "name": "bullet3",
+      "port_version": 3,
+      "version": "3.25"
+    },
+    {
+      "abi": "fcea71c18457409c35b719542faa8304c2bc0cbfb48e4a1b4d59b9c71bddf6ac",
+      "archive": "fc/fcea71c18457409c35b719542faa8304c2bc0cbfb48e4a1b4d59b9c71bddf6ac.zip",
+      "archive_sha256": "f0f03671d588c2ed38e493af9242912d9e3e9458b8ba3f53be243839bb106a37",
+      "features": [
+        "tool"
+      ],
+      "file_count": 5,
+      "name": "bzip2",
+      "port_version": 6,
+      "version": "1.0.8"
+    },
+    {
+      "abi": "0d451d57b742cbd0413b5d371eee751e349672dfcbe781043c38707c5fc625c5",
+      "archive": "0d/0d451d57b742cbd0413b5d371eee751e349672dfcbe781043c38707c5fc625c5.zip",
+      "archive_sha256": "428451df5fac50fb20be42732d9ccba858fd858a01cc2978c9ff2b4379f64289",
+      "features": [
+        "fontconfig",
+        "freetype",
+        "gobject",
+        "x11"
+      ],
+      "file_count": 1,
+      "name": "cairo",
+      "port_version": 1,
+      "version": "1.18.4"
+    },
+    {
+      "abi": "951ef77d03d098d67231bd4b196848fab7e594836850fc7cfe345cce07d42c7d",
+      "archive": "95/951ef77d03d098d67231bd4b196848fab7e594836850fc7cfe345cce07d42c7d.zip",
+      "archive_sha256": "70915e125cb16b6e5929575b64386f3b389fcf35db31126e020992b2111a3c50",
+      "features": [],
+      "file_count": 199,
+      "name": "catch2",
+      "port_version": 0,
+      "version": "3.15.0"
+    },
+    {
+      "abi": "89a5d36958f0ce96b0de91cdc65d3c22011e133c16ba2179c227f276bf369d02",
+      "archive": "89/89a5d36958f0ce96b0de91cdc65d3c22011e133c16ba2179c227f276bf369d02.zip",
+      "archive_sha256": "27443031a50bdd66639bb5f77ea2a72b440b4ab3905218130e12aa8437fa1d51",
+      "features": [],
+      "file_count": 34,
+      "name": "chipmunk",
+      "port_version": 7,
+      "version": "7.0.3"
+    },
+    {
+      "abi": "a9fef7452abe14d82eebf45fae1195dc600db05fda46a2e940282bae0e3b2652",
+      "archive": "a9/a9fef7452abe14d82eebf45fae1195dc600db05fda46a2e940282bae0e3b2652.zip",
+      "archive_sha256": "a1fd0eb746a778a22cc9dfe7f0ca7ee5ccb6a7f9d1bfd865c2321196a5dce7e0",
+      "features": [],
+      "file_count": 1093,
+      "name": "cocos2dx",
+      "port_version": 7,
+      "version": "3.17.2"
+    },
+    {
+      "abi": "2963d84eff5df9f598b718a6bcd0f9a2d50d3a60a54dbb45053c0f14782f6952",
+      "archive": "29/2963d84eff5df9f598b718a6bcd0f9a2d50d3a60a54dbb45053c0f14782f6952.zip",
+      "archive_sha256": "b02ec7d1948a867d5a98483af5a9dc73f4382074af56a3d6d34655fad3ad65ae",
+      "features": [
+        "non-http",
+        "openssl",
+        "ssl"
+      ],
+      "file_count": 41,
+      "name": "curl",
+      "port_version": 1,
+      "version": "8.20.0"
+    },
+    {
+      "abi": "705a51396e008c5c46a5794232759bc48afc708c31bda563c98eedd7712869a0",
+      "archive": "70/705a51396e008c5c46a5794232759bc48afc708c31bda563c98eedd7712869a0.zip",
+      "archive_sha256": "7e53e78fce612f0c4c4b64d8d53d22ae0d695c698896c24473c1e39bfc4dd5c5",
+      "features": [],
+      "file_count": 3,
+      "name": "dbus",
+      "port_version": 4,
+      "version": "1.16.2"
+    },
+    {
+      "abi": "269b5b53081a022d0f67cfff283dc5359ba6bbefe081001aeae6ba6109420375",
+      "archive": "26/269b5b53081a022d0f67cfff283dc5359ba6bbefe081001aeae6ba6109420375.zip",
+      "archive_sha256": "4abbea29e95ef5d946b6e6e7ff12e13641d70eb2e9a6bde0bb295525123dd271",
+      "features": [],
+      "file_count": 1,
+      "name": "dirent",
+      "port_version": 0,
+      "version": "1.26"
+    },
+    {
+      "abi": "914367b0c28930562248593577028e08e0564038fd3bd0e8215f0afc4670cdea",
+      "archive": "91/914367b0c28930562248593577028e08e0564038fd3bd0e8215f0afc4670cdea.zip",
+      "archive_sha256": "b465f6d3589a08964dd7aac299d39c1f49eb45352b44018a6622c173c45d25e6",
+      "features": [],
+      "file_count": 6,
+      "name": "egl-registry",
+      "port_version": 0,
+      "version": "2025-05-27"
+    },
+    {
+      "abi": "58c7dac8a30d3ad91311da955ca6782e8bd1da2286135d526a6a4fd29d17f288",
+      "archive": "58/58c7dac8a30d3ad91311da955ca6782e8bd1da2286135d526a6a4fd29d17f288.zip",
+      "archive_sha256": "5b8d3619b371be338444a17658e43da2dff87dffd8e9bca68c5d86c4e7aaf2d1",
+      "features": [],
+      "file_count": 12,
+      "name": "expat",
+      "port_version": 0,
+      "version": "2.8.1"
+    },
+    {
+      "abi": "4a7459bdf1790c4c5564e2c8538c6a6cbc64caa0cae10a3f658d05f0077a8d9c",
+      "archive": "4a/4a7459bdf1790c4c5564e2c8538c6a6cbc64caa0cae10a3f658d05f0077a8d9c.zip",
+      "archive_sha256": "f9982fcdd24540fe383e57fe014377e81da3d6d4182d3a40853d9b7646d896cf",
+      "features": [],
+      "file_count": 117,
+      "name": "ffmpeg",
+      "port_version": 1,
+      "version": "3.3.9"
+    },
+    {
+      "abi": "01d4e8759323582dda7d6d15731d9d66a4048ab9cd09696384e0893c5cc3e076",
+      "archive": "01/01d4e8759323582dda7d6d15731d9d66a4048ab9cd09696384e0893c5cc3e076.zip",
+      "archive_sha256": "6fa6417180e5ac6ce62aa2bccc11a93af60423d7ce1749ae19df0cbdb1134c82",
+      "features": [],
+      "file_count": 24,
+      "name": "fmt",
+      "port_version": 0,
+      "version": "12.1.0"
+    },
+    {
+      "abi": "c865e55f30e1089152a84c19255fe91241613fdfd67fa23860d3d3f8d01b2505",
+      "archive": "c8/c865e55f30e1089152a84c19255fe91241613fdfd67fa23860d3d3f8d01b2505.zip",
+      "archive_sha256": "16f47ab9eec2d7db4f44c9ed23f5adbb942053e8869a27d16c9d938e6ee5b448",
+      "features": [
+        "iconv"
+      ],
+      "file_count": 1,
+      "name": "fontconfig",
+      "port_version": 2,
+      "version": "2.17.1"
+    },
+    {
+      "abi": "45f08e55779f6122b3dbcc5337bb91677927e93994d14be2b81d421ecf47fa25",
+      "archive": "45/45f08e55779f6122b3dbcc5337bb91677927e93994d14be2b81d421ecf47fa25.zip",
+      "archive_sha256": "be16b4cbda8868a92e40a72e80ce5097ee2a46f8b2845e6b6fd8b3c3fe9baa0c",
+      "features": [
+        "brotli",
+        "bzip2",
+        "png",
+        "zlib"
+      ],
+      "file_count": 62,
+      "name": "freetype",
+      "port_version": 0,
+      "version": "2.14.3"
+    },
+    {
+      "abi": "efadae68675f68c424d8949b911a4e6defcfc57bf5d53b50ee41b93e47219d0e",
+      "archive": "ef/efadae68675f68c424d8949b911a4e6defcfc57bf5d53b50ee41b93e47219d0e.zip",
+      "archive_sha256": "df4c0ea1d889b10ebcb3d19e6f9115f349af6686fa4be9b878efec187642f446",
+      "features": [],
+      "file_count": 1,
+      "name": "fribidi",
+      "port_version": 0,
+      "version": "1.0.16"
+    },
+    {
+      "abi": "9256c69522d1e056221b5e459502762678cad00bfa5c7a04a8b02ea95343d8e7",
+      "archive": "92/9256c69522d1e056221b5e459502762678cad00bfa5c7a04a8b02ea95343d8e7.zip",
+      "archive_sha256": "b3c9e4ad468cbf6b9610416dff3fed668ce3390973401045af76f4b7c856e813",
+      "features": [
+        "jpeg",
+        "png",
+        "tiff"
+      ],
+      "file_count": 1,
+      "name": "gdk-pixbuf",
+      "port_version": 1,
+      "version": "2.44.6"
+    },
+    {
+      "abi": "0e148b812fa012fb3412f764e5de8123d11a82c84ca9196b3684aa20a43840af",
+      "archive": "0e/0e148b812fa012fb3412f764e5de8123d11a82c84ca9196b3684aa20a43840af.zip",
+      "archive_sha256": "49233b9d6d6e0d008c7e7bbc55ed38a38a5a1544e362b2dc6c48ac8d6e66c0cd",
+      "features": [],
+      "file_count": 1,
+      "name": "gettext-libintl",
+      "port_version": 4,
+      "version": "0.22.5"
+    },
+    {
+      "abi": "742c951c6ab0c5c7c345ca397881686418df44e9d0ecccb446f7a1075275fabf",
+      "archive": "74/742c951c6ab0c5c7c345ca397881686418df44e9d0ecccb446f7a1075275fabf.zip",
+      "archive_sha256": "f40ce7c22deacd090555d8f317146ae71e5f6110ea06f2b2ce3d88dccbb8288a",
+      "features": [],
+      "file_count": 11,
+      "name": "glew",
+      "port_version": 0,
+      "version": "2.3.1"
+    },
+    {
+      "abi": "471c301cae87c096512d901ce9fe5e390d82ae462e12dc6d1a964cb673051e62",
+      "archive": "47/471c301cae87c096512d901ce9fe5e390d82ae462e12dc6d1a964cb673051e62.zip",
+      "archive_sha256": "7f159b961291216b4f3832b471d1fa65beba2ab65201d2d2ea585fde5c48dd01",
+      "features": [
+        "wayland"
+      ],
+      "file_count": 9,
+      "name": "glfw3",
+      "port_version": 2,
+      "version": "3.4"
+    },
+    {
+      "abi": "bfd2d4da1a2c96ea46df8353e7b978e740b8ae9129981ef1ef067df48484d83e",
+      "archive": "bf/bfd2d4da1a2c96ea46df8353e7b978e740b8ae9129981ef1ef067df48484d83e.zip",
+      "archive_sha256": "86e281541c787fed085de08ea3a9419d67f167f2c7ad7924f12552fa89b539d4",
+      "features": [],
+      "file_count": 1,
+      "name": "glib",
+      "port_version": 0,
+      "version": "2.88.1"
+    },
+    {
+      "abi": "a71c876f2e08f82f551f8a9f9ffc29ac838ed6b64feea94643fe6a679b6a115c",
+      "archive": "a7/a71c876f2e08f82f551f8a9f9ffc29ac838ed6b64feea94643fe6a679b6a115c.zip",
+      "archive_sha256": "e07e411da2ffe207d2e0b454695d2904859812d1b14936f4ce343f8d6ee8face",
+      "features": [],
+      "file_count": 437,
+      "name": "glm",
+      "port_version": 0,
+      "version": "1.0.3"
+    },
+    {
+      "abi": "c144fc5c940444d0eb97662ab85c41c4b000cdec677cc75ddfe4e02cf4c68fa6",
+      "archive": "c1/c144fc5c940444d0eb97662ab85c41c4b000cdec677cc75ddfe4e02cf4c68fa6.zip",
+      "archive_sha256": "c39a785544d43097eccc84ce0e657521d76578615ce2aef50eb587c1f0d3fe4d",
+      "features": [],
+      "file_count": 1,
+      "name": "gtk3",
+      "port_version": 2,
+      "version": "3.24.52"
+    },
+    {
+      "abi": "2a5673139c9dd4128dcc0d69e003366034d816be44d5fb986cdb569395c87afa",
+      "archive": "2a/2a5673139c9dd4128dcc0d69e003366034d816be44d5fb986cdb569395c87afa.zip",
+      "archive_sha256": "39a7bdf89e8d7f3b8abb2baef115c9a92ab25a06ce9c13bdb6beeb81f0c4f41b",
+      "features": [
+        "freetype"
+      ],
+      "file_count": 50,
+      "name": "harfbuzz",
+      "port_version": 2,
+      "version": "14.2.0"
+    },
+    {
+      "abi": "5ba9b69eef67a0149eb6394dd4f7c12618299567ad9cedda66f7181779395107",
+      "archive": "5b/5ba9b69eef67a0149eb6394dd4f7c12618299567ad9cedda66f7181779395107.zip",
+      "archive_sha256": "53619b6e11d777ee8afc22e2539ab82c2a588fb375452a648490a5d71e4f50cb",
+      "features": [],
+      "file_count": 13,
+      "name": "jxrlib",
+      "port_version": 7,
+      "version": "2019.10.9"
+    },
+    {
+      "abi": "f3389656244c2118ef599f54c6871fde9a2b0701e75b9d22c7ec1500d6dbe04e",
+      "archive": "f3/f3389656244c2118ef599f54c6871fde9a2b0701e75b9d22c7ec1500d6dbe04e.zip",
+      "archive_sha256": "22e79ed2c03f0777345c111ec3c95f2772405e17c83b97c0538e24fead251f6e",
+      "features": [],
+      "file_count": 54,
+      "name": "libarchive",
+      "port_version": 0,
+      "version": "3.7.7"
+    },
+    {
+      "abi": "913a421505f6aa8bb30d490cb954373d3a48cd3addcaf42fb5fd6a1c7ccf18bc",
+      "archive": "91/913a421505f6aa8bb30d490cb954373d3a48cd3addcaf42fb5fd6a1c7ccf18bc.zip",
+      "archive_sha256": "b9f152abe6ce18bf0356995e1773e4f095ea3c7854f9b8c8135f3fe51cda8a55",
+      "features": [],
+      "file_count": 1,
+      "name": "libepoxy",
+      "port_version": 2,
+      "version": "1.5.10"
+    },
+    {
+      "abi": "36bd96f3c97191404230c33d7ce342738affb7242ef17438048a8d56b65b23b5",
+      "archive": "36/36bd96f3c97191404230c33d7ce342738affb7242ef17438048a8d56b65b23b5.zip",
+      "archive_sha256": "9f6ec8fe82871872f06d020263dd7d912469ff2cdcb7f3a2d6a83aa1bcda96bc",
+      "features": [],
+      "file_count": 5,
+      "name": "libffi",
+      "port_version": 0,
+      "version": "3.5.2"
+    },
+    {
+      "abi": "362897d5d9c161b2290a3d097ec7d6a440215367051cbd45dcb63ae19dacf944",
+      "archive": "36/362897d5d9c161b2290a3d097ec7d6a440215367051cbd45dcb63ae19dacf944.zip",
+      "archive_sha256": "ffdf599c7c48a4f1bdd48998f48f320e5c748fdeba4279f1967e223221c598af",
+      "features": [],
+      "file_count": 1,
+      "name": "libiconv",
+      "port_version": 4,
+      "version": "1.18"
+    },
+    {
+      "abi": "1a3c6b08d19674ba052334f339ddf689d96e952a25a596a5336a46a920d2f2ef",
+      "archive": "1a/1a3c6b08d19674ba052334f339ddf689d96e952a25a596a5336a46a920d2f2ef.zip",
+      "archive_sha256": "37987edf9ed40e4ad92827c7a34b3ca49bca46891ac7bd7755de053ec75160a2",
+      "features": [],
+      "file_count": 25,
+      "name": "libjpeg-turbo",
+      "port_version": 0,
+      "version": "3.1.4.1"
+    },
+    {
+      "abi": "8afdefaacc0790f87b8643edf987e9b90205f5e5e66e524fbcc5379d7599f9d5",
+      "archive": "8a/8afdefaacc0790f87b8643edf987e9b90205f5e5e66e524fbcc5379d7599f9d5.zip",
+      "archive_sha256": "247d91d0091afc733249193d7e5ca6ba1c049ecfd76a2a8c7be7cfc1b0ef9e0d",
+      "features": [],
+      "file_count": 44,
+      "name": "liblzma",
+      "port_version": 0,
+      "version": "5.8.3"
+    },
+    {
+      "abi": "a05d04d917b71971ebb35c9cb8ab965dc1b377a42570ef44e9abfb13db7dd7e5",
+      "archive": "a0/a05d04d917b71971ebb35c9cb8ab965dc1b377a42570ef44e9abfb13db7dd7e5.zip",
+      "archive_sha256": "de09a3be0b5a83138b32572f926a0702fe45d62a1551ab1eec7e6b132454e482",
+      "features": [],
+      "file_count": 10,
+      "name": "libogg",
+      "port_version": 1,
+      "version": "1.3.6"
+    },
+    {
+      "abi": "4a1d16b1e3a5dc8635cebe953501576e1c9391f15422e0a9400533d3d924bc0c",
+      "archive": "4a/4a1d16b1e3a5dc8635cebe953501576e1c9391f15422e0a9400533d3d924bc0c.zip",
+      "archive_sha256": "c76c00cb3c086a0d282a2253ffc7051159051a018d2ace6e5a5a2d2e02cb1158",
+      "features": [],
+      "file_count": 16,
+      "name": "libpng",
+      "port_version": 0,
+      "version": "1.6.58"
+    },
+    {
+      "abi": "5b0f69928bcca9f64b84b7adb934860b72568b2c70b6f83c1efe551340cc7447",
+      "archive": "5b/5b0f69928bcca9f64b84b7adb934860b72568b2c70b6f83c1efe551340cc7447.zip",
+      "archive_sha256": "6f540e4a50e74c37db73aa52fcaded97b10e64a0678a55c674d48d941e4b3ccd",
+      "features": [],
+      "file_count": 6,
+      "name": "libuuid",
+      "port_version": 17,
+      "version": "1.0.3"
+    },
+    {
+      "abi": "79861a7794019c706f460bae6d7d7318eac0ce5b63c898de035c247ca0ee2bfb",
+      "archive": "79/79861a7794019c706f460bae6d7d7318eac0ce5b63c898de035c247ca0ee2bfb.zip",
+      "archive_sha256": "051e4ad8ddd8da3eb788f6f7008929950bf2fa53a856f6fd4caf5df688ae4260",
+      "features": [],
+      "file_count": 22,
+      "name": "libuv",
+      "port_version": 0,
+      "version": "1.52.1"
+    },
+    {
+      "abi": "ce3c68db2d7b2dd61c81f27c9e24d296408b7d4d531fa1fe4d05feada181307e",
+      "archive": "ce/ce3c68db2d7b2dd61c81f27c9e24d296408b7d4d531fa1fe4d05feada181307e.zip",
+      "archive_sha256": "b645f8472eee189936a08fa470e40a56c14ff0c02b541d1e0bd383b1a738e3d3",
+      "features": [],
+      "file_count": 11,
+      "name": "libvorbis",
+      "port_version": 4,
+      "version": "1.3.7"
+    },
+    {
+      "abi": "92a53b33fbcc5144949fc2e3754c1928a240b22df6da97bc945feb89c1bb6492",
+      "archive": "92/92a53b33fbcc5144949fc2e3754c1928a240b22df6da97bc945feb89c1bb6492.zip",
+      "archive_sha256": "280af00c3ecab14e5675c84a7b3cff2573a0d2802c500ecf38cfb693aafc5b5a",
+      "features": [
+        "libwebpmux",
+        "nearlossless",
+        "simd"
+      ],
+      "file_count": 23,
+      "name": "libwebp",
+      "port_version": 2,
+      "version": "1.6.0"
+    },
+    {
+      "abi": "a50538187c975ca05ec9ce3ed3ab16165c20c7b12d25bb1bb1480b7b23dca56d",
+      "archive": "a5/a50538187c975ca05ec9ce3ed3ab16165c20c7b12d25bb1bb1480b7b23dca56d.zip",
+      "archive_sha256": "22da4d9c85521e5c1066fd736eebcb3bb0cc9a446d27a7aa63d97e81e043e3c2",
+      "features": [],
+      "file_count": 100,
+      "name": "libwebsockets",
+      "port_version": 0,
+      "version": "4.5.8"
+    },
+    {
+      "abi": "d22f0acb758e5899f846a5b0666e2b0211bfe5ab2b2411e23a2b3d41f5f246a1",
+      "archive": "d2/d22f0acb758e5899f846a5b0666e2b0211bfe5ab2b2411e23a2b3d41f5f246a1.zip",
+      "archive_sha256": "0801e85f4cb58dac47571469b219fc6b0cb40d7f2d6aa76af5516f14e9c31a60",
+      "features": [],
+      "file_count": 1,
+      "name": "libx11",
+      "port_version": 5,
+      "version": "1.8.1"
+    },
+    {
+      "abi": "bc48983574e54b3763e07c934c29d8cfa61f5ca313203d4bb6ee7bbf89f69c8b",
+      "archive": "bc/bc48983574e54b3763e07c934c29d8cfa61f5ca313203d4bb6ee7bbf89f69c8b.zip",
+      "archive_sha256": "c3810edf21d64098e919cf0ca7d78dc62b9cfce44ae162470a90584a7d70e920",
+      "features": [],
+      "file_count": 1,
+      "name": "libxau",
+      "port_version": 2,
+      "version": "1.0.12"
+    },
+    {
+      "abi": "1be5d8b98ea9a0979b01cb2f1fa5fda5b293b869a1b8a144ce4fabd562949f3e",
+      "archive": "1b/1be5d8b98ea9a0979b01cb2f1fa5fda5b293b869a1b8a144ce4fabd562949f3e.zip",
+      "archive_sha256": "6c6e175b01658cdf0bc849493314a59677e949a341f40429c3b8aa08e561ef6c",
+      "features": [],
+      "file_count": 1,
+      "name": "libxdmcp",
+      "port_version": 1,
+      "version": "1.1.5"
+    },
+    {
+      "abi": "f72e1c39c10f5b8654c80d5a2c7e7afe05baf8fa3d624ae9df39ff01c340bd5b",
+      "archive": "f7/f72e1c39c10f5b8654c80d5a2c7e7afe05baf8fa3d624ae9df39ff01c340bd5b.zip",
+      "archive_sha256": "214037029065eecba870e75e8f843c7330a55d18ee617afd8778d9e70b29dab8",
+      "features": [],
+      "file_count": 1,
+      "name": "libxext",
+      "port_version": 1,
+      "version": "1.3.7"
+    },
+    {
+      "abi": "377fdc34f50d9f4bfd19e42aadcaa654d680ffe69c9b29f103483be5c7442596",
+      "archive": "37/377fdc34f50d9f4bfd19e42aadcaa654d680ffe69c9b29f103483be5c7442596.zip",
+      "archive_sha256": "610de83148e6e4eceee39a2a3dab1f57f82deb5e76af62d4c01b74af2e9c07ac",
+      "features": [],
+      "file_count": 1,
+      "name": "libxfixes",
+      "port_version": 1,
+      "version": "6.0.2"
+    },
+    {
+      "abi": "c1ec52519932d2d27906659fc9049aca2b4628ee24743f76e3d7134980f3a21c",
+      "archive": "c1/c1ec52519932d2d27906659fc9049aca2b4628ee24743f76e3d7134980f3a21c.zip",
+      "archive_sha256": "4803dc788b7e964b5c578078988b8bdeb8d6cad33d1346b5bcb13f7d17854b35",
+      "features": [],
+      "file_count": 1,
+      "name": "libxi",
+      "port_version": 1,
+      "version": "1.8.2"
+    },
+    {
+      "abi": "b7d0cf88e65509abec37c569704ab5477480a75dcee3d8cc57dc244c4cd7a964",
+      "archive": "b7/b7d0cf88e65509abec37c569704ab5477480a75dcee3d8cc57dc244c4cd7a964.zip",
+      "archive_sha256": "832c0eecbc63f411708c5e9b0f4c84f2fe229e41c0462d20dddf9dd9193ff9d7",
+      "features": [
+        "iconv",
+        "zlib"
+      ],
+      "file_count": 53,
+      "name": "libxml2",
+      "port_version": 0,
+      "version": "2.15.3"
+    },
+    {
+      "abi": "a6316581c895f93d2cb6200a7c66bfff06082767cc3e95a007f1b7af30a2fa09",
+      "archive": "a6/a6316581c895f93d2cb6200a7c66bfff06082767cc3e95a007f1b7af30a2fa09.zip",
+      "archive_sha256": "655ac988d3b277286a3e6666dbf671ad55ab03e89de375a44d15f1b6b97cb987",
+      "features": [],
+      "file_count": 1,
+      "name": "libxrandr",
+      "port_version": 1,
+      "version": "1.5.5"
+    },
+    {
+      "abi": "e0c23768263f88e94efa63ca4f6ebad73f3c13d8bb247d21bcc6e898c8bbb85f",
+      "archive": "e0/e0c23768263f88e94efa63ca4f6ebad73f3c13d8bb247d21bcc6e898c8bbb85f.zip",
+      "archive_sha256": "d69928e986902d0d6e7745671a2fac02a2e0fbebee2b100214fc5ee97f6ee20e",
+      "features": [],
+      "file_count": 1,
+      "name": "libxrender",
+      "port_version": 1,
+      "version": "0.9.12"
+    },
+    {
+      "abi": "389674ac560f8038c696029106e7ec968d17a3a5b3ee34bceb8a10ee24cc1b43",
+      "archive": "38/389674ac560f8038c696029106e7ec968d17a3a5b3ee34bceb8a10ee24cc1b43.zip",
+      "archive_sha256": "7dfba847fc739f7100d238ea25c44bbb3e3d4aa133f06aa03ea41a8e7cfcc02b",
+      "features": [
+        "profiler",
+        "thread"
+      ],
+      "file_count": 36,
+      "name": "libxslt",
+      "port_version": 0,
+      "version": "1.1.45"
+    },
+    {
+      "abi": "81b66ff646d0b1e30514071e595cb2241e0d055f1b5104486d93fe100fd8e714",
+      "archive": "81/81b66ff646d0b1e30514071e595cb2241e0d055f1b5104486d93fe100fd8e714.zip",
+      "archive_sha256": "1bfe94dc86d65b57012c99f46843ff36f6dafe9d58a8661878a4e17f19bd4252",
+      "features": [],
+      "file_count": 1,
+      "name": "libxtst",
+      "port_version": 1,
+      "version": "1.2.5"
+    },
+    {
+      "abi": "bb9fb7180f89b4fb5de54ad88ce820386b7bcd329149d5224012952f80df47f5",
+      "archive": "bb/bb9fb7180f89b4fb5de54ad88ce820386b7bcd329149d5224012952f80df47f5.zip",
+      "archive_sha256": "fb7750ddc474161a63d8c0dfbfbf76040e720c42d6e7f2f71586f66581a1af2a",
+      "features": [],
+      "file_count": 12,
+      "name": "lz4",
+      "port_version": 0,
+      "version": "1.10.0"
+    },
+    {
+      "abi": "47ca921d819b2ac7141ff1a26a3c205dc962dc20e62cb98ed23ba7659d1ce7af",
+      "archive": "47/47ca921d819b2ac7141ff1a26a3c205dc962dc20e62cb98ed23ba7659d1ce7af.zip",
+      "archive_sha256": "04fb16d1e036a5b7dbac6a3059da33bbb0ff029940b4bbf421a3ab4ad58745b9",
+      "features": [],
+      "file_count": 26,
+      "name": "oniguruma",
+      "port_version": 0,
+      "version": "6.9.10"
+    },
+    {
+      "abi": "3263ef84859076135ca50aff9a38098a0d1dce7447c8148c49ea2d8810cf1800",
+      "archive": "32/3263ef84859076135ca50aff9a38098a0d1dce7447c8148c49ea2d8810cf1800.zip",
+      "archive_sha256": "953cca903f2f77590c0d2f7988cde991859603045939e2cbd82b5e435af8b7e1",
+      "features": [],
+      "file_count": 12,
+      "name": "openal-soft",
+      "port_version": 2,
+      "version": "1.25.1"
+    },
+    {
+      "abi": "a327a5227e20ba0034fde5835e70d08f7ba6461509a123d54ed3c3d5449de3ab",
+      "archive": "a3/a327a5227e20ba0034fde5835e70d08f7ba6461509a123d54ed3c3d5449de3ab.zip",
+      "archive_sha256": "5b0acc2177c57857528437dac103df4e96b58a99e23949e0727904eceef62cfa",
+      "features": [
+        "openmp"
+      ],
+      "file_count": 259,
+      "name": "opencv4",
+      "port_version": 6,
+      "version": "4.7.0"
+    },
+    {
+      "abi": "f88b7bd5a47295f1f40c907f23fbc876c427ccd069181d2fb9f1b250b51cc7be",
+      "archive": "f8/f88b7bd5a47295f1f40c907f23fbc876c427ccd069181d2fb9f1b250b51cc7be.zip",
+      "archive_sha256": "301e719a3f9736571f091cef17848197830ded16b3746b3d1d2bb97717386ff2",
+      "features": [],
+      "file_count": 1,
+      "name": "opengl",
+      "port_version": 3,
+      "version": "2022-12-04"
+    },
+    {
+      "abi": "0b01caf2ad66334424027dcb2507b5b9c8bbef34f054409eaec3632e5ff58fa2",
+      "archive": "0b/0b01caf2ad66334424027dcb2507b5b9c8bbef34f054409eaec3632e5ff58fa2.zip",
+      "archive_sha256": "3e44e0f4cc01501d6ab2eb4d14924b08b67f1a4f3bb12cc3c9292145099000ad",
+      "features": [],
+      "file_count": 30,
+      "name": "opengl-registry",
+      "port_version": 0,
+      "version": "2026-01-26"
+    },
+    {
+      "abi": "c00960e5458214006ee0061bbcafbda2b00503e22f36babf5d0dee48defd87a9",
+      "archive": "c0/c00960e5458214006ee0061bbcafbda2b00503e22f36babf5d0dee48defd87a9.zip",
+      "archive_sha256": "e383272bb7d9b079cf7d5c315d29a6d1dc8126826831b0bf5a5b3e27191f5ff6",
+      "features": [],
+      "file_count": 210,
+      "name": "openssl",
+      "port_version": 0,
+      "version": "3.6.2"
+    },
+    {
+      "abi": "f817ba3810be49cd3d22ddfdff57f69934ca7a738f1915aa703213adfb13f52c",
+      "archive": "f8/f817ba3810be49cd3d22ddfdff57f69934ca7a738f1915aa703213adfb13f52c.zip",
+      "archive_sha256": "26053ff1e1aff685c6dd81ba87e7ed2e947b1a9ecf36fac6f94ff2d657e0cd6e",
+      "features": [],
+      "file_count": 12,
+      "name": "opus",
+      "port_version": 1,
+      "version": "1.5.2"
+    },
+    {
+      "abi": "b3371ca9f26117a629c60ed1b7a7cdd6e6a1bf089de190fdfd5613a05ddc749a",
+      "archive": "b3/b3371ca9f26117a629c60ed1b7a7cdd6e6a1bf089de190fdfd5613a05ddc749a.zip",
+      "archive_sha256": "064e3b71fe9cd02d1bcbdc9240a08c3cffe293c76e8b87f717c8621c669aa4f6",
+      "features": [],
+      "file_count": 7,
+      "name": "opusfile",
+      "port_version": 1,
+      "version": "0.12+20221121"
+    },
+    {
+      "abi": "be7ed09f5723410481980e66d7bda55c5895da7486c6cd2725419bb6da4d799d",
+      "archive": "be/be7ed09f5723410481980e66d7bda55c5895da7486c6cd2725419bb6da4d799d.zip",
+      "archive_sha256": "a33d81d16a055dce94f2026db962d211d5d669413cc5a05507d2a0d95b512920",
+      "features": [],
+      "file_count": 1,
+      "name": "pango",
+      "port_version": 0,
+      "version": "1.57.1"
+    },
+    {
+      "abi": "4c1581082fce573d573ec73f76bbb36b5e7fcdca0d29fc35f92ba5c8d140d775",
+      "archive": "4c/4c1581082fce573d573ec73f76bbb36b5e7fcdca0d29fc35f92ba5c8d140d775.zip",
+      "archive_sha256": "b4588aaa49185384f8c8041fa33ebed124f8d448b01919573faab914e64fa691",
+      "features": [
+        "jit",
+        "platform-default-features"
+      ],
+      "file_count": 230,
+      "name": "pcre2",
+      "port_version": 0,
+      "version": "10.47"
+    },
+    {
+      "abi": "3707fe5521e72a4edd5ea6407b0e05a8d67443b80c5e5befd35e14cedd483748",
+      "archive": "37/3707fe5521e72a4edd5ea6407b0e05a8d67443b80c5e5befd35e14cedd483748.zip",
+      "archive_sha256": "65cb2e25ae7eef8b241ac7e31b442783799555150e903b909fcdfe7f73796c7b",
+      "features": [],
+      "file_count": 1,
+      "name": "pixman",
+      "port_version": 1,
+      "version": "0.46.4"
+    },
+    {
+      "abi": "f733769cdc490ed090587e4823e1716128563da119e1c41f0c24cfc199358413",
+      "archive": "f7/f733769cdc490ed090587e4823e1716128563da119e1c41f0c24cfc199358413.zip",
+      "archive_sha256": "968292f8da3d64df900d6c64a66d5fff2374a80cbc872ae86b9df151c9a4b7d0",
+      "features": [],
+      "file_count": 1,
+      "name": "pthread",
+      "port_version": 2,
+      "version": "3.0.0"
+    },
+    {
+      "abi": "26fa4462ca8c930b8cb08be6998f2ce6d0d79f3ad88c3b4cfcded414a856f937",
+      "archive": "26/26fa4462ca8c930b8cb08be6998f2ce6d0d79f3ad88c3b4cfcded414a856f937.zip",
+      "archive_sha256": "edd4f37951505d8ec2a2b4d6e669a40caa1410542fbe6670214fd9dba45ad4e5",
+      "features": [],
+      "file_count": 2,
+      "name": "pthread-stubs",
+      "port_version": 1,
+      "version": "0.5"
+    },
+    {
+      "abi": "a468c67b360cb7a410b5f74f90f83b28419856a088c08aef7c8df1a0e8c52835",
+      "archive": "a4/a468c67b360cb7a410b5f74f90f83b28419856a088c08aef7c8df1a0e8c52835.zip",
+      "archive_sha256": "8acc31bb5d2398729ed1024c03e22b075c35ba60cf71b1a83f06087a2f1e2c44",
+      "features": [],
+      "file_count": 1,
+      "name": "pthreads",
+      "port_version": 14,
+      "version": "3.0.0"
+    },
+    {
+      "abi": "c2baf68c841c3a300c3e0aa1fabaed02026ad36856075ebd39baff3717a97895",
+      "archive": "c2/c2baf68c841c3a300c3e0aa1fabaed02026ad36856075ebd39baff3717a97895.zip",
+      "archive_sha256": "e250bde1d836a2754b419071a589ed34c574ec5869fd1c55cc352772c9b9b5fd",
+      "features": [
+        "fmt",
+        "tz-offset"
+      ],
+      "file_count": 100,
+      "name": "spdlog",
+      "port_version": 0,
+      "version": "1.17.0"
+    },
+    {
+      "abi": "5b8766ea5a79e66d748efc0e5261871e17b8b2225f15e53ccd7e795365fa0ab3",
+      "archive": "5b/5b8766ea5a79e66d748efc0e5261871e17b8b2225f15e53ccd7e795365fa0ab3.zip",
+      "archive_sha256": "6fb076c988dfd261187e5187e2d533902a43c9e31192cb9708c51988c725690f",
+      "features": [
+        "json1"
+      ],
+      "file_count": 7,
+      "name": "sqlite3",
+      "port_version": 2,
+      "version": "3.53.1"
+    },
+    {
+      "abi": "b3486728d84caaaad9b7288a19c185b6d46878b2cb55f62cd3da435b14f8033c",
+      "archive": "b3/b3486728d84caaaad9b7288a19c185b6d46878b2cb55f62cd3da435b14f8033c.zip",
+      "archive_sha256": "1a47d59c89343270d3fb48fd3ffdb38c5942776aae7e95aa614fd31b088275c8",
+      "features": [
+        "jpeg",
+        "lzma",
+        "zip"
+      ],
+      "file_count": 11,
+      "name": "tiff",
+      "port_version": 0,
+      "version": "4.7.1"
+    },
+    {
+      "abi": "2f67d780875119a5dd49b3288388e2e6da27ddf933dc175fbf5fa4b8e55967e4",
+      "archive": "2f/2f67d780875119a5dd49b3288388e2e6da27ddf933dc175fbf5fa4b8e55967e4.zip",
+      "archive_sha256": "3b4f50930e295adf639cdeb7e98c7f2869464b3b2fb5781a65ac87ec050a5287",
+      "features": [],
+      "file_count": 9,
+      "name": "uchardet",
+      "port_version": 0,
+      "version": "0.0.8"
+    },
+    {
+      "abi": "081cfcb092d83116cec0b6d1985fcd637ad7a13770bc865f01527fadacb9696d",
+      "archive": "08/081cfcb092d83116cec0b6d1985fcd637ad7a13770bc865f01527fadacb9696d.zip",
+      "archive_sha256": "6fccd2b080eb46885cf1a3fc0637f731a8884247c4d455137ea364372b99e1d1",
+      "features": [],
+      "file_count": 69,
+      "name": "unrar",
+      "port_version": 1,
+      "version": "6.0.7"
+    },
+    {
+      "abi": "469e0d22bb8ee42544fb3d5892814901589a3886300bd60ec4f56f17d359c0a5",
+      "archive": "46/469e0d22bb8ee42544fb3d5892814901589a3886300bd60ec4f56f17d359c0a5.zip",
+      "archive_sha256": "2a39ba7599aa063d5531402ef88fda2ce4729f535ca0d3bb0c63cc3e729310a4",
+      "features": [],
+      "file_count": 1,
+      "name": "wayland",
+      "port_version": 0,
+      "version": "1.25.0"
+    },
+    {
+      "abi": "d9f2b2ed3addb469f7197487b3e9943c5d1935de7106c1ab62e7157b91e12097",
+      "archive": "d9/d9f2b2ed3addb469f7197487b3e9943c5d1935de7106c1ab62e7157b91e12097.zip",
+      "archive_sha256": "ffa25f88c1d5c2961514b9256740d780d84b9a07e9e3a9e704543e5a100f0243",
+      "features": [],
+      "file_count": 1,
+      "name": "xcb",
+      "port_version": 4,
+      "version": "1.14"
+    },
+    {
+      "abi": "12a7fbdaf1e39d22ed89cd6410cf4c1957029867aacdfa2f7858f675d059d31a",
+      "archive": "12/12a7fbdaf1e39d22ed89cd6410cf4c1957029867aacdfa2f7858f675d059d31a.zip",
+      "archive_sha256": "741a3fdb504da632d9a5bf022d4494b4cc9945adae581bc9cc1d8f11aee03aa4",
+      "features": [],
+      "file_count": 1,
+      "name": "xcb-proto",
+      "port_version": 3,
+      "version": "1.14.1"
+    },
+    {
+      "abi": "fe3f8deaa4c60b7d3f63a55e9f4349ef025b987c9399ac4ca98533a2d4df867d",
+      "archive": "fe/fe3f8deaa4c60b7d3f63a55e9f4349ef025b987c9399ac4ca98533a2d4df867d.zip",
+      "archive_sha256": "635f2382d495d62be5f0a7ac27ecdb341764b89cdc009c58e21a50a485da7c14",
+      "features": [],
+      "file_count": 4,
+      "name": "xcb-util-m4",
+      "port_version": 0,
+      "version": "2022-07-01"
+    },
+    {
+      "abi": "12142dbb30c1258fb8c6e7e078d5da27fa197162f017af9528b6fbc097b88d18",
+      "archive": "12/12142dbb30c1258fb8c6e7e078d5da27fa197162f017af9528b6fbc097b88d18.zip",
+      "archive_sha256": "7782203558e85bf5357400a1186bcd62e0b857d61aa757c69d27fdd2fdb7ea96",
+      "features": [],
+      "file_count": 1,
+      "name": "xorg-macros",
+      "port_version": 1,
+      "version": "1.20.2"
+    },
+    {
+      "abi": "a590b13c0771670c7b0868ff655909b25bafdaf05e18906657a31ef89ac7eb12",
+      "archive": "a5/a590b13c0771670c7b0868ff655909b25bafdaf05e18906657a31ef89ac7eb12.zip",
+      "archive_sha256": "71dfa1db18968f102a673fcaef324186af1afc5a56ab9e733d6fa35566fa709d",
+      "features": [],
+      "file_count": 1,
+      "name": "xproto",
+      "port_version": 0,
+      "version": "2021.5"
+    },
+    {
+      "abi": "74c33cf8b43b97ec2a743a1e972e48cfa8127194e92b01502d00c025ab004487",
+      "archive": "74/74c33cf8b43b97ec2a743a1e972e48cfa8127194e92b01502d00c025ab004487.zip",
+      "archive_sha256": "e623c8fb327b21ec18638b489f0288b44494f76740be75aa9fda52336f1497eb",
+      "features": [],
+      "file_count": 1,
+      "name": "xtrans",
+      "port_version": 1,
+      "version": "1.6.0"
+    },
+    {
+      "abi": "262fc718b43101c91ebac50e796bd0e2ef33942127bd91a9665e91c6b366ced1",
+      "archive": "26/262fc718b43101c91ebac50e796bd0e2ef33942127bd91a9665e91c6b366ced1.zip",
+      "archive_sha256": "62287f87337d956aa2ff17f1a4b1817cd95caf31aa25574daa52b913d40c812f",
+      "features": [],
+      "file_count": 21,
+      "name": "zlib",
+      "port_version": 0,
+      "version": "1.3.2"
+    },
+    {
+      "abi": "fe86abf2520422c50ecc9420cba3f0297ce10754d6888c1d9b7023d167ae1893",
+      "archive": "fe/fe86abf2520422c50ecc9420cba3f0297ce10754d6888c1d9b7023d167ae1893.zip",
+      "archive_sha256": "6b80704804938caf61c91fa505e36543a02589f5395729c848e468491eb88e65",
+      "features": [],
+      "file_count": 13,
+      "name": "zstd",
+      "port_version": 0,
+      "version": "1.5.7"
+    }
+  ],
+  "schema": 1,
+  "selection": "vcpkg-status-abi",
+  "triplet": "arm64-linux-gkd-glibc234"
+}

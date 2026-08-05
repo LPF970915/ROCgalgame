@@ -1,11 +1,11 @@
 param(
   [string]$Distro = "Ubuntu",
   [string]$Image = "rocgalgame-gkd350h-glibc234:22.04",
-  [ValidateRange(0.25, 4.0)][double]$CpuLimit = 0.5,
-  [string]$CpuSet = "0",
-  [ValidateRange(1, 4)][int]$BuildJobs = 1,
-  [ValidateRange(60, 1800)][int]$WorkSeconds = 240,
-  [ValidateRange(15, 900)][int]$CoolSeconds = 180
+  [ValidateRange(0.25, 4.0)][double]$CpuLimit = 3.0,
+  [string]$CpuSet = "0-2",
+  [ValidateRange(1, 4)][int]$BuildJobs = 3,
+  [ValidateRange(60, 1800)][int]$WorkSeconds = 300,
+  [ValidateRange(15, 900)][int]$CoolSeconds = 240
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,7 +15,7 @@ $h700 = (Resolve-Path "D:\Works\ROCreader\H700\sysroot_device").Path
 $ons = (Resolve-Path "D:\Works\Tyranor\OnscripterYuri").Path
 $krkrsdl2 = (Resolve-Path "D:\Works\Tyranor\krkrsdl2").Path
 $krkr2 = (Resolve-Path "D:\Works\ROCgalgame-krkr2-port").Path
-$ffmpeg = (Resolve-Path "D:\Works\Tyranor\FFmpeg-n6.0").Path
+$ffmpeg = (Resolve-Path "D:\Works\ROCgalgame-ffmpeg-n6-headers").Path
 
 function Convert-ToWslPath([string]$Path) {
   if ($Path -notmatch '^([A-Za-z]):\\(.*)$') { throw "Not a Windows drive path: $Path" }
@@ -46,10 +46,7 @@ $args = @("-d", $Distro, "--", "docker", "run", "--rm",
 foreach ($mount in $mounts) { $args += @("--volume", $mount) }
 $args += @(
   "--volume", "rocgalgame-vcpkg-binary-cache:/workspace/build/gkd350h-glibc234/vcpkg/binary-cache",
-  "--volume", "rocgalgame-krkr2-ccache:/workspace/build/gkd350h-glibc234/ccache/krkr2",
-  "--volume", "rocgalgame-egl-registry-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/egl-registry",
-  "--volume", "rocgalgame-boost-config-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/boost-config",
-  "--volume", "rocgalgame-opengl-registry-buildtree:/workspace/build/gkd350h-glibc234/vcpkg/buildtrees/opengl-registry"
+  "--volume", "rocgalgame-krkr2-ccache:/workspace/build/gkd350h-glibc234/ccache/krkr2"
 )
 $args += @("--workdir", "/workspace", $Image, "bash", "/workspace/GKD350HUltra/build_glibc234_all.sh")
 Write-Host "[glibc234] run at $CpuLimit CPU on logical CPU $CpuSet; jobs=$BuildJobs; work/cool ${WorkSeconds}s/${CoolSeconds}s"

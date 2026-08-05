@@ -18,6 +18,7 @@ TARGET="$OUT_DIR/onsyuri"
 RUNTIME_CORE_DIR="$DIST_ROOT/ROCgalgame/cores/ons"
 LOG_DIR="${ROC_NATIVE_LOG_DIR:-$SELF_DIR/logs}"
 LOG_FILE="$LOG_DIR/build_onsyuri_$(date +%Y%m%d_%H%M%S).log"
+ONS_LOCK="$SELF_DIR/onsyuri-port.lock"
 BUILD_JOBS="${ONS_BUILD_JOBS:-1}"
 FORCE_REBUILD="${ONS_FORCE_REBUILD:-0}"
 CLEAN_BUILD="${ONS_CLEAN_BUILD:-0}"
@@ -30,6 +31,20 @@ if [ ! -d "$ONS_ROOT/src/onsyuri" ]; then
   echo "[ons_build] ERROR: invalid ONS_ROOT: $ONS_ROOT"
   exit 1
 fi
+bash "$SELF_DIR/verify_source_provenance.sh" "$ONS_ROOT" onsyuri "$ONS_LOCK"
+ONS_SOURCE_COMMIT="$(git -c safe.directory="$ONS_ROOT" -C "$ONS_ROOT" rev-parse HEAD)"
+
+write_metadata() {
+  local metadata="$RUNTIME_CORE_DIR/onsyuri.build-meta"
+  {
+    printf 'schema=1\n'
+    printf 'core=onsyuri\n'
+    printf 'source_commit=%s\n' "$ONS_SOURCE_COMMIT"
+    printf 'source_dirty=0\n'
+    printf 'build_script_commit=%s\n' "$(git -c safe.directory="$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD)"
+    printf 'binary_sha256=%s\n' "$(sha256sum "$RUNTIME_CORE_DIR/onsyuri" | awk '{print $1}')"
+  } > "$metadata"
+}
 if [ ! -d "$SYSROOT/usr/include/SDL2" ] || [ ! -d "$SYSROOT/usr/lib" ]; then
   echo "[ons_build] ERROR: invalid sysroot: $SYSROOT"
   exit 1
@@ -84,6 +99,7 @@ fi
 if [ "$NEEDS_REBUILD" = "0" ]; then
   cp "$TARGET" "$RUNTIME_CORE_DIR/onsyuri"
   chmod +x "$RUNTIME_CORE_DIR/onsyuri" 2>/dev/null || true
+  write_metadata
   echo "[ons_build] reuse unchanged target: $TARGET"
   exit 0
 fi
@@ -228,6 +244,7 @@ LIBS="-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -ljpeg -lbz2 -ldl -lpthread -l
   fi
   cp "$TARGET" "$RUNTIME_CORE_DIR/onsyuri"
   chmod +x "$RUNTIME_CORE_DIR/onsyuri" 2>/dev/null || true
+  write_metadata
   echo "[ons_build] installed: $RUNTIME_CORE_DIR/onsyuri"
 } 2>&1 | tee "$LOG_FILE"
 

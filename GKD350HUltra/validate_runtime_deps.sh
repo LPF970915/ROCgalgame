@@ -26,7 +26,8 @@ done
 # These libraries come from compatibility overlays that are not in the
 # device loader's default search path, so resolving them in the sysroot is not
 # sufficient evidence that the release will start on-device.
-for library in libwebp.so.6 libmali.so.0; do
+for library in libwebp.so.6 libmali.so.0 libbrotlicommon.so.1 \
+               libbrotlidec.so.1 libffi.so.8; do
   if ! find "$RUNTIME" -name "$library" \( -type f -o -type l \) -size +0c \
       -print -quit 2>/dev/null | grep -q .; then
     echo "[deps] ERROR: required runtime compatibility library is missing: $library"

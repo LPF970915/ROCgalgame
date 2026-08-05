@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.20)
+project(krkr2_dependency_metadata LANGUAGES C CXX)
+
+find_package(Boost COMPONENTS locale phoenix spirit iostreams REQUIRED NO_MODULE)
+find_package(TIFF REQUIRED)
+find_package(cocos2dx CONFIG REQUIRED)
+
+foreach(target Boost::locale Boost::phoenix TIFF::tiff cocos2dx::cocos2d)
+  get_target_property(include_dirs ${target} INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(link_libraries ${target} INTERFACE_LINK_LIBRARIES)
+  get_target_property(imported_global ${target} IMPORTED_GLOBAL)
+  message(STATUS "ROCGALGAME_TARGET=${target}")
+  message(STATUS "ROCGALGAME_INCLUDES=${include_dirs}")
+  message(STATUS "ROCGALGAME_LINKS=${link_libraries}")
+  message(STATUS "ROCGALGAME_IMPORTED_GLOBAL=${imported_global}")
+endforeach()

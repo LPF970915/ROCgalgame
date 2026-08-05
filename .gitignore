@@ -53,11 +53,6 @@
 *.tar.gz
 /.local/
 
-# GKD350H Ultra Downloads is the public in-app update channel.
-!/GKD350HUltra/Downloads/
-!/GKD350HUltra/Downloads/*.zip
-!/GKD350HUltra/Downloads/*.zip.sha256
-
 # Local diagnostics captured during device testing
 /*.png
 /*.bmp
