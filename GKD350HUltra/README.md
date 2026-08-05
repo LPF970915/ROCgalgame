@@ -240,6 +240,18 @@ The explicit confirmation and one-job limit remain intentional. Earlier
 eight-job host builds coincided with Kernel-Power 41 shutdowns. The aarch64
 build completed successfully with one job and `nice 10`.
 
+### KRKR2 Wayland buffer import
+
+The GKD Mali driver must expose KRKR2 buffers through the standard Wayland
+dma-buf protocol. Its private `mali_buffer_sharing` path can render successfully
+inside KRKR2 while Sway fails to import the client buffer with
+`eglCreateImageKHR failed`, producing a black scanout. The frontend therefore
+sets `MALI_WAYLAND_DMABUF_PROTOCOL=1` for Wayland KRKR2 launches and points
+`MALI_PLATFORM_CONFIG` at the packaged `mali_platform.config`. That file
+disables AFBC/AFRC and selects the `system` allocation heap. Keep the heap
+setting in the config file; exporting `MALI_WSIALLOC_MEMORY_HEAP_NAME` directly
+causes EGL initialization to fail on the tested driver.
+
 WebP support is part of the KRKR core build. The Windows build statically links
 MSYS2 `libwebpdecoder.a`; the aarch64 build takes `webp/decode.h` from the
 prepared header overlay and packages the target `libwebp.so` beside the app.
@@ -250,7 +262,7 @@ Some KRKR games also store AAC-in-MP4 audio under an `.ogg` name. The ARM64
 core detects the file signature and streams it through the FFmpeg 6 libraries
 already present on the tested ROCKNIX image (`libavformat.so.60`,
 `libavcodec.so.60`, `libswresample.so.4`, and `libavutil.so.58`). Build headers
-come from the sibling `D:\Works\Tyranor\FFmpeg-n6.0` reference checkout plus
+come from the locked `D:\Works\ROCgalgame-ffmpeg-n6-headers` checkout plus
 `GKD350HUltra/ffmpeg_headers_overlay`. This is a source-file-local build option,
 so later AAC decoder edits do not invalidate every KRKR object file.
 
@@ -346,3 +358,14 @@ Release archives intentionally contain empty `games`, `covers`, `saves`, and
 CMake tool directory. Removing them turns later work into recovery or a full
 rebuild. Each successful PowerShell build/package run refreshes the ignored
 `build/gkd350h-glibc234/build_checkpoint.json` artifact/cache record.
+
+Deploy a completed release atomically, then run the hardware and representative
+three-core acceptance suite. `BindAddress` forces OpenSSH through the WLAN
+adapter when a local tunnel or proxy intercepts the unbound route:
+
+```powershell
+.\GKD350HUltra\deploy_release.ps1 -Version 0.32 `
+  -DeviceHost root@192.168.31.13 -BindAddress 192.168.31.214
+.\GKD350HUltra\verify_release_on_device.ps1 -Version 0.32 `
+  -DeviceHost root@192.168.31.13 -BindAddress 192.168.31.214
+```

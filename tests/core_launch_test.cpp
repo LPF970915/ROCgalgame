@@ -94,6 +94,8 @@ int main() {
   unsetenv("WAYLAND_DISPLAY");
   unsetenv("SWAYSOCK");
   unsetenv("DISPLAY");
+  unsetenv("MALI_WAYLAND_DMABUF_PROTOCOL");
+  unsetenv("MALI_PLATFORM_CONFIG");
 #endif
   fs::create_directories(root / "games/krkr/directory_game");
   fs::create_directories(root / "games/krkr/archive_game");
@@ -218,6 +220,9 @@ int main() {
              "/run/0-runtime-dir/sway-ipc.0.sock");
       assert(spec.environment.at("GDK_BACKEND") == "wayland");
       assert(spec.environment.at("SDL_VIDEODRIVER") == "wayland");
+      assert(spec.environment.at("MALI_WAYLAND_DMABUF_PROTOCOL") == "1");
+      assert(fs::u8path(spec.environment.at("MALI_PLATFORM_CONFIG")) ==
+             root / "mali_platform.config");
       assert(spec.environment.count("DISPLAY") == 0);
       assert(spec.environment.at("LD_LIBRARY_PATH").rfind("/usr/lib/mali:", 0) ==
              0);

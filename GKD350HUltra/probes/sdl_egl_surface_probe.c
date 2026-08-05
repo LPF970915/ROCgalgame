@@ -60,6 +60,26 @@ int main(void) {
     eglQuerySurface(display, surface, EGL_WIDTH, &width);
     eglQuerySurface(display, surface, EGL_HEIGHT, &height);
     eglQuerySurface(display, surface, EGL_SWAP_BEHAVIOR, &swap_behavior);
+    EGLConfig configs[256];
+    EGLint config_count = 0;
+    if(eglGetConfigs(display, configs, 256, &config_count)) {
+        for(EGLint i = 0; i < config_count; ++i) {
+            const EGLint surface_type = attr(display, configs[i], EGL_SURFACE_TYPE);
+            if(!(surface_type & EGL_WINDOW_BIT)) continue;
+            fprintf(stderr,
+                    "available_config=%d rgba=%d/%d/%d/%d buffer=%d "
+                    "depth=%d stencil=%d surface_type=0x%X renderable=0x%X\n",
+                    attr(display, configs[i], EGL_CONFIG_ID),
+                    attr(display, configs[i], EGL_RED_SIZE),
+                    attr(display, configs[i], EGL_GREEN_SIZE),
+                    attr(display, configs[i], EGL_BLUE_SIZE),
+                    attr(display, configs[i], EGL_ALPHA_SIZE),
+                    attr(display, configs[i], EGL_BUFFER_SIZE),
+                    attr(display, configs[i], EGL_DEPTH_SIZE),
+                    attr(display, configs[i], EGL_STENCIL_SIZE), surface_type,
+                    attr(display, configs[i], EGL_RENDERABLE_TYPE));
+        }
+    }
     fprintf(stderr,
             "config=%d rgba=%d/%d/%d/%d buffer=%d depth=%d stencil=%d "
             "native_visual=0x%X surface_type=0x%X renderable=0x%X "

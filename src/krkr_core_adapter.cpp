@@ -236,6 +236,11 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
           "SWAYSOCK", "/run/0-runtime-dir/sway-ipc.0.sock");
       spec.environment["GDK_BACKEND"] = "wayland";
       spec.environment["SDL_VIDEODRIVER"] = "wayland";
+      spec.environment["MALI_WAYLAND_DMABUF_PROTOCOL"] =
+          InheritedOrDefault("MALI_WAYLAND_DMABUF_PROTOCOL", "1");
+      spec.environment["MALI_PLATFORM_CONFIG"] = InheritedOrDefault(
+          "MALI_PLATFORM_CONFIG",
+          (config.root / "mali_platform.config").u8string());
     } else {
       spec.environment["DISPLAY"] =
           InheritedOrDefault("DISPLAY", ":0");

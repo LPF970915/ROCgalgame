@@ -75,13 +75,16 @@ fi
 bash "$SELF_DIR/sync_runtime_assets.sh"
 KRKR_ROOT="${KRKR_ROOT:-/mnt/d/Works/Tyranor/krkrsdl2}" \
   DIST_ROOT="$DIST_ROOT" bash "$SELF_DIR/write_krkrsdl2_metadata.sh"
+python3 "$SELF_DIR/verify_staging_provenance.py" "$DIST_ROOT"
 
 check_executable "$DIST_ROOT/ROCgalgame.sh"
 check_executable "$RUNTIME_DIR/rocgalgame_sdl"
 check_executable "$RUNTIME_DIR/cores/ons/onsyuri"
+check_file "$RUNTIME_DIR/cores/ons/onsyuri.build-meta"
 check_executable "$RUNTIME_DIR/cores/krkr/krkrsdl2"
 check_file "$RUNTIME_DIR/cores/krkr/krkrsdl2.build-meta"
 check_executable "$RUNTIME_DIR/cores/krkr/krkr2"
+check_file "$RUNTIME_DIR/cores/krkr/krkr2.build-meta"
 check_file "$RUNTIME_DIR/cores/krkr/Resources"
 check_file "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1"
 readelf -h "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1" |
@@ -96,6 +99,7 @@ readelf -d "$RUNTIME_DIR/cores/krkr/lib_krkr2/libGL.so.1" |
   }
 check_file "$RUNTIME_DIR/native_config.ini"
 check_file "$RUNTIME_DIR/native_keymap.ini"
+check_file "$RUNTIME_DIR/mali_platform.config"
 check_file "$RUNTIME_DIR/ui.pack"
 if [ -e "$RUNTIME_DIR/ui" ]; then
   echo "[package] ERROR: plaintext UI directory must not be staged"
@@ -147,7 +151,7 @@ mkdir -p "$PACKAGE_RUNTIME_DIR" "$PORTS_DIR"
 rsync -a --delete \
   --exclude='/games/***' --exclude='/covers/***' --exclude='/game_covers/***' \
   --exclude='/saves/***' --exclude='/cache/***' --exclude='/logs/***' \
-  --exclude='/cores/krkr/*debug*' --exclude='/cores/krkr/krkr2.*' \
+  --exclude='/cores/krkr/*debug*' \
   --exclude='/cores/krkr/krkr2-*' \
   "$RUNTIME_DIR/" "$PACKAGE_RUNTIME_DIR/"
 cp "$DIST_ROOT/ROCgalgame.sh" "$PACKAGE_RUNTIME_DIR/launch.sh"

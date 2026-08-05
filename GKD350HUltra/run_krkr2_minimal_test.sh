@@ -57,6 +57,12 @@ case "$DISPLAY_BACKEND" in
     unset DISPLAY
     export GDK_BACKEND=wayland
     export SDL_VIDEODRIVER=wayland
+    export MALI_WAYLAND_DMABUF_PROTOCOL="${MALI_WAYLAND_DMABUF_PROTOCOL:-1}"
+    export MALI_PLATFORM_CONFIG="${MALI_PLATFORM_CONFIG:-$APP_DIR/mali_platform.config}"
+    test -f "$MALI_PLATFORM_CONFIG" || {
+      echo "[krkr2_test] Mali platform config is unavailable: $MALI_PLATFORM_CONFIG"
+      exit 5
+    }
     wayland_socket="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
     test -S "$wayland_socket" || {
       echo "[krkr2_test] Wayland socket is unavailable: $wayland_socket"

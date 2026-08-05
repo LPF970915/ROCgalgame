@@ -32,14 +32,25 @@ int main() {
     glfwWindowHint(GLFW_RED_BITS, 8);
     glfwWindowHint(GLFW_GREEN_BITS, 8);
     glfwWindowHint(GLFW_BLUE_BITS, 8);
-    glfwWindowHint(GLFW_ALPHA_BITS, 0);
+    const char* alpha = std::getenv("ROCGALGAME_PROBE_ALPHA_BITS");
+    glfwWindowHint(GLFW_ALPHA_BITS, alpha ? std::atoi(alpha) : 0);
+    const char* transparent = std::getenv("ROCGALGAME_PROBE_TRANSPARENT");
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER,
+                   transparent && std::strcmp(transparent, "0") != 0);
     glfwWindowHint(GLFW_DEPTH_BITS, 24);
     glfwWindowHint(GLFW_STENCIL_BITS, 0);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const char* fullscreen = std::getenv("ROCGALGAME_PROBE_FULLSCREEN");
+    GLFWmonitor* monitor = !fullscreen || std::strcmp(fullscreen, "0") != 0
+        ? glfwGetPrimaryMonitor()
+        : nullptr;
+    const char* requestedWidth = std::getenv("ROCGALGAME_PROBE_WIDTH");
+    const char* requestedHeight = std::getenv("ROCGALGAME_PROBE_HEIGHT");
+    const int windowWidth = requestedWidth ? std::atoi(requestedWidth) : 1600;
+    const int windowHeight = requestedHeight ? std::atoi(requestedHeight) : 1440;
     GLFWwindow* window = glfwCreateWindow(
-        1600, 1440, "glfw-egl-surface-probe", monitor, nullptr);
+        windowWidth, windowHeight, "glfw-egl-surface-probe", monitor, nullptr);
     if (!window) {
         std::fprintf(stderr, "glfwCreateWindow failed\n");
         glfwTerminate();
@@ -58,8 +69,36 @@ int main() {
         return 3;
     }
     glfwSwapInterval(1);
+    EGLDisplay display = eglGetCurrentDisplay();
+    EGLContext context = eglGetCurrentContext();
+    EGLint configId = -1;
+    eglQueryContext(display, context, EGL_CONFIG_ID, &configId);
+    EGLConfig configs[256];
+    EGLint configCount = 0;
+    EGLConfig selectedConfig = nullptr;
+    if (eglGetConfigs(display, configs, 256, &configCount)) {
+        for (EGLint i = 0; i < configCount; ++i) {
+            EGLint candidateId = -1;
+            eglGetConfigAttrib(display, configs[i], EGL_CONFIG_ID, &candidateId);
+            if (candidateId == configId) {
+                selectedConfig = configs[i];
+                break;
+            }
+        }
+    }
+    const auto configAttribute = [display, selectedConfig](EGLint attribute) {
+        EGLint value = -1;
+        if (selectedConfig)
+            eglGetConfigAttrib(display, selectedConfig, attribute, &value);
+        return value;
+    };
     std::fprintf(stderr, "vendor=%s\nrenderer=%s\nversion=%s\n",
                  vendor, renderer, version);
+    std::fprintf(stderr, "config=%d rgba=%d/%d/%d/%d buffer=%d depth=%d stencil=%d\n",
+                 configId, configAttribute(EGL_RED_SIZE),
+                 configAttribute(EGL_GREEN_SIZE), configAttribute(EGL_BLUE_SIZE),
+                 configAttribute(EGL_ALPHA_SIZE), configAttribute(EGL_BUFFER_SIZE),
+                 configAttribute(EGL_DEPTH_SIZE), configAttribute(EGL_STENCIL_SIZE));
     for (int frame = 0; frame < 600 && !glfwWindowShouldClose(window); ++frame) {
         int width = 0;
         int height = 0;

@@ -12,8 +12,12 @@ EXPECTED_PACK = f"{APP_ROOT}/ui.pack"
 EXPECTED_ONS = f"{APP_ROOT}/cores/ons/onsyuri"
 EXPECTED_KRKRSDL2 = f"{APP_ROOT}/cores/krkr/krkrsdl2"
 EXPECTED_KRKR2 = f"{APP_ROOT}/cores/krkr/krkr2"
+EXPECTED_ONS_META = f"{APP_ROOT}/cores/ons/onsyuri.build-meta"
+EXPECTED_KRKRSDL2_META = f"{APP_ROOT}/cores/krkr/krkrsdl2.build-meta"
+EXPECTED_KRKR2_META = f"{APP_ROOT}/cores/krkr/krkr2.build-meta"
 EXPECTED_KRKR2_RESOURCES = f"{APP_ROOT}/cores/krkr/Resources/"
 EXPECTED_KRKR2_GL = f"{APP_ROOT}/cores/krkr/lib_krkr2/libGL.so.1"
+EXPECTED_MALI_PLATFORM_CONFIG = f"{APP_ROOT}/mali_platform.config"
 CORE_HASH_MANIFEST = pathlib.Path(__file__).with_name("release_core_hashes.sha256")
 EMPTY_RUNTIME_DIRS = ("games", "covers", "saves", "cache")
 
@@ -34,6 +38,18 @@ def load_expected_core_hashes() -> dict[str, str]:
     if missing_paths:
         raise ValueError(f"core hash manifest is missing {missing_paths[0]}")
     return hashes
+
+
+def load_metadata(archive: zipfile.ZipFile, path: str) -> dict[str, str]:
+    if path not in archive.namelist():
+        raise ValueError(f"missing core metadata: {path}")
+    fields: dict[str, str] = {}
+    for raw_line in archive.read(path).decode("utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            fields[key] = value
+    return fields
 
 
 def main() -> int:
@@ -108,6 +124,24 @@ def main() -> int:
         if EXPECTED_KRKR2_GL not in names:
             print(f"[package] ERROR: missing KRKR2 private GLVND library: {EXPECTED_KRKR2_GL}", file=sys.stderr)
             return 1
+        if EXPECTED_MALI_PLATFORM_CONFIG not in names:
+            print(
+                f"[package] ERROR: missing Mali platform config: {EXPECTED_MALI_PLATFORM_CONFIG}",
+                file=sys.stderr,
+            )
+            return 1
+        mali_platform_config = archive.read(EXPECTED_MALI_PLATFORM_CONFIG).decode("ascii")
+        for required_setting in (
+            "WAYLAND_AFBC=0",
+            "WAYLAND_AFRC=0",
+            "MALI_WSIALLOC_MEMORY_HEAP_NAME=system",
+        ):
+            if required_setting not in mali_platform_config.splitlines():
+                print(
+                    f"[package] ERROR: Mali platform config missing {required_setting}",
+                    file=sys.stderr,
+                )
+                return 1
         for core_path, expected_hash in expected_core_hashes.items():
             if core_path not in names:
                 print(f"[package] ERROR: missing manifest artifact: {core_path}", file=sys.stderr)
@@ -115,6 +149,29 @@ def main() -> int:
             actual_hash = hashlib.sha256(archive.read(core_path)).hexdigest()
             if actual_hash != expected_hash:
                 print(f"[package] ERROR: manifest hash mismatch: {core_path}", file=sys.stderr)
+                return 1
+        metadata_pairs = (
+            (EXPECTED_ONS, EXPECTED_ONS_META),
+            (EXPECTED_KRKRSDL2, EXPECTED_KRKRSDL2_META),
+            (EXPECTED_KRKR2, EXPECTED_KRKR2_META),
+        )
+        for core_path, metadata_path in metadata_pairs:
+            try:
+                metadata = load_metadata(archive, metadata_path)
+            except (UnicodeDecodeError, ValueError) as error:
+                print(f"[package] ERROR: {error}", file=sys.stderr)
+                return 1
+            source_commit = metadata.get("source_commit", "")
+            if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
+                print(f"[package] ERROR: invalid source commit in {metadata_path}", file=sys.stderr)
+                return 1
+            if metadata.get("source_dirty") != "0":
+                print(f"[package] ERROR: dirty source metadata in {metadata_path}", file=sys.stderr)
+                return 1
+            recorded_hash = metadata.get("artifact_sha256") or metadata.get("binary_sha256")
+            actual_hash = hashlib.sha256(archive.read(core_path)).hexdigest()
+            if recorded_hash != actual_hash:
+                print(f"[package] ERROR: metadata hash mismatch: {metadata_path}", file=sys.stderr)
                 return 1
         debug_cores = [
             name
@@ -130,6 +187,7 @@ def main() -> int:
             for name in names
             if pathlib.PurePosixPath(name).parent
             == pathlib.PurePosixPath(f"{APP_ROOT}/cores/krkr")
+            and pathlib.PurePosixPath(name).name != "krkr2.build-meta"
             and pathlib.PurePosixPath(name).name.startswith(("krkr2.", "krkr2-"))
         ]
         if unexpected_krkr2_variants:
