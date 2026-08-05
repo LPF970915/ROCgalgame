@@ -364,8 +364,8 @@ three-core acceptance suite. `BindAddress` forces OpenSSH through the WLAN
 adapter when a local tunnel or proxy intercepts the unbound route:
 
 ```powershell
-.\GKD350HUltra\deploy_release.ps1 -Version 0.32 `
+.\GKD350HUltra\deploy_release.ps1 -Version 0.33 `
   -DeviceHost root@192.168.31.13 -BindAddress 192.168.31.214
-.\GKD350HUltra\verify_release_on_device.ps1 -Version 0.32 `
+.\GKD350HUltra\verify_release_on_device.ps1 -Version 0.33 `
   -DeviceHost root@192.168.31.13 -BindAddress 192.168.31.214
 ```

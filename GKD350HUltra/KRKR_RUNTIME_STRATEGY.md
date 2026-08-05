@@ -1,15 +1,15 @@
 # KRKR Runtime Strategy
 
-Status: accepted for incremental implementation
+Status: accepted and deployed
 
-Date: 2026-07-21
+Date: 2026-08-05
 
 ## Decision
 
 Keep KRKR as one frontend core family and support multiple runtime profiles:
 
-1. `krkrsdl2` is the default lightweight runtime and the known-good KRKRZ path.
-2. `krkr2` is the next native compatibility runtime to port to Linux AArch64.
+1. `krkr2` is the default runtime for KRKR games.
+2. `krkrsdl2` is a compatibility fallback selected explicitly per game.
 3. Wine is a later fallback for games that require original Windows binaries or
    plugins and cannot be covered by a native runtime.
 
@@ -80,10 +80,25 @@ core=krkr
 runtime=krkr2
 ```
 
-Supported values are `auto`, `krkrsdl2`, `krkr2` and `wine`. `auto` currently
-resolves to `krkrsdl2`. The frontend exports `ROCGALGAME_KRKR_RUNTIME` and
+Supported values are `auto`, `krkrsdl2`, `krkr2` and `wine`. Starting with
+release 0.33, `auto` resolves to `krkr2`. An explicit `runtime=krkrsdl2`
+continues to take precedence. The frontend exports `ROCGALGAME_KRKR_RUNTIME` and
 `ROCGALGAME_KRKR_SAVE_PATH`; the KrKr2 host must consume the latter before it
 is considered ready for real saves.
+
+## Default Selection Evidence
+
+The 2026-08-05 device sweep forced KRKR2 for the remaining KRKR library. Of 27
+games, 26 remained alive for the complete test window with valid GL/FBO/swap
+telemetry and a non-black final frame. `TIME TO STAR II` exceeded the memory
+limit and also failed under KRKRSDL2, so it is not evidence in favor of the
+fallback runtime. `7 days with Death` remains an explicit KRKRSDL2-compatible
+exception. `Criss Cross` remains isolated backlog.
+
+This evidence is sufficient to prefer KRKR2 globally while preserving explicit
+per-game fallback. Future compatibility work must be based on repeated failure
+signatures across multiple games rather than changing shared behavior for one
+title.
 
 Game-specific workarounds must be opt-in rather than changing shared engine
 semantics. A game's `game.ini` may declare comma-separated compatibility flags:
@@ -120,7 +135,8 @@ Wine will get a separate launcher and prefix layout only after device probing.
 
 ## Acceptance Gates
 
-- Existing `krkrsdl2` games launch unchanged when no runtime is configured.
+- Games with `runtime=krkrsdl2` continue to launch through KRKRSDL2.
+- Games with no runtime configured launch through KRKR2.
 - The KrKr2 core returns cleanly to the same frontend process.
 - Both native cores use per-game saves and logs.
 - Controller, virtual cursor, aspect behavior, audio and video are verified on

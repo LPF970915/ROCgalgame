@@ -1,6 +1,6 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
-  [string]$Version = "0.32",
+  [string]$Version = "0.33",
   [string]$AppDir = "/storage/games-external/app/ROCgalgame",
   [ValidateRange(20, 120)][int]$RunSeconds = 45,
   [string]$BindAddress = ""

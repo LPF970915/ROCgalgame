@@ -276,43 +276,60 @@ int main() {
       saw_standard_data = true;
       assert(game.entry_point == game.path);
       assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
-      assert(spec.executable.filename() == "krkrsdl2");
-      assert(spec.arguments.size() > 2);
-      assert(fs::u8path(spec.arguments[1]) == game.path);
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.arguments.size() == 2);
+      assert(fs::u8path(spec.arguments[1]).filename() == "data.xp3");
     } else if (game.path.filename() == "renamed_archive_game") {
       saw_renamed_archive = true;
       assert(game.entry_point.filename() == "data.bin");
       assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
-      assert(spec.executable.filename() == "krkrsdl2");
-      assert(spec.arguments.size() > 2);
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.arguments.size() == 2);
       assert(fs::u8path(spec.arguments[1]).filename() == "data.bin");
     } else if (game.path.filename() == "custom_archive_game") {
       saw_custom_archive = true;
       assert(game.entry_point.filename() == "project.dat");
       assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
-      assert(spec.executable.filename() == "krkrsdl2");
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.arguments.size() == 2);
     } else if (game.path.filename() == "ambiguous_archive_game") {
       saw_ambiguous_archive = true;
       assert(game.entry_point == game.path);
       assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
-      assert(spec.executable.filename() == "krkrsdl2");
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.arguments.size() == 2);
     } else if (game.path.filename() == "indexed_archive_game") {
       saw_indexed_archive = true;
       assert(game.entry_point.filename() == "launcher.xp3");
       assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
-      assert(spec.executable.filename() == "krkrsdl2");
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.arguments.size() == 2);
       assert(fs::u8path(spec.arguments[1]).filename() == "launcher.xp3");
     } else if (game.path.filename() == "fake_archive_game") {
       saw_fake_archive = true;
       assert(game.entry_point == game.path);
       assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
-      assert(spec.executable.filename() == "krkrsdl2");
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.arguments.size() == 2);
     } else if (game.path.filename() == "directory_game") {
       saw_directory = true;
       assert(game.entry_point == game.path);
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Auto);
+      assert(spec.executable.filename() == "krkr2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkr2");
+      assert(spec.arguments.size() == 2);
     } else if (game.path.filename() == "archive_game") {
       saw_archive = true;
       assert(game.entry_point.filename() == "custom.xp3");
+      assert(game.overrides.krkr_runtime == KrkrRuntime::Sdl2);
+      assert(spec.executable.filename() == "krkrsdl2");
+      assert(spec.environment.at("ROCGALGAME_KRKR_RUNTIME") == "krkrsdl2");
       assert(spec.arguments.end() != std::find(spec.arguments.begin(), spec.arguments.end(), "-contfreq=30"));
       assert(spec.arguments.end() != std::find(spec.arguments.begin(), spec.arguments.end(), "-drawthread=2"));
       assert(spec.arguments.end() != std::find(spec.arguments.begin(), spec.arguments.end(), "-gclim=128"));

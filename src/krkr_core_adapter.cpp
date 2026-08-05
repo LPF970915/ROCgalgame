@@ -153,7 +153,7 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
   const EffectiveGameSettings settings = ResolveEffectiveGameSettings(config, game);
   CoreLaunchSpec spec = MakeBaseCoreLaunchSpec(config, game, settings);
   const KrkrRuntime runtime = game.overrides.krkr_runtime == KrkrRuntime::Auto
-                                  ? KrkrRuntime::Sdl2
+                                  ? KrkrRuntime::Krkr2
                                   : game.overrides.krkr_runtime;
   spec.environment["ROCGALGAME_KRKR_RUNTIME"] = KrkrRuntimeName(runtime);
   spec.environment["ROCGALGAME_KRKR_SAVE_PATH"] = spec.save_path.u8string();

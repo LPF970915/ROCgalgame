@@ -1,6 +1,6 @@
 # KRKR Core Selection ADR
 
-Status: superseded for multi-runtime planning by `KRKR_RUNTIME_STRATEGY.md`
+Status: superseded by the KRKR2-default decision in `KRKR_RUNTIME_STRATEGY.md`
 
 Date: 2026-07-15
 
@@ -41,6 +41,7 @@ project and the target game reaches a useful compatibility checkpoint. Switch
 to a KrKr2-derived core if plugin integration requires
 replacing most of the krkrsdl2 renderer or movie stack.
 
-The first vertical slice succeeded. The 2026-07-21 follow-up keeps `krkrsdl2`
-as the default and selects KrKr2 as a second native compatibility runtime; see
-`KRKR_RUNTIME_STRATEGY.md` for the current decision and delivery gates.
+The first vertical slice succeeded. Device-wide testing later established
+KrKr2 as the more compatible default, with `krkrsdl2` retained as an explicit
+per-game fallback. See `KRKR_RUNTIME_STRATEGY.md` for the current decision and
+acceptance evidence.
