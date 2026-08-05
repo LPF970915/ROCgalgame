@@ -1030,7 +1030,8 @@ int RunApp(int argc, char **argv) {
       LaunchResult launch_result;
       const bool bridge_krkr2 =
           pending_game.core == CoreKind::Krkr &&
-          pending_game.overrides.krkr_runtime == KrkrRuntime::Krkr2;
+          ResolveKrkrRuntime(pending_game.overrides.krkr_runtime) ==
+              KrkrRuntime::Krkr2;
       if (bridge_krkr2) {
         const EffectiveGameSettings settings =
             ResolveEffectiveGameSettings(config, pending_game);

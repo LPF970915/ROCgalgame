@@ -136,6 +136,9 @@ int main() {
   const auto games = ScanGameLibrary(root, "games", "covers", "saves");
   assert(games.size() == 11);
   AppConfig config; config.root = root;
+  assert(ResolveKrkrRuntime(KrkrRuntime::Auto) == KrkrRuntime::Krkr2);
+  assert(ResolveKrkrRuntime(KrkrRuntime::Krkr2) == KrkrRuntime::Krkr2);
+  assert(ResolveKrkrRuntime(KrkrRuntime::Sdl2) == KrkrRuntime::Sdl2);
   OnsCoreAdapter ons_adapter;
   KrkrCoreAdapter krkr_adapter;
   GameCoreRegistry registry;

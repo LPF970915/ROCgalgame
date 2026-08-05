@@ -2,6 +2,8 @@
 
 #include "game_core_adapter.h"
 
+KrkrRuntime ResolveKrkrRuntime(KrkrRuntime configured_runtime);
+
 class KrkrCoreAdapter final : public IGameCoreAdapter {
 public:
   CoreKind Kind() const override { return CoreKind::Krkr; }

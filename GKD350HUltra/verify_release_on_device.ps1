@@ -1,6 +1,6 @@
 param(
   [string]$DeviceHost = "root@192.168.31.13",
-  [string]$Version = "0.33",
+  [string]$Version = "0.34",
   [string]$AppDir = "/storage/games-external/app/ROCgalgame",
   [ValidateRange(20, 120)][int]$RunSeconds = 45,
   [string]$BindAddress = ""
@@ -45,7 +45,10 @@ function Run-SweepCase(
   [string]$Label,
   [string]$ForceKrkrRuntime = "",
   [string]$GamesDir = "",
-  [string]$TitleRegex = ""
+  [string]$TitleRegex = "",
+  [string]$InputSequence = "",
+  [bool]$RequireInputBridge = $false,
+  [bool]$ExpectExitChord = $false
 ) {
   $caseLog = "$remoteLogRoot/$Label"
   $forceRuntimeEnv = if ([string]::IsNullOrWhiteSpace($ForceKrkrRuntime)) {
@@ -58,13 +61,18 @@ function Run-SweepCase(
   } else {
     " GAMES_DIR='$GamesDir'"
   }
+  $inputSequenceEnv = if ([string]::IsNullOrWhiteSpace($InputSequence)) {
+    ""
+  } else {
+    " INPUT_SEQUENCE='$InputSequence'"
+  }
   $caseSelector = if ([string]::IsNullOrWhiteSpace($Id)) {
     "TITLE_REGEX='$TitleRegex'"
   } else {
     "CASE_FILTER=',$Id,'"
   }
   $command = "set -eu; rm -rf '$caseLog'; " +
-    "if APP_DIR='$AppDir' HELPER='$remoteRoot/gkd_uinput_sequence.py' CORE_FILTER=all$forceRuntimeEnv$gamesDirEnv " +
+    "if APP_DIR='$AppDir' HELPER='$remoteRoot/gkd_uinput_sequence.py' CORE_FILTER=all$forceRuntimeEnv$gamesDirEnv$inputSequenceEnv " +
     "$caseSelector MAX_CASES=1 RUN_SECONDS='$RunSeconds' " +
     "CAPTURE_SECONDS='3 12 24 36' REQUIRE_FRAME_DIFF=0 REQUIRE_SWAP_FRAME=1 " +
     "LOG_DIR='$caseLog' TEST_ROOT='$remoteRoot/$Label-test' " +
@@ -78,14 +86,43 @@ function Run-SweepCase(
   $downloadArgs = @($scpArgs) + @("-r")
   & scp @downloadArgs $source $localReport
   if ($LASTEXITCODE -ne 0) { throw "Failed to download $Label report" }
-  if ($caseExit -ne 0) { throw "$Label sweep failed with exit code $caseExit" }
+  if ($caseExit -ne 0 -and -not $ExpectExitChord) {
+    throw "$Label sweep failed with exit code $caseExit"
+  }
 
   $summary = Join-Path $localReport "$Label\summary.tsv"
   $rows = @(Import-Csv -Delimiter ([char]9) -LiteralPath $summary)
   if ($rows.Count -ne 1) { throw "$Label did not run exactly one game" }
-  if ($rows[0].status -ne "pass") { throw "$Label failed with status $($rows[0].status)" }
   if ($rows[0].notes -notmatch "runtime=$([regex]::Escape($ExpectedRuntime))(;|$)") {
     throw "$Label selected the wrong runtime: $($rows[0].notes)"
+  }
+  if ($ExpectExitChord) {
+    $frontendLog = Get-ChildItem -LiteralPath (Join-Path $localReport $Label) `
+      -Filter "*.frontend.log" | Select-Object -First 1
+    if (-not $frontendLog) { throw "$Label frontend log is missing" }
+    $frontendText = Get-Content -Raw -LiteralPath $frontendLog.FullName
+    if ($frontendText -notmatch "\[core_input\] exit chord requested") {
+      throw "$Label did not process the Start+Select exit chord"
+    }
+    return
+  }
+  if ($rows[0].status -ne "pass") { throw "$Label failed with status $($rows[0].status)" }
+  if ($RequireInputBridge) {
+    $frontendLog = Get-ChildItem -LiteralPath (Join-Path $localReport $Label) `
+      -Filter "*.frontend.log" | Select-Object -First 1
+    if (-not $frontendLog) { throw "$Label frontend log is missing" }
+    $frontendText = Get-Content -Raw -LiteralPath $frontendLog.FullName
+    if ($frontendText -notmatch "\[core_input\] transport=fifo") {
+      throw "$Label did not establish the KRKR2 input FIFO"
+    }
+    if ($frontendText -notmatch "linux_abs_events=[1-9][0-9]*" -or
+        $frontendText -notmatch "linux_key_events=[1-9][0-9]*" -or
+        $frontendText -notmatch "\[core_input\] A/left down") {
+      throw "$Label did not bridge injected axis and button input"
+    }
+    if ($frontendText -match "ipc_write_failures=[1-9][0-9]*") {
+      throw "$Label reported KRKR2 input FIFO write failures"
+    }
   }
 }
 
@@ -121,6 +158,10 @@ try {
 
   Run-SweepCase "game-98a71a832a1d" "onsyuri" "ons-moon-princess"
   Run-SweepCase "" "krkrsdl2" "krkrsdl2-minimal" "krkrsdl2" "$remoteRoot/fallback-games" "^krkrsdl2-minimal$"
+  Run-SweepCase "game-7fb84c323cac" "krkr2" "krkr2-auto-karakara2" "" "" "" `
+    "sleep:5,axis:0.8:0:1,tap:up:0.2,tap:a:0.2,tap:b:0.2,tap:x:0.2,tap:y:0.2,sleep:8" $true
+  Run-SweepCase "game-7fb84c323cac" "krkr2" "krkr2-auto-exit-chord" "" "" "" `
+    "sleep:6,hold:start+select:0.8,sleep:4" $false $true
   Run-SweepCase "game-6eb87c1dda4b" "krkr2" "krkr2-nekopara-vol2"
 
   Invoke-Ssh "rm -rf '$remoteRoot'" | Out-Null

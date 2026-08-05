@@ -143,6 +143,12 @@ bool PrepareKrkr2ProjectView(CoreLaunchSpec &spec, const GameEntry &game,
 #endif
 }  // namespace
 
+KrkrRuntime ResolveKrkrRuntime(KrkrRuntime configured_runtime) {
+  return configured_runtime == KrkrRuntime::Auto
+             ? KrkrRuntime::Krkr2
+             : configured_runtime;
+}
+
 CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
                                           const GameEntry &game) const {
   if (game.core != Kind()) return CoreSpecResult{LaunchStatus::Unsupported, {}, "core mismatch"};
@@ -152,9 +158,7 @@ CoreSpecResult KrkrCoreAdapter::BuildSpec(const AppConfig &config,
   }
   const EffectiveGameSettings settings = ResolveEffectiveGameSettings(config, game);
   CoreLaunchSpec spec = MakeBaseCoreLaunchSpec(config, game, settings);
-  const KrkrRuntime runtime = game.overrides.krkr_runtime == KrkrRuntime::Auto
-                                  ? KrkrRuntime::Krkr2
-                                  : game.overrides.krkr_runtime;
+  const KrkrRuntime runtime = ResolveKrkrRuntime(game.overrides.krkr_runtime);
   spec.environment["ROCGALGAME_KRKR_RUNTIME"] = KrkrRuntimeName(runtime);
   spec.environment["ROCGALGAME_KRKR_SAVE_PATH"] = spec.save_path.u8string();
   if (!game.overrides.compat_flags.empty()) {
